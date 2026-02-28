@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.models import Category, GPT, PipelineLogEntry, SyncLog
 from app.schemas.schemas import (
     CategoryCount,
+    GPTRead,
     PipelineLogEntryRead,
     PipelineStatus,
     PipelineSummary,
@@ -19,13 +20,18 @@ router = APIRouter(tags=["pipeline"])
 
 
 @router.post("/pipeline/run")
-async def start_pipeline(background_tasks: BackgroundTasks):
+async def start_pipeline():
     status = get_pipeline_status()
     if status["running"]:
         raise HTTPException(status_code=409, detail="Pipeline is already running")
-    background_tasks.add_task(run_pipeline)
-    # Small delay to let the pipeline initialize sync_log_id
-    await asyncio.sleep(0.2)
+    # Start pipeline as a concurrent task (not BackgroundTasks which runs after response)
+    asyncio.create_task(run_pipeline())
+    # Wait for the pipeline to initialize and create sync_log
+    for _ in range(20):
+        await asyncio.sleep(0.1)
+        status = get_pipeline_status()
+        if status["sync_log_id"] is not None and status["running"]:
+            break
     return get_pipeline_status()
 
 
@@ -49,7 +55,7 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
     # Get last completed sync
     result = await db.execute(
         select(SyncLog)
-        .where(SyncLog.status == "completed")
+        .where(SyncLog.status.in_(["completed", "failed"]))
         .order_by(SyncLog.finished_at.desc())
         .limit(1)
     )
@@ -79,6 +85,38 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
         categories_used=categories_used,
         last_sync=SyncLogRead.model_validate(last_sync) if last_sync else None,
     )
+
+
+@router.get("/pipeline/gpts", response_model=list[GPTRead])
+async def list_gpts(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(GPT).order_by(GPT.created_at.desc())
+    )
+    gpts = result.scalars().all()
+
+    # Build category lookup for names
+    cat_result = await db.execute(select(Category))
+    cat_lookup = {c.id: c.name for c in cat_result.scalars().all()}
+
+    out = []
+    for g in gpts:
+        out.append(GPTRead(
+            id=g.id,
+            name=g.name,
+            description=g.description,
+            owner_email=g.owner_email,
+            builder_name=g.builder_name,
+            created_at=g.created_at,
+            visibility=g.visibility,
+            shared_user_count=g.shared_user_count,
+            tools=g.tools,
+            builder_categories=g.builder_categories,
+            primary_category=cat_lookup.get(g.primary_category_id),
+            secondary_category=cat_lookup.get(g.secondary_category_id),
+            classification_confidence=g.classification_confidence,
+            llm_summary=g.llm_summary,
+        ))
+    return out
 
 
 @router.get("/pipeline/history", response_model=list[SyncLogRead])

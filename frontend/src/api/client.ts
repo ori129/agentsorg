@@ -43,12 +43,20 @@ export const api = {
   seedCategories: () =>
     request<import("../types").Category[]>("/categories/seed", { method: "POST" }),
 
-  runPipeline: () => request<{ sync_log_id: number }>("/pipeline/run", { method: "POST" }),
+  runPipeline: () => request<import("../types").PipelineStatus>("/pipeline/run", { method: "POST" }),
   getPipelineStatus: () => request<import("../types").PipelineStatus>("/pipeline/status"),
   getPipelineLogs: (syncLogId: number) =>
     request<import("../types").PipelineLogEntry[]>(`/pipeline/logs/${syncLogId}`),
   getPipelineSummary: () => request<import("../types").PipelineSummary>("/pipeline/summary"),
+  getPipelineGPTs: () => request<import("../types").GPTItem[]>("/pipeline/gpts"),
   getPipelineHistory: () => request<import("../types").SyncLog[]>("/pipeline/history"),
 
   resetRegistry: () => request<{ message: string }>("/admin/reset", { method: "POST" }),
+
+  getDemoState: () => request<import("../types").DemoState>("/demo"),
+  updateDemoState: (data: { enabled: boolean; size: string }) =>
+    request<import("../types").DemoState>("/demo", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 };

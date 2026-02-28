@@ -58,8 +58,31 @@ export interface PipelineSummary {
   last_sync: SyncLog | null;
 }
 
+export interface GPTItem {
+  id: string;
+  name: string;
+  description: string | null;
+  owner_email: string | null;
+  builder_name: string | null;
+  created_at: string | null;
+  visibility: string | null;
+  shared_user_count: number;
+  tools: unknown[] | null;
+  builder_categories: string[] | null;
+  primary_category: string | null;
+  secondary_category: string | null;
+  classification_confidence: number | null;
+  llm_summary: string | null;
+}
+
 export interface TestConnectionResult {
   success: boolean;
   message: string;
   gpt_count?: number;
+}
+
+export interface DemoState {
+  enabled: boolean;
+  size: "small" | "medium" | "large" | "enterprise";
+  gpt_count: number;
 }

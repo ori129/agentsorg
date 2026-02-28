@@ -1,0 +1,75 @@
+erDiagram
+    configurations {
+        int id PK "singleton id=1"
+        varchar workspace_id
+        text compliance_api_key "Fernet encrypted"
+        varchar base_url "default api.chatgpt.com/v1"
+        text openai_api_key "Fernet encrypted"
+        boolean classification_enabled
+        varchar classification_model "default gpt-4o-mini"
+        int max_categories_per_gpt "default 2"
+        jsonb visibility_filters "map of visibility to bool"
+        boolean include_all "default true"
+        int min_shared_users "default 0"
+        jsonb excluded_emails "array of email strings"
+        timestamp updated_at
+    }
+
+    categories {
+        int id PK
+        varchar name UK "unique"
+        text description
+        varchar color "hex default #6B7280"
+        boolean enabled "default true"
+        int sort_order "default 0"
+    }
+
+    sync_logs {
+        int id PK
+        timestamp started_at
+        timestamp finished_at
+        varchar status "running | completed | failed"
+        int total_gpts_found
+        int gpts_after_filter
+        int gpts_classified
+        int gpts_embedded
+        jsonb errors "array of error strings"
+        jsonb configuration_snapshot "config at run time"
+    }
+
+    gpts {
+        varchar id PK "from Compliance API"
+        varchar name
+        text description
+        text instructions
+        varchar owner_email
+        varchar builder_name
+        timestamp created_at
+        varchar visibility "invite-only | workspace-with-link | etc"
+        jsonb recipients "array of shared user objects"
+        int shared_user_count
+        jsonb tools "array of tool objects"
+        jsonb files "array of file objects"
+        jsonb builder_categories "array of category strings"
+        jsonb conversation_starters "array of starter strings"
+        int primary_category_id FK "nullable"
+        int secondary_category_id FK "nullable"
+        float classification_confidence "0-1"
+        text llm_summary
+        vector embedding "1536 dims pgvector"
+        int sync_log_id FK
+        timestamp indexed_at
+    }
+
+    pipeline_log_entries {
+        int id PK
+        int sync_log_id FK
+        timestamp timestamp
+        varchar level "info | warn | error"
+        text message
+    }
+
+    categories ||--o{ gpts : "primary_category"
+    categories ||--o{ gpts : "secondary_category"
+    sync_logs ||--o{ gpts : "belongs to sync"
+    sync_logs ||--o{ pipeline_log_entries : "log entries"

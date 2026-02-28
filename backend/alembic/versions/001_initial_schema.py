@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column("workspace_id", sa.String(255)),
         sa.Column("compliance_api_key", sa.Text()),
         sa.Column(
-            "base_url", sa.String(512), server_default="https://api.openai.com/v1"
+            "base_url", sa.String(512), server_default="https://api.chatgpt.com/v1"
         ),
         sa.Column("openai_api_key", sa.Text()),
         sa.Column("classification_enabled", sa.Boolean(), server_default="false"),

@@ -9,12 +9,12 @@ export default function Step1ApiConfig() {
 
   const [workspaceId, setWorkspaceId] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
+  const [baseUrl, setBaseUrl] = useState("https://api.chatgpt.com/v1");
   const [initialized, setInitialized] = useState(false);
 
   if (config && !initialized) {
     setWorkspaceId(config.workspace_id || "");
-    setBaseUrl(config.base_url || "https://api.openai.com/v1");
+    setBaseUrl(config.base_url || "https://api.chatgpt.com/v1");
     setInitialized(true);
   }
 

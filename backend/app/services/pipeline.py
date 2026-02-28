@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import traceback
 from datetime import datetime, timezone
 
 from sqlalchemy import delete, select
@@ -15,8 +17,14 @@ from app.models.models import (
 )
 from app.services.classifier import Classifier
 from app.services.compliance_api import ComplianceAPIClient
+from app.services.demo_state import is_demo_mode
 from app.services.embedder import Embedder
 from app.services.filter_engine import filter_gpts
+from app.services.mock_classifier import MockClassifier
+from app.services.mock_embedder import MockEmbedder
+from app.services.mock_fetcher import MockComplianceAPIClient
+
+logger = logging.getLogger(__name__)
 
 _lock = asyncio.Lock()
 _current_status: dict = {
@@ -32,11 +40,21 @@ def get_pipeline_status() -> dict:
 
 
 async def _log(db: AsyncSession, sync_log_id: int, level: str, message: str):
-    entry = PipelineLogEntry(
-        sync_log_id=sync_log_id, level=level, message=message
-    )
-    db.add(entry)
-    await db.commit()
+    # Always print to stdout
+    log_fn = logger.error if level == "error" else logger.warning if level == "warn" else logger.info
+    log_fn(f"[pipeline:{sync_log_id}] {message}")
+    try:
+        entry = PipelineLogEntry(
+            sync_log_id=sync_log_id, level=level, message=message
+        )
+        db.add(entry)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Failed to write pipeline log entry to DB: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
 
 
 async def run_pipeline():
@@ -47,45 +65,59 @@ async def run_pipeline():
         _current_status["running"] = True
         _current_status["progress"] = 0.0
         _current_status["stage"] = "initializing"
+        logger.info("Pipeline starting...")
 
         async with async_session() as db:
             try:
                 await _execute_pipeline(db)
             except Exception as e:
+                logger.error(f"Pipeline failed with exception: {e}")
+                logger.error(traceback.format_exc())
+                try:
+                    await db.rollback()
+                except Exception:
+                    pass
                 if _current_status.get("sync_log_id"):
-                    await _log(
-                        db, _current_status["sync_log_id"], "error", f"Pipeline failed: {e}"
-                    )
-                    result = await db.execute(
-                        select(SyncLog).where(
-                            SyncLog.id == _current_status["sync_log_id"]
+                    try:
+                        await _log(
+                            db, _current_status["sync_log_id"], "error", f"Pipeline failed: {e}"
                         )
-                    )
-                    sync_log = result.scalar_one_or_none()
-                    if sync_log:
-                        sync_log.status = "failed"
-                        sync_log.finished_at = datetime.now(timezone.utc)
-                        sync_log.errors = [str(e)]
-                        await db.commit()
-                raise
+                        result = await db.execute(
+                            select(SyncLog).where(
+                                SyncLog.id == _current_status["sync_log_id"]
+                            )
+                        )
+                        sync_log = result.scalar_one_or_none()
+                        if sync_log:
+                            sync_log.status = "failed"
+                            sync_log.finished_at = datetime.now(timezone.utc)
+                            sync_log.errors = [str(e)]
+                            await db.commit()
+                    except Exception as e2:
+                        logger.error(f"Failed to update sync_log on error: {e2}")
             finally:
                 _current_status["running"] = False
                 _current_status["stage"] = "idle"
+                logger.info("Pipeline finished.")
 
 
 async def _execute_pipeline(db: AsyncSession):
+    demo = is_demo_mode()
+
     # Load configuration
     result = await db.execute(select(Configuration).where(Configuration.id == 1))
     config = result.scalar_one_or_none()
-    if not config or not config.compliance_api_key:
-        raise ValueError("Configuration not found or API key not set")
+    if not demo:
+        if not config or not config.compliance_api_key:
+            raise ValueError("Configuration not found or API key not set")
 
     # Create sync log
     sync_log = SyncLog(
         configuration_snapshot={
-            "workspace_id": config.workspace_id,
-            "include_all": config.include_all,
-            "classification_enabled": config.classification_enabled,
+            "workspace_id": config.workspace_id if config else None,
+            "include_all": config.include_all if config else True,
+            "classification_enabled": config.classification_enabled if config else False,
+            "demo_mode": demo,
         }
     )
     db.add(sync_log)
@@ -98,10 +130,13 @@ async def _execute_pipeline(db: AsyncSession):
     # Step 1: Fetch GPTs
     _current_status["stage"] = "fetching"
     _current_status["progress"] = 5.0
-    await _log(db, sync_log.id, "info", "Fetching GPTs from Compliance API...")
-
-    api_key = decrypt(config.compliance_api_key)
-    client = ComplianceAPIClient(api_key, config.base_url)
+    if demo:
+        await _log(db, sync_log.id, "info", "[DEMO] Using mock data generator")
+        client = MockComplianceAPIClient()
+    else:
+        await _log(db, sync_log.id, "info", "Fetching GPTs from Compliance API...")
+        api_key = decrypt(config.compliance_api_key)
+        client = ComplianceAPIClient(api_key, config.base_url)
 
     page_count = 0
 
@@ -120,6 +155,13 @@ async def _execute_pipeline(db: AsyncSession):
     await db.commit()
     await _log(db, sync_log.id, "info", f"Total GPTs found: {len(all_gpts)}")
 
+    # Log first GPT for debugging
+    if all_gpts:
+        first = all_gpts[0]
+        await _log(db, sync_log.id, "info",
+            f"Sample GPT: name={first.get('name')}, visibility={first.get('visibility')}, "
+            f"owner={first.get('owner_email')}, shared_users={first.get('shared_user_count')}")
+
     # Step 2: Filter
     _current_status["stage"] = "filtering"
     _current_status["progress"] = 35.0
@@ -134,22 +176,31 @@ async def _execute_pipeline(db: AsyncSession):
     )
 
     # Step 3: Classify (if enabled)
+    classification_enabled = config.classification_enabled if config else False
+    has_openai_key = demo or (config and config.openai_api_key)
+
     classifications: list[dict | None] = [None] * len(filtered_gpts)
-    if config.classification_enabled and config.openai_api_key:
+    if classification_enabled and has_openai_key:
         _current_status["stage"] = "classifying"
         _current_status["progress"] = 40.0
-        await _log(db, sync_log.id, "info", "Starting classification...")
+        await _log(db, sync_log.id, "info",
+                    "[DEMO] Using keyword-based classifier" if demo else "Starting classification...")
 
-        openai_key = decrypt(config.openai_api_key)
         result_cats = await db.execute(
             select(Category).where(Category.enabled == True)
         )
         categories = list(result_cats.scalars().all())
 
         if categories:
-            classifier = Classifier(openai_key, config.classification_model)
+            if demo:
+                classifier = MockClassifier()
+            else:
+                openai_key = decrypt(config.openai_api_key)
+                classifier = Classifier(openai_key, config.classification_model)
+
+            max_cats = config.max_categories_per_gpt if config else 2
             results = await classifier.classify_batch(
-                filtered_gpts, categories, config.max_categories_per_gpt
+                filtered_gpts, categories, max_cats
             )
 
             classified_count = 0
@@ -177,13 +228,18 @@ async def _execute_pipeline(db: AsyncSession):
 
     # Step 4: Embed (if classification enabled and API key available)
     embeddings: list[list[float] | None] = [None] * len(filtered_gpts)
-    if config.classification_enabled and config.openai_api_key:
+    if classification_enabled and has_openai_key:
         _current_status["stage"] = "embedding"
         _current_status["progress"] = 70.0
-        await _log(db, sync_log.id, "info", "Generating embeddings...")
+        await _log(db, sync_log.id, "info",
+                    "[DEMO] Using deterministic embeddings" if demo else "Generating embeddings...")
 
-        openai_key = decrypt(config.openai_api_key)
-        embedder = Embedder(openai_key)
+        if demo:
+            embedder = MockEmbedder()
+        else:
+            openai_key = decrypt(config.openai_api_key)
+            embedder = Embedder(openai_key)
+
         try:
             embedding_results = await embedder.embed_batch(filtered_gpts, classifications)
             embeddings = embedding_results  # type: ignore[assignment]
@@ -199,7 +255,7 @@ async def _execute_pipeline(db: AsyncSession):
     # Step 5: Store GPTs
     _current_status["stage"] = "storing"
     _current_status["progress"] = 90.0
-    await _log(db, sync_log.id, "info", "Storing GPTs in database...")
+    await _log(db, sync_log.id, "info", f"Storing {len(filtered_gpts)} GPTs in database...")
 
     # Clear existing GPTs
     await db.execute(delete(GPT))
@@ -222,7 +278,7 @@ async def _execute_pipeline(db: AsyncSession):
 
         gpt = GPT(
             id=gpt_data["id"],
-            name=gpt_data.get("name", "Untitled"),
+            name=gpt_data.get("name") or "Untitled",
             description=gpt_data.get("description"),
             instructions=gpt_data.get("instructions"),
             owner_email=gpt_data.get("owner_email"),

@@ -1,10 +1,13 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import admin, categories, configuration, pipeline
+from app.routers import admin, categories, configuration, demo, pipeline
 
 
 @asynccontextmanager
@@ -25,6 +28,7 @@ app.add_middleware(
 app.include_router(configuration.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(pipeline.router, prefix="/api/v1")
+app.include_router(demo.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 
 

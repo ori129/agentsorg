@@ -84,6 +84,11 @@ async def test_connection(db: AsyncSession = Depends(get_db)):
             success=False, message="No Compliance API key configured."
         )
 
+    if not config.workspace_id:
+        return TestConnectionResult(
+            success=False, message="Workspace ID is required."
+        )
+
     import httpx
 
     try:
@@ -93,20 +98,26 @@ async def test_connection(db: AsyncSession = Depends(get_db)):
 
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(
-                f"{base_url}/organization/projects",
+                f"{base_url}/compliance/workspaces/{config.workspace_id}/gpts",
                 headers=headers,
                 params={"limit": 1},
             )
 
         if resp.status_code == 200:
+            data = resp.json()
+            count_msg = ""
+            if "data" in data:
+                count_msg = f" Found {len(data['data'])} GPT(s) on first page."
+                if data.get("has_more"):
+                    count_msg += " More pages available."
             return TestConnectionResult(
                 success=True,
-                message="Successfully connected to the OpenAI API.",
+                message=f"Successfully connected to the Compliance API.{count_msg}",
             )
         else:
             return TestConnectionResult(
                 success=False,
-                message=f"API returned status {resp.status_code}: {resp.text[:200]}",
+                message=f"API returned status {resp.status_code}: {resp.text[:300]}",
             )
     except Exception as e:
         return TestConnectionResult(success=False, message=f"Connection failed: {e}")

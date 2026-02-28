@@ -26,7 +26,7 @@ class Configuration(Base):
     workspace_id: Mapped[str | None] = mapped_column(String(255))
     compliance_api_key: Mapped[str | None] = mapped_column(Text)  # Fernet encrypted
     base_url: Mapped[str] = mapped_column(
-        String(512), default="https://api.openai.com/v1"
+        String(512), default="https://api.chatgpt.com/v1"
     )
     openai_api_key: Mapped[str | None] = mapped_column(Text)  # Fernet encrypted
     classification_enabled: Mapped[bool] = mapped_column(Boolean, default=False)

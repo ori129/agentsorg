@@ -111,3 +111,22 @@ class PipelineSummary(BaseModel):
     embedded_gpts: int
     categories_used: list[CategoryCount]
     last_sync: SyncLogRead | None
+
+
+class GPTRead(BaseModel):
+    id: str
+    name: str
+    description: str | None
+    owner_email: str | None
+    builder_name: str | None
+    created_at: datetime | None
+    visibility: str | None
+    shared_user_count: int
+    tools: list | None
+    builder_categories: list | None
+    primary_category: str | None = None
+    secondary_category: str | None = None
+    classification_confidence: float | None
+    llm_summary: str | None
+
+    model_config = {"from_attributes": True}
