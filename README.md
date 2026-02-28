@@ -1,5 +1,7 @@
 # GPT Registry
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Discover and catalog Custom GPTs across your organization. Connects to the OpenAI Compliance API to fetch GPTs, applies configurable filters, classifies them into categories using an LLM, and presents results in a dashboard.
 
 ## Architecture
@@ -38,14 +40,16 @@ Discover and catalog Custom GPTs across your organization. Connects to the OpenA
 cp .env.example .env
 
 # 2. Generate a Fernet encryption key and add it to .env
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+make fernet-key
 
 # 3. Start all services
-docker compose up -d
+make up
 
 # 4. Open the app
 open http://localhost:3000
 ```
+
+Run `make help` to see all available commands.
 
 ## Setup Wizard
 
@@ -165,3 +169,11 @@ Everything else (filtering, database storage, categories, logs) runs the same co
 | `DATABASE_URL`         | Full async connection string         | (composed from above)              |
 | `FERNET_KEY`           | Encryption key for API keys at rest  | (required, generate with script)   |
 | `BACKEND_CORS_ORIGINS` | Allowed CORS origins                 | `http://localhost:3000`            |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+
+## License
+
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.

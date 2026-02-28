@@ -4,6 +4,8 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+.pytest_cache/
+.coverage
 
 # Node
 node_modules/
@@ -20,6 +22,7 @@ dist/
 
 # Docker
 *.log
+docker-compose.override.yml
 
 # OS
 .DS_Store
