@@ -7,17 +7,19 @@ class Embedder:
         self._model = model
 
     def _build_text(self, gpt: dict, classification: dict | None = None) -> str:
-        parts = [
-            gpt.get("name", ""),
-            gpt.get("description", "") or "",
-            (gpt.get("instructions") or "")[:2000],
-        ]
+        parts = [gpt.get("name", "")]
         if classification:
-            parts.append(classification.get("summary", ""))
+            use_case = classification.get("use_case_description", "")
+            if use_case:
+                parts.append(use_case)
+            else:
+                parts.append(classification.get("summary", ""))
             if classification.get("primary_category"):
                 parts.append(classification["primary_category"])
             if classification.get("secondary_category"):
                 parts.append(classification["secondary_category"])
+        else:
+            parts.append(gpt.get("description", "") or "")
         return "\n".join(p for p in parts if p)
 
     async def embed_batch(

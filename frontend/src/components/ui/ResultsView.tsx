@@ -252,6 +252,16 @@ export default function ResultsView({ summary, gpts }: ResultsViewProps) {
                               </span>
                             </div>
                           )}
+                          {gpt.use_case_description && (
+                            <div>
+                              <span className="font-medium text-gray-500">
+                                Use Case:{" "}
+                              </span>
+                              <span className="text-gray-700">
+                                {gpt.use_case_description}
+                              </span>
+                            </div>
+                          )}
                           {gpt.primary_category && (
                             <div>
                               <span className="font-medium text-gray-500">

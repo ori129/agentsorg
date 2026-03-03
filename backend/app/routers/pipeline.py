@@ -115,6 +115,7 @@ async def list_gpts(db: AsyncSession = Depends(get_db)):
             secondary_category=cat_lookup.get(g.secondary_category_id),
             classification_confidence=g.classification_confidence,
             llm_summary=g.llm_summary,
+            use_case_description=g.use_case_description,
         ))
     return out
 

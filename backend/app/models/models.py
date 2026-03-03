@@ -102,6 +102,7 @@ class GPT(Base):
     )
     classification_confidence: Mapped[float | None] = mapped_column(Float)
     llm_summary: Mapped[str | None] = mapped_column(Text)
+    use_case_description: Mapped[str | None] = mapped_column(Text)
 
     embedding = mapped_column(Vector(1536), nullable=True)
 

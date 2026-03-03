@@ -295,6 +295,7 @@ async def _execute_pipeline(db: AsyncSession):
             secondary_category_id=secondary_cat_id,
             classification_confidence=cls.get("confidence") if cls else None,
             llm_summary=cls.get("summary") if cls else None,
+            use_case_description=cls.get("use_case_description") if cls else None,
             embedding=emb,
             sync_log_id=sync_log.id,
             indexed_at=now,

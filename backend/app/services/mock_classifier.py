@@ -138,9 +138,18 @@ class MockClassifier:
 
         confidence = min(0.95, 0.6 + 0.1 * len(scores))
 
+        desc = gpt.get("description") or "a custom assistant"
+        name = gpt.get("name", "Unnamed GPT")
+
         return {
             "primary_category": primary,
             "secondary_category": secondary,
             "confidence": confidence,
             "summary": (gpt.get("description") or "A custom GPT assistant.")[:200],
+            "use_case_description": (
+                f"{name} is a specialized GPT designed for {primary.lower()} tasks. "
+                f"It helps teams by providing {desc.lower().rstrip('.')}. "
+                f"This tool is ideal for professionals who need quick, AI-powered "
+                f"assistance in their {primary.lower()} workflows."
+            ),
         }

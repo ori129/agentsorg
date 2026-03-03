@@ -128,5 +128,6 @@ class GPTRead(BaseModel):
     secondary_category: str | None = None
     classification_confidence: float | None
     llm_summary: str | None
+    use_case_description: str | None = None
 
     model_config = {"from_attributes": True}

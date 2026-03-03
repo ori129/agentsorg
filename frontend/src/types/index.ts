@@ -73,6 +73,7 @@ export interface GPTItem {
   secondary_category: string | null;
   classification_confidence: number | null;
   llm_summary: string | null;
+  use_case_description: string | null;
 }
 
 export interface TestConnectionResult {

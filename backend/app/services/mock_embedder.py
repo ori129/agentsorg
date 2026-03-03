@@ -14,9 +14,14 @@ class MockEmbedder:
         classifications: list[dict | None] | None = None,
         batch_size: int = 100,
     ) -> list[list[float]]:
+        if classifications is None:
+            classifications = [None] * len(gpts)
         results = []
-        for gpt in gpts:
-            vec = self._deterministic_vector(gpt.get("id", ""), gpt.get("name", ""))
+        for gpt, cls in zip(gpts, classifications):
+            use_case = ""
+            if cls and isinstance(cls, dict):
+                use_case = cls.get("use_case_description", "")
+            vec = self._deterministic_vector(gpt.get("id", ""), gpt.get("name", ""), use_case)
             results.append(vec)
 
         # Simulate delay: ~0.3s per batch of 20
@@ -25,9 +30,9 @@ class MockEmbedder:
         return results
 
     @staticmethod
-    def _deterministic_vector(gpt_id: str, name: str) -> list[float]:
-        """Generate a deterministic 1536-dim vector from GPT id+name."""
-        seed_bytes = hashlib.sha256(f"{gpt_id}:{name}".encode()).digest()
+    def _deterministic_vector(gpt_id: str, name: str, use_case: str = "") -> list[float]:
+        """Generate a deterministic 1536-dim vector from GPT id+name+use_case."""
+        seed_bytes = hashlib.sha256(f"{gpt_id}:{name}:{use_case}".encode()).digest()
         vector: list[float] = []
         for i in range(768):
             chunk = hashlib.md5(seed_bytes + i.to_bytes(4, "little")).digest()
