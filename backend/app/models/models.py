@@ -205,3 +205,18 @@ class PipelineLogEntry(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
 
     sync_log: Mapped["SyncLog"] = relationship(back_populates="log_entries")
+
+
+class WorkspaceUser(Base):
+    __tablename__ = "workspace_users"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    role: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    system_role: Mapped[str] = mapped_column(String(20), nullable=False, default="employee")
+    imported_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )

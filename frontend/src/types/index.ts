@@ -123,3 +123,26 @@ export interface DemoState {
   size: "small" | "medium" | "large" | "enterprise";
   gpt_count: number;
 }
+
+export interface WorkspaceUser {
+  id: string;
+  email: string;
+  name: string | null;
+  created_at: string | null;
+  role: "account-owner" | "account-admin" | "standard-user";
+  status: "active" | "inactive";
+  system_role: SystemRole;
+  imported_at: string;
+}
+
+export interface UserImportResult {
+  imported: number;
+  updated: number;
+  total: number;
+}
+
+export type SystemRole = "system-admin" | "ai-leader" | "employee";
+
+export interface AuthStatus {
+  initialized: boolean;
+}

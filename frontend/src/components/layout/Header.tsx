@@ -13,16 +13,14 @@ const SIZE_OPTIONS = [
 interface HeaderProps {
   topView: TopView;
   onSetView: (v: TopView) => void;
+  canSeeLeader: boolean;
+  onLogout: () => void;
+  userEmail: string;
 }
 
-const NAV_TABS: { id: TopView; label: string; disabled?: boolean }[] = [
-  { id: "leader", label: "Leader View" },
-  { id: "employee", label: "Employee Portal" },
-];
-
-export default function Header({ topView, onSetView }: HeaderProps) {
+export default function Header({ topView, onSetView, canSeeLeader, onLogout, userEmail }: HeaderProps) {
   const { data: summary } = usePipelineSummary();
-  const { data: pipelineStatus } = usePipelineStatus(false); // watcher handles polling; this just reads cached value
+  const { data: pipelineStatus } = usePipelineStatus(false);
   const { data: demoState } = useDemoState();
   const updateDemo = useUpdateDemoState();
   const { theme, toggleTheme } = useTheme();
@@ -46,6 +44,10 @@ export default function Header({ topView, onSetView }: HeaderProps) {
     const h = Math.floor(diff / 3600000);
     syncLabel = h < 1 ? "Synced <1h ago" : `Synced ${h}h ago`;
   }
+
+  const tabs: { id: TopView; label: string }[] = [];
+  if (canSeeLeader) tabs.push({ id: "leader", label: "Leader View" });
+  tabs.push({ id: "employee", label: "Employee Portal" });
 
   return (
     <header
@@ -75,17 +77,14 @@ export default function Header({ topView, onSetView }: HeaderProps) {
         className="flex items-center rounded-lg p-0.5 gap-0.5"
         style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
       >
-        {NAV_TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => !tab.disabled && onSetView(tab.id)}
-            disabled={tab.disabled}
+            onClick={() => onSetView(tab.id)}
             className="px-4 py-1.5 rounded-md text-xs font-medium transition-colors"
             style={
               topView === tab.id
                 ? { background: "var(--c-accent-bg)", color: "#3b82f6" }
-                : tab.disabled
-                ? { color: "var(--c-text-5)", cursor: "not-allowed" }
                 : { color: "var(--c-text-3)" }
             }
           >
@@ -94,7 +93,7 @@ export default function Header({ topView, onSetView }: HeaderProps) {
         ))}
       </div>
 
-      {/* Right: demo toggle + sync status + theme toggle */}
+      {/* Right: demo toggle + sync status + user + theme */}
       <div className="flex items-center gap-3">
         {/* Demo toggle */}
         <div className="flex items-center gap-2">
@@ -131,7 +130,7 @@ export default function Header({ topView, onSetView }: HeaderProps) {
               className="inline-block w-2 h-2 rounded-full animate-pulse"
               style={{ background: "#f59e0b" }}
             />
-            Pipeline running…
+            Pipeline running...
           </div>
         ) : gptCount > 0 ? (
           <div className="flex items-center gap-2 text-xs" style={{ color: "var(--c-text-3)" }}>
@@ -142,6 +141,21 @@ export default function Header({ topView, onSetView }: HeaderProps) {
             {syncLabel} · {gptCount} GPTs
           </div>
         ) : null}
+
+        {/* User email + logout */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs" style={{ color: "var(--c-text-4)" }}>
+            {userEmail}
+          </span>
+          <button
+            onClick={onLogout}
+            className="text-xs px-2 py-1 rounded transition-colors"
+            style={{ color: "var(--c-text-4)", background: "var(--c-border)" }}
+            title="Sign out"
+          >
+            Sign out
+          </button>
+        </div>
 
         {/* Theme toggle */}
         <button

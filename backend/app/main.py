@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.routers import (
     admin,
+    auth,
     categories,
     clustering,
     configuration,
@@ -17,6 +18,7 @@ from app.routers import (
     learning,
     pipeline,
     prompt_lab,
+    users,
 )
 
 logging.basicConfig(
@@ -39,6 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api/v1")
 app.include_router(configuration.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(pipeline.router, prefix="/api/v1")
@@ -47,6 +50,7 @@ app.include_router(admin.router, prefix="/api/v1")
 app.include_router(prompt_lab.router, prefix="/api/v1")
 app.include_router(clustering.router, prefix="/api/v1")
 app.include_router(learning.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
 
 # Serve static files (prompt lab HTML)
 _static_dir = os.path.join(os.path.dirname(__file__), "static")

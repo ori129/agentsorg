@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Card from "../layout/Card";
 import { useConfiguration, useUpdateConfig } from "../../hooks/useConfiguration";
+import { HELP_LINKS } from "../../config/helpLinks";
 import {
   useCategories,
   useCreateCategory,
@@ -79,6 +80,26 @@ export default function Step3Categories() {
 
           {classificationEnabled && (
             <>
+              <div
+                className="p-3 rounded-lg text-sm"
+                style={{ background: "var(--c-accent-bg)", border: "1px solid #3b82f630" }}
+              >
+                <div className="font-medium mb-1" style={{ color: "#3b82f6" }}>
+                  Getting your OpenAI API Key
+                </div>
+                <p style={{ color: "var(--c-text-3)" }}>
+                  Required for GPT classification and semantic enrichment.{" "}
+                  <a
+                    href={HELP_LINKS.apiKey.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "#3b82f6", textDecoration: "underline" }}
+                  >
+                    {HELP_LINKS.apiKey.label}
+                  </a>
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   OpenAI API Key

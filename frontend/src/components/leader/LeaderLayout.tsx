@@ -8,14 +8,18 @@ import Duplicates from "./Duplicates";
 import Recognition from "./Recognition";
 import Learning from "./Learning";
 import Workshops from "./Workshops";
+import Users from "./Users";
 import BuildersPage from "./sub/BuildersPage";
 import ProcessesPage from "./sub/ProcessesPage";
 import DepartmentsPage from "./sub/DepartmentsPage";
 import MaturityPage from "./sub/MaturityPage";
 import OutputTypesPage from "./sub/OutputTypesPage";
 import { usePipelineGPTs } from "../../hooks/usePipeline";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function LeaderLayout() {
+  const { systemRole } = useAuth();
+  const isAdmin = systemRole === "system-admin";
   const [page, setPage] = useState<LeaderPage>("overview");
   const { data: gpts = [] } = usePipelineGPTs();
 
@@ -37,6 +41,7 @@ export default function LeaderLayout() {
         riskCount={riskCount}
         duplicateCount={0}
         enrichmentPct={gpts.length > 0 ? enrichmentPct : undefined}
+        isAdmin={isAdmin}
       />
       <main className="flex-1 overflow-y-auto" style={{ minWidth: 0 }}>
         {page === "overview" && <Overview gpts={gpts} onSetPage={setPage} />}
@@ -52,6 +57,7 @@ export default function LeaderLayout() {
         {page === "recognition" && <Recognition />}
         {page === "learning" && <Learning />}
         {page === "workshops" && <Workshops />}
+        {page === "users" && <Users />}
       </main>
     </div>
   );

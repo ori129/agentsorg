@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Card from "../layout/Card";
 import { useConfiguration, useUpdateConfig, useTestConnection } from "../../hooks/useConfiguration";
+import { HELP_LINKS } from "../../config/helpLinks";
 
 export default function Step1ApiConfig() {
   const { data: config, isLoading } = useConfiguration();
@@ -39,6 +40,26 @@ export default function Step1ApiConfig() {
       description="Connect to the OpenAI Compliance API to discover Custom GPTs in your workspace."
     >
       <div className="space-y-4">
+        <div
+          className="p-3 rounded-lg text-sm"
+          style={{ background: "var(--c-accent-bg)", border: "1px solid #3b82f630" }}
+        >
+          <div className="font-medium mb-1" style={{ color: "#3b82f6" }}>
+            Getting your Compliance API Key
+          </div>
+          <p style={{ color: "var(--c-text-3)" }}>
+            Obtain audit and compliance data in your Enterprise workspace.{" "}
+            <a
+              href={HELP_LINKS.complianceApi.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#3b82f6", textDecoration: "underline" }}
+            >
+              {HELP_LINKS.complianceApi.label}
+            </a>
+          </p>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700">
             Workspace ID

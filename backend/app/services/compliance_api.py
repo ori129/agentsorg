@@ -135,6 +135,43 @@ class ComplianceAPIClient:
             "conversation_starters": config.get("conversation_starters"),
         }
 
+    async def fetch_all_users(self, workspace_id: str) -> list[dict]:
+        all_users: list[dict] = []
+        after: str | None = None
+
+        while True:
+            await self._rate_limiter.acquire()
+
+            params: dict[str, Any] = {"limit": 200}
+            if after:
+                params["after"] = after
+
+            url = f"{self._base_url}/compliance/workspaces/{workspace_id}/users"
+            logger.info(f"Requesting: GET {url} params={params}")
+
+            response = await self._request_with_retries("GET", url, params=params)
+            data = response.json()
+            users = data.get("data", [])
+
+            for u in users:
+                created_at_raw = u.get("created_at")
+                created_at = None
+                if isinstance(created_at_raw, (int, float)):
+                    from datetime import datetime, timezone
+                    created_at = datetime.fromtimestamp(created_at_raw, tz=timezone.utc)
+                u["created_at"] = created_at
+
+            all_users.extend(users)
+            logger.info(f"Users page: got {len(users)}, has_more={data.get('has_more')}")
+
+            if not data.get("has_more", False) or not users:
+                break
+
+            after = data.get("last_id") or users[-1].get("id")
+
+        logger.info(f"Fetch complete: {len(all_users)} total users")
+        return all_users
+
     async def _request_with_retries(
         self, method: str, url: str, max_retries: int = 3, **kwargs
     ) -> httpx.Response:
