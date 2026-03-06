@@ -248,6 +248,28 @@ async def _execute_pipeline(db: AsyncSession):
             await _log(db, sync_log.id, "warn", f"Semantic enrichment failed (non-fatal): {e}")
         _current_status["progress"] = 72.0
 
+    # Step 3.6: Normalize business process names (real mode only — demo strings are already consistent)
+    if not demo and any(e and e.get("business_process") for e in enrichments):
+        raw_processes = [e["business_process"] for e in enrichments if e and e.get("business_process")]
+        unique_count = len(set(p.strip().lower() for p in raw_processes))
+        if unique_count > 1:
+            await _log(db, sync_log.id, "info",
+                       f"Normalizing {unique_count} distinct business process names into canonical labels...")
+            try:
+                openai_key = decrypt(config.openai_api_key)
+                normalizer = SemanticEnricher(openai_key, config.classification_model)
+                bp_mapping = await normalizer.normalize_business_processes(raw_processes)
+                canonical_count = len(set(bp_mapping.values()))
+                for enr in enrichments:
+                    if enr and enr.get("business_process"):
+                        enr["business_process"] = bp_mapping.get(
+                            enr["business_process"].strip(), enr["business_process"].strip().title()
+                        )
+                await _log(db, sync_log.id, "info",
+                           f"Normalized to {canonical_count} canonical process name(s)")
+            except Exception as e:
+                await _log(db, sync_log.id, "warn", f"Business process normalization failed (non-fatal): {e}")
+
     # Step 4: Embed (if classification enabled and API key available)
     embeddings: list[list[float] | None] = [None] * len(filtered_gpts)
     if classification_enabled and has_openai_key:

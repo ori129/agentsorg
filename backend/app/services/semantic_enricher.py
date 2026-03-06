@@ -422,3 +422,49 @@ class SemanticEnricher:
         result, tokens = await self._call(prompt)
         latency_ms = (time.time() - start) * 1000
         return result, tokens, latency_ms
+
+    async def normalize_business_processes(self, raw_values: list[str]) -> dict[str, str]:
+        """
+        Takes all distinct business_process strings extracted during enrichment and
+        returns a mapping {raw -> canonical} that merges variants of the same process
+        into a single consistent Title Case name.
+
+        Single LLM call — runs once after all GPTs are enriched.
+        """
+        unique = list(dict.fromkeys(v.strip() for v in raw_values if v and v.strip()))
+        if not unique:
+            return {}
+        if len(unique) == 1:
+            return {unique[0]: unique[0].strip().title()}
+
+        values_block = "\n".join(f'- "{v}"' for v in unique)
+        prompt = f"""You are normalizing business process names extracted by an AI from analyzing company GPTs.
+
+The following {len(unique)} process names were extracted. Many may refer to the same underlying process with slightly different wording, capitalization, or level of detail.
+
+Extracted names:
+{values_block}
+
+Task: Return a JSON object mapping each original name (exactly as shown) to its canonical name.
+
+Rules:
+- Merge names that describe the same process into one canonical name
+- Use Title Case (e.g. "Lead Qualification", "Contract Review")
+- Keep canonical names short and clear: 2–4 words preferred
+- Do NOT merge genuinely different processes
+- Every input key must appear in the output
+
+Return JSON only: {{"original name": "Canonical Name", ...}}"""
+
+        try:
+            result, _ = await self._call(prompt)
+        except Exception as e:
+            logger.warning(f"Business process normalization LLM call failed: {e}")
+            # Fall back to title-casing each value as-is
+            return {v: v.strip().title() for v in unique}
+
+        # Ensure every input has a mapping; fill gaps with title-cased original
+        mapping: dict[str, str] = {}
+        for v in unique:
+            mapping[v] = str(result.get(v, v.strip().title())).strip()
+        return mapping

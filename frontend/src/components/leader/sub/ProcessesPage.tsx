@@ -13,15 +13,17 @@ export default function ProcessesPage({ gpts, onBack }: ProcessesPageProps) {
 
   const processes = useMemo(() => {
     const counts: Record<string, number> = {};
+    const display: Record<string, string> = {};
     for (const g of gpts) {
       if (g.business_process) {
-        const key = g.business_process.trim();
+        const key = g.business_process.trim().toLowerCase();
         counts[key] = (counts[key] ?? 0) + 1;
+        if (!display[key]) display[key] = g.business_process.trim();
       }
     }
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({ name, count }));
+      .map(([key, count]) => ({ name: display[key], count }));
   }, [gpts]);
 
   const filtered = useMemo(() => {
