@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -106,6 +107,24 @@ class GPT(Base):
 
     embedding = mapped_column(Vector(1536), nullable=True)
 
+    # Semantic enrichment fields
+    business_process: Mapped[str | None] = mapped_column(Text)
+    risk_flags: Mapped[list | None] = mapped_column(JSONB)
+    risk_level: Mapped[str | None] = mapped_column(String(10))
+    sophistication_score: Mapped[int | None] = mapped_column(Integer)
+    sophistication_rationale: Mapped[str | None] = mapped_column(Text)
+    prompting_quality_score: Mapped[int | None] = mapped_column(Integer)
+    prompting_quality_rationale: Mapped[str | None] = mapped_column(Text)
+    prompting_quality_flags: Mapped[list | None] = mapped_column(JSONB)
+    roi_potential_score: Mapped[int | None] = mapped_column(Integer)
+    roi_rationale: Mapped[str | None] = mapped_column(Text)
+    intended_audience: Mapped[str | None] = mapped_column(Text)
+    integration_flags: Mapped[list | None] = mapped_column(JSONB)
+    output_type: Mapped[str | None] = mapped_column(String(50))
+    adoption_friction_score: Mapped[int | None] = mapped_column(Integer)
+    adoption_friction_rationale: Mapped[str | None] = mapped_column(Text)
+    semantic_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     sync_log_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("sync_logs.id")
     )
@@ -118,6 +137,60 @@ class GPT(Base):
         foreign_keys=[secondary_category_id]
     )
     sync_log: Mapped["SyncLog | None"] = relationship(back_populates="gpts")
+
+
+class Workshop(Base):
+    __tablename__ = "workshops"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    event_date: Mapped[date] = mapped_column(Date, nullable=False)
+    duration_hours: Mapped[float | None] = mapped_column(Float)
+    facilitator: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    participants: Mapped[list["WorkshopParticipant"]] = relationship(
+        back_populates="workshop", cascade="all, delete-orphan"
+    )
+    gpt_tags: Mapped[list["WorkshopGPTTag"]] = relationship(
+        back_populates="workshop", cascade="all, delete-orphan"
+    )
+
+
+class WorkshopParticipant(Base):
+    __tablename__ = "workshop_participants"
+
+    workshop_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workshops.id", ondelete="CASCADE"), primary_key=True
+    )
+    employee_email: Mapped[str] = mapped_column(String(200), primary_key=True)
+    workshop: Mapped["Workshop"] = relationship(back_populates="participants")
+
+
+class WorkshopGPTTag(Base):
+    __tablename__ = "workshop_gpt_tags"
+
+    workshop_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("workshops.id", ondelete="CASCADE"), primary_key=True
+    )
+    gpt_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    tagged_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    workshop: Mapped["Workshop"] = relationship(back_populates="gpt_tags")
+
+
+class CustomCourse(Base):
+    __tablename__ = "custom_courses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    url: Mapped[str] = mapped_column(String(500), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class PipelineLogEntry(Base):

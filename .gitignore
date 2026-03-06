@@ -15,6 +15,9 @@ dist/
 # Environment
 .env
 
+# Claude Code
+.claude/
+
 # IDE
 .idea/
 .vscode/

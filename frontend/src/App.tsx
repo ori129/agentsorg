@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { useGlobalPipelineWatcher } from "./hooks/usePipeline";
 import Header from "./components/layout/Header";
 import Stepper from "./components/layout/Stepper";
 import NavButtons from "./components/layout/NavButtons";
@@ -7,6 +9,8 @@ import Step2FilterRules from "./components/steps/Step2FilterRules";
 import Step3Categories from "./components/steps/Step3Categories";
 import Step4FetchClassify from "./components/steps/Step4FetchClassify";
 import ResultsDashboard from "./components/ResultsDashboard";
+import LeaderLayout from "./components/leader/LeaderLayout";
+import Portal from "./components/employee/Portal";
 
 const STEPS = [
   "API Configuration",
@@ -15,45 +19,63 @@ const STEPS = [
   "Fetch & Classify",
 ];
 
-type View = "wizard" | "results";
+export type TopView = "leader" | "wizard" | "employee";
 
-export default function App() {
+function AppInner() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [view, setView] = useState<View>("wizard");
+  const [topView, setTopView] = useState<TopView>("leader");
+  const [wizardInnerView, setWizardInnerView] = useState<"wizard" | "results">("wizard");
+
+  useGlobalPipelineWatcher();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        {view === "wizard" ? (
-          <>
-            <Stepper steps={STEPS} currentStep={currentStep} />
-            <div className="mt-8">
-              {currentStep === 0 && <Step1ApiConfig />}
-              {currentStep === 1 && <Step2FilterRules />}
-              {currentStep === 2 && <Step3Categories />}
-              {currentStep === 3 && (
-                <Step4FetchClassify
-                  onViewResults={() => setView("results")}
-                />
-              )}
-            </div>
-            <NavButtons
-              currentStep={currentStep}
-              totalSteps={STEPS.length}
-              onBack={() => setCurrentStep((s) => s - 1)}
-              onNext={() => setCurrentStep((s) => s + 1)}
+    <div className="min-h-screen" style={{ background: "var(--c-bg)", color: "var(--c-text)" }}>
+      <Header topView={topView} onSetView={setTopView} />
+
+      {topView === "leader" && <LeaderLayout onOpenWizard={() => setTopView("wizard")} />}
+
+      {topView === "employee" && <Portal />}
+
+      {topView === "wizard" && (
+        <main className="max-w-4xl mx-auto px-4 py-8">
+          {wizardInnerView === "wizard" ? (
+            <>
+              <Stepper steps={STEPS} currentStep={currentStep} />
+              <div className="mt-8">
+                {currentStep === 0 && <Step1ApiConfig />}
+                {currentStep === 1 && <Step2FilterRules />}
+                {currentStep === 2 && <Step3Categories />}
+                {currentStep === 3 && (
+                  <Step4FetchClassify
+                    onViewResults={() => setWizardInnerView("results")}
+                  />
+                )}
+              </div>
+              <NavButtons
+                currentStep={currentStep}
+                totalSteps={STEPS.length}
+                onBack={() => setCurrentStep((s) => s - 1)}
+                onNext={() => setCurrentStep((s) => s + 1)}
+              />
+            </>
+          ) : (
+            <ResultsDashboard
+              onBackToSetup={() => {
+                setWizardInnerView("wizard");
+                setCurrentStep(3);
+              }}
             />
-          </>
-        ) : (
-          <ResultsDashboard
-            onBackToSetup={() => {
-              setView("wizard");
-              setCurrentStep(3);
-            }}
-          />
-        )}
-      </main>
+          )}
+        </main>
+      )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
   );
 }

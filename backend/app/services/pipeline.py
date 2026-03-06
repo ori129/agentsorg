@@ -23,6 +23,8 @@ from app.services.filter_engine import filter_gpts
 from app.services.mock_classifier import MockClassifier
 from app.services.mock_embedder import MockEmbedder
 from app.services.mock_fetcher import MockComplianceAPIClient
+from app.services.mock_semantic_enricher import MockSemanticEnricher
+from app.services.semantic_enricher import SemanticEnricher
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +178,7 @@ async def _execute_pipeline(db: AsyncSession):
     )
 
     # Step 3: Classify (if enabled)
-    classification_enabled = config.classification_enabled if config else False
+    classification_enabled = demo or (config.classification_enabled if config else False)
     has_openai_key = demo or (config and config.openai_api_key)
 
     classifications: list[dict | None] = [None] * len(filtered_gpts)
@@ -226,11 +228,31 @@ async def _execute_pipeline(db: AsyncSession):
     else:
         await _log(db, sync_log.id, "info", "Classification disabled, skipping")
 
+    # Step 3.5: Semantic Enrichment (if classification enabled and API key available)
+    enrichments: list[dict | None] = [None] * len(filtered_gpts)
+    if classification_enabled and has_openai_key:
+        _current_status["stage"] = "enriching"
+        _current_status["progress"] = 65.0
+        await _log(db, sync_log.id, "info",
+                    "[DEMO] Running mock semantic enrichment" if demo else "Running semantic enrichment...")
+        try:
+            if demo:
+                enricher = MockSemanticEnricher()
+            else:
+                openai_key = decrypt(config.openai_api_key)
+                enricher = SemanticEnricher(openai_key, config.classification_model)
+            enrichments = await enricher.enrich_batch(filtered_gpts, classifications)
+            enriched_count = sum(1 for e in enrichments if e is not None)
+            await _log(db, sync_log.id, "info", f"Enriched {enriched_count} GPTs with semantic KPIs")
+        except Exception as e:
+            await _log(db, sync_log.id, "warn", f"Semantic enrichment failed (non-fatal): {e}")
+        _current_status["progress"] = 72.0
+
     # Step 4: Embed (if classification enabled and API key available)
     embeddings: list[list[float] | None] = [None] * len(filtered_gpts)
     if classification_enabled and has_openai_key:
         _current_status["stage"] = "embedding"
-        _current_status["progress"] = 70.0
+        _current_status["progress"] = 75.0
         await _log(db, sync_log.id, "info",
                     "[DEMO] Using deterministic embeddings" if demo else "Generating embeddings...")
 
@@ -269,12 +291,22 @@ async def _execute_pipeline(db: AsyncSession):
     for i, gpt_data in enumerate(filtered_gpts):
         cls = classifications[i]
         emb = embeddings[i] if i < len(embeddings) else None
+        enr = enrichments[i] if i < len(enrichments) else None
 
         primary_cat_id = None
         secondary_cat_id = None
         if cls and not isinstance(cls, Exception):
             primary_cat_id = cat_lookup.get(cls.get("primary_category", ""))
             secondary_cat_id = cat_lookup.get(cls.get("secondary_category", ""))
+
+        # Parse semantic_enriched_at from string if present
+        sem_at = None
+        if enr and enr.get("semantic_enriched_at"):
+            from datetime import datetime as _dt
+            try:
+                sem_at = _dt.fromisoformat(enr["semantic_enriched_at"])
+            except Exception:
+                sem_at = now
 
         gpt = GPT(
             id=gpt_data["id"],
@@ -299,6 +331,23 @@ async def _execute_pipeline(db: AsyncSession):
             embedding=emb,
             sync_log_id=sync_log.id,
             indexed_at=now,
+            # Semantic enrichment
+            business_process=enr.get("business_process") if enr else None,
+            risk_flags=enr.get("risk_flags") if enr else None,
+            risk_level=enr.get("risk_level") if enr else None,
+            sophistication_score=enr.get("sophistication_score") if enr else None,
+            sophistication_rationale=enr.get("sophistication_rationale") if enr else None,
+            prompting_quality_score=enr.get("prompting_quality_score") if enr else None,
+            prompting_quality_rationale=enr.get("prompting_quality_rationale") if enr else None,
+            prompting_quality_flags=enr.get("prompting_quality_flags") if enr else None,
+            roi_potential_score=enr.get("roi_potential_score") if enr else None,
+            roi_rationale=enr.get("roi_rationale") if enr else None,
+            intended_audience=enr.get("intended_audience") if enr else None,
+            integration_flags=enr.get("integration_flags") if enr else None,
+            output_type=enr.get("output_type") if enr else None,
+            adoption_friction_score=enr.get("adoption_friction_score") if enr else None,
+            adoption_friction_rationale=enr.get("adoption_friction_rationale") if enr else None,
+            semantic_enriched_at=sem_at,
         )
         db.add(gpt)
 

@@ -1,0 +1,62 @@
+import { useState } from "react";
+import Sidebar, { type LeaderPage } from "./Sidebar";
+import Overview from "./Overview";
+import Enrichment from "./Enrichment";
+import RiskPanel from "./RiskPanel";
+import QualityScores from "./QualityScores";
+import Duplicates from "./Duplicates";
+import Recognition from "./Recognition";
+import Learning from "./Learning";
+import Workshops from "./Workshops";
+import BuildersPage from "./sub/BuildersPage";
+import ProcessesPage from "./sub/ProcessesPage";
+import DepartmentsPage from "./sub/DepartmentsPage";
+import MaturityPage from "./sub/MaturityPage";
+import OutputTypesPage from "./sub/OutputTypesPage";
+import { usePipelineGPTs } from "../../hooks/usePipeline";
+
+interface LeaderLayoutProps {
+  onOpenWizard: () => void;
+}
+
+export default function LeaderLayout({ onOpenWizard }: LeaderLayoutProps) {
+  const [page, setPage] = useState<LeaderPage>("overview");
+  const { data: gpts = [] } = usePipelineGPTs();
+
+  const riskCount = gpts.filter(
+    (g) => g.risk_level === "high" || g.risk_level === "critical"
+  ).length;
+
+  const enrichedCount = gpts.filter((g) => g.semantic_enriched_at).length;
+  const enrichmentPct = gpts.length > 0 ? (enrichedCount / gpts.length) * 100 : 0;
+
+  return (
+    <div
+      className="flex"
+      style={{ height: "calc(100vh - 53px)", overflow: "hidden" }}
+    >
+      <Sidebar
+        page={page}
+        onSetPage={setPage}
+        riskCount={riskCount}
+        duplicateCount={0}
+        enrichmentPct={gpts.length > 0 ? enrichmentPct : undefined}
+      />
+      <main className="flex-1 overflow-y-auto" style={{ minWidth: 0 }}>
+        {page === "overview" && <Overview gpts={gpts} onSetPage={setPage} />}
+        {page === "overview:builders" && <BuildersPage gpts={gpts} onBack={() => setPage("overview")} />}
+        {page === "overview:processes" && <ProcessesPage gpts={gpts} onBack={() => setPage("overview")} />}
+        {page === "overview:departments" && <DepartmentsPage gpts={gpts} onBack={() => setPage("overview")} />}
+        {page === "overview:maturity" && <MaturityPage gpts={gpts} onBack={() => setPage("overview")} />}
+        {page === "overview:output-types" && <OutputTypesPage gpts={gpts} onBack={() => setPage("overview")} />}
+        {page === "enrichment" && <Enrichment gpts={gpts} onOpenWizard={onOpenWizard} />}
+        {page === "risk" && <RiskPanel gpts={gpts} />}
+        {page === "quality" && <QualityScores gpts={gpts} />}
+        {page === "duplicates" && <Duplicates gpts={gpts} />}
+        {page === "recognition" && <Recognition />}
+        {page === "learning" && <Learning />}
+        {page === "workshops" && <Workshops />}
+      </main>
+    </div>
+  );
+}

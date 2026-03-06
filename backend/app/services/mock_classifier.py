@@ -4,16 +4,21 @@ import asyncio
 
 from app.models.models import Category
 
+# Bucket labels used in the keyword map.
+# These don't need to match DB category names exactly —
+# _resolve_bucket() maps each bucket to the best-matching enabled category.
 KEYWORD_MAP: dict[str, str] = {
-    # Marketing
+    # Marketing / Content
     "brand": "Marketing",
     "seo": "Marketing",
     "campaign": "Marketing",
-    "content": "Marketing",
+    "content": "Writing",
     "social media": "Marketing",
-    "email copy": "Marketing",
+    "email copy": "Writing",
     "marketing": "Marketing",
-    "event marketing": "Marketing",
+    "copywriting": "Writing",
+    "writing": "Writing",
+    "newsletter": "Writing",
     # Sales
     "sales": "Sales",
     "deal": "Sales",
@@ -24,15 +29,15 @@ KEYWORD_MAP: dict[str, str] = {
     "objection": "Sales",
     "forecast": "Sales",
     "territory": "Sales",
-    # Customer Success
-    "churn": "Customer Success",
-    "customer": "Customer Success",
-    "onboarding": "Customer Success",
-    "ticket": "Customer Success",
-    "health score": "Customer Success",
-    "qbr": "Customer Success",
-    "renewal": "Customer Success",
-    "feedback": "Customer Success",
+    # Customer Support
+    "churn": "Customer",
+    "customer": "Customer",
+    "onboarding": "Customer",
+    "ticket": "Customer",
+    "health score": "Customer",
+    "renewal": "Customer",
+    "feedback": "Customer",
+    "support": "Customer",
     # Finance
     "budget": "Finance",
     "expense": "Finance",
@@ -41,61 +46,96 @@ KEYWORD_MAP: dict[str, str] = {
     "invoice": "Finance",
     "financial": "Finance",
     "procurement": "Finance",
-    # HR/People
-    "hr": "HR/People",
-    "hiring": "HR/People",
-    "policy q&a": "HR/People",
-    "job description": "HR/People",
-    "performance review": "HR/People",
-    "benefits": "HR/People",
-    "interview": "HR/People",
-    "engagement survey": "HR/People",
-    "diversity": "HR/People",
-    "learning path": "HR/People",
+    "accounting": "Finance",
+    # HR
+    "hr": "HR",
+    "hiring": "HR",
+    "job description": "HR",
+    "performance review": "HR",
+    "benefits": "HR",
+    "interview": "HR",
+    "compensation": "HR",
+    "recruitment": "HR",
+    "diversity": "HR",
+    "learning": "HR",
+    "training": "HR",
     # Engineering
+    "code": "Engineering",
     "code review": "Engineering",
     "api documentation": "Engineering",
     "architecture": "Engineering",
     "incident": "Engineering",
     "tech debt": "Engineering",
-    "test strategy": "Engineering",
-    "migration": "Engineering",
     "devops": "Engineering",
-    "pipeline optimizer": "Engineering",
-    # Product
+    "deployment": "Engineering",
+    "github": "Engineering",
+    "debugging": "Engineering",
+    # Product / Design
     "prd": "Product",
-    "feature priorit": "Product",
+    "feature": "Product",
     "user research": "Product",
     "roadmap": "Product",
     "release notes": "Product",
-    "a/b test": "Product",
-    "competitive feature": "Product",
-    "product analytics": "Product",
+    "ux": "Product",
+    "design": "Product",
+    "product": "Product",
+    "wireframe": "Product",
     # Legal
     "contract": "Legal",
     "nda": "Legal",
     "compliance": "Legal",
-    "ip assessment": "Legal",
     "terms": "Legal",
     "legal": "Legal",
-    # Data/Analytics
-    "sql": "Data/Analytics",
-    "dashboard": "Data/Analytics",
-    "data quality": "Data/Analytics",
-    "report generator": "Data/Analytics",
-    "metrics": "Data/Analytics",
-    "etl": "Data/Analytics",
-    "statistical": "Data/Analytics",
-    # IT/Security
-    "access review": "IT/Security",
-    "phishing": "IT/Security",
-    "security policy": "IT/Security",
-    "asset inventory": "IT/Security",
-    "vendor risk": "IT/Security",
-    "cloud cost": "IT/Security",
-    "vulnerability": "IT/Security",
-    "sso": "IT/Security",
+    "regulation": "Legal",
+    # Data / Analytics
+    "sql": "Data",
+    "dashboard": "Data",
+    "data quality": "Data",
+    "report": "Data",
+    "metrics": "Data",
+    "etl": "Data",
+    "analytics": "Data",
+    "statistics": "Data",
+    # Operations / IT
+    "process": "Operations",
+    "workflow": "Operations",
+    "ops": "Operations",
+    "security": "Operations",
+    "access": "Operations",
+    "vendor": "Operations",
+    "cloud": "Operations",
+    "infrastructure": "Operations",
 }
+
+# Maps bucket label fragments → ordered list of keywords to look for in category names
+_BUCKET_HINTS: dict[str, list[str]] = {
+    "Marketing": ["marketing", "sales", "content", "writing"],
+    "Writing": ["writing", "content", "marketing"],
+    "Sales": ["sales", "marketing", "revenue"],
+    "Customer": ["customer", "support", "success", "service"],
+    "Finance": ["finance", "financial", "accounting"],
+    "HR": ["hr", "people", "human"],
+    "Engineering": ["engineering", "tech", "developer", "software"],
+    "Product": ["product", "design", "ux"],
+    "Legal": ["legal", "compliance", "law"],
+    "Data": ["data", "analytics", "insight", "intelligence"],
+    "Operations": ["operations", "ops", "it", "security", "infrastructure"],
+}
+
+
+def _resolve_bucket(bucket: str, enabled_names: set[str]) -> str | None:
+    """Find the best-matching enabled category for a short bucket label."""
+    hints = _BUCKET_HINTS.get(bucket, [bucket.lower()])
+    for hint in hints:
+        for name in enabled_names:
+            if hint in name.lower():
+                return name
+    # Substring match the bucket itself
+    bucket_lower = bucket.lower()
+    for name in enabled_names:
+        if bucket_lower in name.lower() or name.lower() in bucket_lower:
+            return name
+    return None
 
 
 class MockClassifier:
@@ -108,35 +148,50 @@ class MockClassifier:
         max_categories: int = 2,
     ) -> list[dict]:
         enabled_names = {c.name for c in categories if c.enabled}
+        enabled_list = sorted(enabled_names)  # stable order for fallback
+
+        # Pre-build bucket → resolved category name cache
+        bucket_cache: dict[str, str | None] = {}
+        for bucket in set(KEYWORD_MAP.values()):
+            bucket_cache[bucket] = _resolve_bucket(bucket, enabled_names)
+
         results = []
-        for gpt in gpts:
-            results.append(self._classify_single(gpt, enabled_names))
+        for i, gpt in enumerate(gpts):
+            results.append(self._classify_single(gpt, enabled_names, enabled_list, bucket_cache, i))
 
         # Simulate delay: ~0.5s per batch of 20
-        delay = 0.5 * len(gpts) / 20
-        await asyncio.sleep(delay)
+        await asyncio.sleep(0.5 * len(gpts) / 20)
         return results
 
-    def _classify_single(self, gpt: dict, enabled_names: set[str]) -> dict:
+    def _classify_single(
+        self,
+        gpt: dict,
+        enabled_names: set[str],
+        enabled_list: list[str],
+        bucket_cache: dict[str, str | None],
+        index: int,
+    ) -> dict:
         text = f"{gpt.get('name', '')} {gpt.get('description', '')}".lower()
 
         scores: dict[str, int] = {}
-        for keyword, category in KEYWORD_MAP.items():
-            if category in enabled_names and keyword in text:
-                scores[category] = scores.get(category, 0) + 1
+        for keyword, bucket in KEYWORD_MAP.items():
+            resolved = bucket_cache.get(bucket)
+            if resolved and resolved in enabled_names and keyword in text:
+                scores[resolved] = scores.get(resolved, 0) + 1
 
         sorted_cats = sorted(scores.items(), key=lambda x: -x[1])
 
         if sorted_cats:
             primary = sorted_cats[0][0]
-        elif enabled_names:
-            primary = next(iter(enabled_names))
+        elif enabled_list:
+            # Distribute unmatched GPTs evenly across categories
+            primary = enabled_list[index % len(enabled_list)]
         else:
-            primary = "Uncategorized"
+            primary = "General"
 
         secondary = sorted_cats[1][0] if len(sorted_cats) > 1 else None
 
-        confidence = min(0.95, 0.6 + 0.1 * len(scores))
+        confidence = min(0.95, 0.6 + 0.1 * len(scores)) if scores else 0.5
 
         desc = gpt.get("description") or "a custom assistant"
         name = gpt.get("name", "Unnamed GPT")

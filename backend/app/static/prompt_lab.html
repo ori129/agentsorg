@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Lab [dev tool]</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'DM Mono', 'Courier New', monospace; background: #080c14; color: #e2e8f0; }
+    .surface { background: #0d1420; border: 1px solid #1a2235; }
+    .accent-blue { color: #3b82f6; }
+    .accent-green { color: #10b981; }
+    .accent-amber { color: #f59e0b; }
+    .accent-red { color: #ef4444; }
+    .accent-violet { color: #8b5cf6; }
+    .kpi-item { cursor: pointer; padding: 8px 12px; border-radius: 6px; transition: background 0.15s; }
+    .kpi-item:hover { background: #1a2235; }
+    .kpi-item.active { background: #1e3a5f; color: #3b82f6; border-left: 3px solid #3b82f6; }
+    .sample-item { cursor: pointer; padding: 8px 12px; border-radius: 6px; font-size: 13px; transition: background 0.15s; }
+    .sample-item:hover { background: #1a2235; }
+    .sample-item.active { background: #1a2235; color: #e2e8f0; border-left: 3px solid #6366f1; }
+    .badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 9999px; font-weight: 600; }
+    .badge-tier1 { background: #1f2937; color: #9ca3af; }
+    .badge-tier3 { background: #1e3a5f; color: #3b82f6; }
+    textarea { background: #080c14; border: 1px solid #1a2235; color: #e2e8f0; font-family: inherit; font-size: 12px; resize: vertical; outline: none; padding: 10px; border-radius: 6px; width: 100%; }
+    textarea:focus { border-color: #3b82f6; }
+    .btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #3b82f6; color: #fff; border: none; }
+    .btn-secondary { background: transparent; border: 1px solid #1a2235; color: #9ca3af; }
+    .btn-green { background: #10b981; color: #fff; border: none; }
+    .result-block { background: #080c14; border: 1px solid #1a2235; border-radius: 8px; padding: 14px; margin-top: 10px; }
+    .result-key { color: #6366f1; font-size: 11px; }
+    .result-val { color: #e2e8f0; font-size: 13px; }
+    .meta-pill { display: inline-block; background: #1a2235; border-radius: 9999px; padding: 2px 10px; font-size: 11px; color: #9ca3af; margin-right: 6px; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .scroll-y { overflow-y: auto; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 50; display: flex; align-items: center; justify-content: center; }
+    .score-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 3px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- Header -->
+<header class="surface flex items-center justify-between px-6 py-3 sticky top-0 z-10">
+  <div class="flex items-center gap-3">
+    <div class="w-7 h-7 rounded flex items-center justify-center text-xs font-bold" style="background: linear-gradient(135deg, #3b82f6, #6366f1)">PL</div>
+    <span class="font-bold text-sm tracking-wide">PROMPT LAB</span>
+    <span class="badge" style="background:#1a2235;color:#f59e0b">dev tool</span>
+  </div>
+  <div class="flex items-center gap-2">
+    <div id="run-all-status" class="text-xs text-gray-500"></div>
+    <button id="btn-run-all" class="btn btn-green" onclick="runAllKpis()">Run All KPIs</button>
+  </div>
+</header>
+
+<!-- Main 3-column layout -->
+<div class="flex flex-1 overflow-hidden" style="height: calc(100vh - 53px)">
+
+  <!-- LEFT: KPI List (20%) -->
+  <aside class="surface scroll-y" style="width:200px;min-width:200px;border-right:1px solid #1a2235;padding:12px">
+    <div class="text-xs text-gray-500 uppercase tracking-widest mb-3 px-2">KPIs</div>
+    <div id="kpi-list"></div>
+  </aside>
+
+  <!-- CENTER: Sample List (25%) -->
+  <aside class="surface scroll-y" style="width:240px;min-width:240px;border-right:1px solid #1a2235;padding:12px">
+    <div class="text-xs text-gray-500 uppercase tracking-widest mb-3 px-2">Samples</div>
+    <div id="sample-list"></div>
+    <div class="mt-4 px-2">
+      <button class="btn btn-secondary w-full text-xs" onclick="openPasteModal()">+ Paste custom GPT</button>
+    </div>
+  </aside>
+
+  <!-- RIGHT: Output Panel (55%) -->
+  <main class="flex-1 scroll-y p-5" style="min-width:0">
+    <div id="output-panel">
+      <div class="text-gray-600 text-sm mt-10 text-center">
+        Select a KPI and a sample to run enrichment →
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Paste Custom GPT Modal -->
+<div id="paste-modal" class="modal-overlay" style="display:none">
+  <div class="surface rounded-xl p-6" style="width:560px;max-height:80vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4">
+      <span class="font-bold text-sm">Paste Custom GPT JSON</span>
+      <button onclick="closePasteModal()" class="text-gray-500 hover:text-gray-300 text-lg">✕</button>
+    </div>
+    <div class="text-xs text-gray-500 mb-3">
+      Paste a GPT object with fields: name, description, instructions, tools, builder_categories, owner_email
+    </div>
+    <textarea id="paste-json" rows="12" placeholder='{"name": "My GPT", "description": "...", "instructions": "..."}'></textarea>
+    <div id="paste-error" class="text-xs accent-red mt-2"></div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-primary" onclick="addCustomSample()">Add to Session</button>
+      <button class="btn btn-secondary" onclick="closePasteModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/v1/prompt-lab';
+
+// State
+let kpis = [];
+let samples = [];
+let customSamples = [];
+let selectedKpi = null;
+let selectedSampleId = null;
+let currentPromptOverride = null;
+let defaultPrompts = {};
+
+// Tier detection
+function getSampleTier(s) {
+  const name = (s.name || '').toLowerCase();
+  const instr = (s.instructions || '').length;
+  if (name.includes('test') || name.includes('draft') || name.includes('my gpt') || instr < 100) return 1;
+  if (instr > 1000) return 3;
+  return 2;
+}
+
+function tierBadge(s) {
+  const t = getSampleTier(s);
+  if (t === 1) return '<span class="badge badge-tier1">experimental</span>';
+  if (t === 3) return '<span class="badge badge-tier3">production</span>';
+  return '';
+}
+
+// Load KPIs
+async function loadKpis() {
+  const res = await fetch(`${API}/kpis`);
+  kpis = await res.json();
+  kpis.forEach(k => defaultPrompts[k.name] = k.prompt);
+  renderKpiList();
+}
+
+// Load samples
+async function loadSamples() {
+  const res = await fetch(`${API}/samples`);
+  samples = await res.json();
+  renderSampleList();
+}
+
+function renderKpiList() {
+  const el = document.getElementById('kpi-list');
+  const kpiLabels = {
+    business_process: 'Business Process',
+    risk: 'Risk & Sensitivity',
+    sophistication: 'Sophistication',
+    prompting_quality: 'Prompt Quality',
+    roi: 'ROI Potential',
+    audience: 'Audience',
+    integrations: 'Integrations',
+    output_type: 'Output Type',
+    adoption_friction: 'Adoption Friction',
+  };
+  el.innerHTML = kpis.map(k => `
+    <div class="kpi-item ${selectedKpi === k.name ? 'active' : ''}" onclick="selectKpi('${k.name}')">
+      ${kpiLabels[k.name] || k.name}
+    </div>
+  `).join('');
+}
+
+function renderSampleList() {
+  const el = document.getElementById('sample-list');
+  const allSamples = [...samples, ...customSamples];
+  el.innerHTML = allSamples.map(s => `
+    <div class="sample-item ${selectedSampleId === s.id ? 'active' : ''}" onclick="selectSample('${s.id}')">
+      <div class="text-xs font-medium truncate" title="${s.name}">${s.name}</div>
+      <div class="text-gray-500 text-xs mt-0.5">${tierBadge(s)} ${(s.builder_categories || []).slice(0,1).join('')}</div>
+    </div>
+  `).join('');
+}
+
+function selectKpi(name) {
+  selectedKpi = name;
+  currentPromptOverride = null;
+  renderKpiList();
+  if (selectedSampleId) runEnrichment();
+  else renderOutputPanel(null);
+}
+
+async function selectSample(id) {
+  selectedSampleId = id;
+  renderSampleList();
+  if (selectedKpi) runEnrichment();
+  else renderOutputPanel(null);
+}
+
+function getSelectedSample() {
+  return [...samples, ...customSamples].find(s => s.id === selectedSampleId);
+}
+
+async function getFullSample(id) {
+  // Check custom samples first
+  const custom = customSamples.find(s => s.id === id);
+  if (custom) return custom;
+  // Fetch full sample from API
+  const res = await fetch(`${API}/samples/${id}`);
+  if (res.ok) return res.json();
+  return getSelectedSample();
+}
+
+async function runEnrichment() {
+  if (!selectedKpi || !selectedSampleId) return;
+  renderLoading();
+  const sample = await getFullSample(selectedSampleId);
+  try {
+    const res = await fetch(`${API}/enrich`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        gpt_sample: sample,
+        kpi_name: selectedKpi,
+        prompt_override: currentPromptOverride || null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      renderError(err.detail || 'Enrichment failed');
+      return;
+    }
+    const data = await res.json();
+    renderOutputPanel(data, sample, selectedKpi);
+  } catch(e) {
+    renderError(String(e));
+  }
+}
+
+async function runAllKpis() {
+  if (!selectedSampleId) {
+    alert('Select a sample first');
+    return;
+  }
+  const btn = document.getElementById('btn-run-all');
+  const status = document.getElementById('run-all-status');
+  btn.disabled = true;
+  status.textContent = 'Running all KPIs...';
+  const sample = await getFullSample(selectedSampleId);
+  try {
+    const res = await fetch(`${API}/enrich-all`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ gpt_sample: sample }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      renderError(err.detail || 'Enrichment failed');
+      return;
+    }
+    const data = await res.json();
+    renderAllResults(data, sample);
+    status.textContent = `✓ ${Object.keys(data.results).length} KPIs · ${data.total_tokens} tokens · ${(data.total_latency_ms/1000).toFixed(1)}s`;
+  } catch(e) {
+    renderError(String(e));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderLoading() {
+  document.getElementById('output-panel').innerHTML = `
+    <div class="flex items-center gap-2 text-gray-500 text-sm mt-10 justify-center">
+      <div class="spinner"></div> Running ${selectedKpi} enrichment...
+    </div>`;
+}
+
+function renderError(msg) {
+  document.getElementById('output-panel').innerHTML = `
+    <div class="result-block mt-4">
+      <div class="accent-red text-sm font-bold mb-1">Error</div>
+      <div class="text-gray-400 text-xs">${escHtml(msg)}</div>
+    </div>`;
+}
+
+const kpiLabels = {
+  business_process: 'Business Process',
+  risk: 'Risk & Sensitivity',
+  sophistication: 'Sophistication',
+  prompting_quality: 'Prompt Quality',
+  roi: 'ROI Potential',
+  audience: 'Intended Audience',
+  integrations: 'Dependencies & Integrations',
+  output_type: 'Output Type',
+  adoption_friction: 'Adoption Friction',
+};
+
+function renderOutputPanel(data, sample, kpiName) {
+  const kpi = kpis.find(k => k.name === kpiName);
+  const promptText = currentPromptOverride || (kpi ? kpi.prompt : '');
+  const sampleName = sample ? sample.name : '—';
+
+  let resultHtml = '';
+  if (data) {
+    resultHtml = renderResultDict(data.result);
+  }
+
+  document.getElementById('output-panel').innerHTML = `
+    <div class="mb-4">
+      <div class="text-xs text-gray-500 mb-1">${escHtml(sampleName)}</div>
+      <div class="font-bold text-base accent-blue">${kpiLabels[kpiName] || kpiName}</div>
+    </div>
+
+    ${data ? `
+    <div class="result-block">
+      ${resultHtml}
+      <div class="mt-3 flex gap-2">
+        <span class="meta-pill">tokens: ${data.tokens_used}</span>
+        <span class="meta-pill">latency: ${(data.latency_ms/1000).toFixed(2)}s</span>
+        ${currentPromptOverride ? '<span class="meta-pill" style="color:#f59e0b">custom prompt</span>' : ''}
+      </div>
+    </div>` : ''}
+
+    <div class="mt-6">
+      <div class="text-xs text-gray-500 uppercase tracking-widest mb-2">── Prompt Editor ──</div>
+      <textarea id="prompt-editor" rows="14">${escHtml(promptText)}</textarea>
+      <div class="flex gap-2 mt-2">
+        <button class="btn btn-secondary text-xs" onclick="resetPrompt()">Reset Default</button>
+        <button class="btn btn-primary text-xs" onclick="rerunWithOverride()">Re-run</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderAllResults(data, sample) {
+  const sampleName = sample ? sample.name : '—';
+  let rows = '';
+  for (const [kpiName, kpiData] of Object.entries(data.results)) {
+    rows += `
+      <div class="result-block mb-3">
+        <div class="font-bold text-xs accent-blue mb-2">${kpiLabels[kpiName] || kpiName}</div>
+        ${renderResultDict(kpiData.result)}
+        <div class="mt-2 flex gap-2">
+          <span class="meta-pill">tokens: ${kpiData.tokens_used}</span>
+          <span class="meta-pill">latency: ${(kpiData.latency_ms/1000).toFixed(2)}s</span>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('output-panel').innerHTML = `
+    <div class="mb-4">
+      <div class="text-xs text-gray-500 mb-1">${escHtml(sampleName)}</div>
+      <div class="font-bold text-base text-white">All KPIs</div>
+      <div class="flex gap-2 mt-1">
+        <span class="meta-pill">total tokens: ${data.total_tokens}</span>
+        <span class="meta-pill">total latency: ${(data.total_latency_ms/1000).toFixed(1)}s</span>
+      </div>
+    </div>
+    ${rows}
+  `;
+}
+
+function renderResultDict(obj) {
+  if (!obj || typeof obj !== 'object') return `<span class="result-val">${escHtml(String(obj))}</span>`;
+  return Object.entries(obj).map(([k, v]) => {
+    if (k === 'error') return `<div class="accent-red text-xs">${escHtml(String(v))}</div>`;
+    let valHtml;
+    if (Array.isArray(v)) {
+      if (v.length === 0) {
+        valHtml = '<span class="text-gray-600">[ ]</span>';
+      } else {
+        valHtml = v.map(item => `<span class="badge badge-tier1 mr-1">${escHtml(String(item))}</span>`).join('');
+      }
+    } else if (k.includes('score')) {
+      valHtml = renderScore(v);
+    } else if (k === 'risk_level') {
+      const colors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444', critical: '#8b5cf6' };
+      const c = colors[v] || '#9ca3af';
+      valHtml = `<span style="color:${c};font-weight:600">${escHtml(String(v))}</span>`;
+    } else if (v === null) {
+      valHtml = '<span class="text-gray-600">null</span>';
+    } else {
+      valHtml = `<span class="result-val">${escHtml(String(v))}</span>`;
+    }
+    return `<div class="mb-1.5"><span class="result-key mr-2">${escHtml(k)}:</span>${valHtml}</div>`;
+  }).join('');
+}
+
+function renderScore(val) {
+  const n = parseInt(val) || 0;
+  const dots = [1,2,3,4,5].map(i => {
+    const color = i <= n ? (n >= 4 ? '#10b981' : n >= 3 ? '#f59e0b' : '#ef4444') : '#1a2235';
+    return `<span class="score-dot" style="background:${color}"></span>`;
+  }).join('');
+  return `${dots} <span class="text-xs text-gray-400">${val}/5</span>`;
+}
+
+function resetPrompt() {
+  const kpi = kpis.find(k => k.name === selectedKpi);
+  if (kpi) {
+    document.getElementById('prompt-editor').value = kpi.prompt;
+    currentPromptOverride = null;
+  }
+}
+
+function rerunWithOverride() {
+  const editor = document.getElementById('prompt-editor');
+  if (editor) {
+    const val = editor.value.trim();
+    const kpi = kpis.find(k => k.name === selectedKpi);
+    currentPromptOverride = (val && val !== (kpi ? kpi.prompt : '')) ? val : null;
+  }
+  runEnrichment();
+}
+
+// Custom sample modal
+function openPasteModal() {
+  document.getElementById('paste-modal').style.display = 'flex';
+  document.getElementById('paste-json').value = '';
+  document.getElementById('paste-error').textContent = '';
+}
+function closePasteModal() {
+  document.getElementById('paste-modal').style.display = 'none';
+}
+function addCustomSample() {
+  const raw = document.getElementById('paste-json').value.trim();
+  try {
+    const obj = JSON.parse(raw);
+    if (!obj.name) throw new Error('Missing "name" field');
+    obj.id = 'custom-' + Date.now();
+    customSamples.push(obj);
+    renderSampleList();
+    closePasteModal();
+    selectSample(obj.id);
+  } catch(e) {
+    document.getElementById('paste-error').textContent = 'Invalid JSON: ' + e.message;
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Init
+(async () => {
+  await Promise.all([loadKpis(), loadSamples()]);
+})();
+</script>
+</body>
+</html>

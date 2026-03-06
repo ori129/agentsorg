@@ -688,6 +688,190 @@ _TOOL_OPTIONS = [
     [],
 ]
 
+# ---------------------------------------------------------------------------
+# Abandoned / Experimental GPT templates (~60% of enterprise reality)
+# Names: vague, duplicated, unprofessional. Instructions: 1-2 sentences.
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Guaranteed duplicate groups — always injected at the top of every demo dataset.
+# Each group contains 2-3 GPTs built for the same purpose by different teams.
+# They use keyword-rich names that map to a shared semantic bucket in MockEmbedder,
+# so Run Clustering will reliably surface them regardless of dataset size.
+# Keys prefixed with "_" are builder metadata, not GPT fields.
+# ---------------------------------------------------------------------------
+_GUARANTEED_DUPLICATE_GROUPS: list[list[dict]] = [
+    # Meeting summarizer — 3 variants, wildly different quality
+    [
+        {
+            "name": "Weekly Meeting Notes",
+            "description": "Simple meeting notes assistant",
+            "instructions": "Summarize meetings into bullet points.",
+            "tools": [],
+            "builder_categories": ["productivity"],
+            "conversation_starters": [],
+            "_owner": ("Tom", "Redmond"),
+            "_visibility": "just-me",
+            "_shared_count": 0,
+        },
+        {
+            "name": "Meeting Recap Generator",
+            "description": "Generate structured meeting recaps and action items from transcripts",
+            "instructions": (
+                "You are a meeting facilitator assistant. When given a meeting transcript or rough notes, "
+                "produce a structured recap with: Summary (2-3 sentences), Key Decisions, "
+                "Action Items (with owner and due date), and Next Steps. "
+                "Use markdown formatting. Flag any unresolved questions or blockers."
+            ),
+            "tools": [{"type": "canvas"}],
+            "builder_categories": ["productivity", "operations"],
+            "conversation_starters": ["Summarize this meeting transcript", "Extract action items from notes"],
+            "_owner": ("Sarah", "Martinez"),
+            "_visibility": "invite-only",
+            "_shared_count": 8,
+        },
+        {
+            "name": "Standup & Meeting Summarizer",
+            "description": "Quickly summarize standups and meeting notes into concise recaps",
+            "instructions": "You help summarize meetings. Paste your meeting notes and I will create a shorter summary with key points.",
+            "tools": [],
+            "builder_categories": ["productivity"],
+            "conversation_starters": [],
+            "_owner": ("James", "Liu"),
+            "_visibility": "invite-only",
+            "_shared_count": 3,
+        },
+    ],
+    # Email drafting assistant — 2 variants
+    [
+        {
+            "name": "Email Draft Helper",
+            "description": "email drafting",
+            "instructions": "Help me write professional emails. Be concise and professional.",
+            "tools": [],
+            "builder_categories": [],
+            "conversation_starters": [],
+            "_owner": ("Maria", "Santos"),
+            "_visibility": "just-me",
+            "_shared_count": 0,
+        },
+        {
+            "name": "Professional Email Composer",
+            "description": "Draft clear, professional email outreach and internal communications",
+            "instructions": (
+                "You are an email writing assistant. Draft professional emails based on the context provided. "
+                "Adjust tone (formal/friendly) based on the recipient. Always include a clear subject line, "
+                "a concise body, and a professional sign-off. Ask clarifying questions if context is missing."
+            ),
+            "tools": [{"type": "canvas"}],
+            "builder_categories": ["productivity", "sales"],
+            "conversation_starters": ["Draft a follow-up email", "Write a cold outreach email"],
+            "_owner": ("David", "Kim"),
+            "_visibility": "invite-only",
+            "_shared_count": 12,
+        },
+    ],
+]
+
+
+_ABANDONED_TEMPLATES: list[dict] = [
+    {
+        "name": "My GPT",
+        "description": "Helpful assistant",
+        "instructions": "You are a helpful assistant. Be professional and helpful.",
+        "tools": [],
+        "builder_categories": [],
+        "conversation_starters": [],
+    },
+    {
+        "name": "Helper Marketing",
+        "description": "Marketing helper",
+        "instructions": "You are a marketing assistant. Help me write marketing copy.",
+        "tools": [],
+        "builder_categories": ["marketing"],
+        "conversation_starters": [],
+    },
+    {
+        "name": "FINAL EMAIL THING",
+        "description": "email drafting",
+        "instructions": "Help me write professional emails. Be concise and professional.",
+        "tools": [],
+        "builder_categories": [],
+        "conversation_starters": [],
+    },
+    {
+        "name": "test - ignore",
+        "description": "testing stuff",
+        "instructions": "You are a test assistant. This is a test.",
+        "tools": [],
+        "builder_categories": [],
+        "conversation_starters": [],
+    },
+    {
+        "name": "Helper HR",
+        "description": "HR helper for questions",
+        "instructions": "You are an HR assistant. Answer HR-related questions. Be helpful and professional.",
+        "tools": [],
+        "builder_categories": ["hr"],
+        "conversation_starters": [],
+    },
+    {
+        "name": "DRAFT - Sales Bot",
+        "description": "sales assistant draft",
+        "instructions": "Help with sales questions and customer outreach. Be helpful.",
+        "tools": [],
+        "builder_categories": ["sales"],
+        "conversation_starters": [],
+    },
+    {
+        "name": "Test Finance v2",
+        "description": "Finance assistant v2",
+        "instructions": "You are a finance assistant. Help with finance tasks and budget questions.",
+        "tools": [],
+        "builder_categories": ["finance"],
+        "conversation_starters": [],
+    },
+    {
+        "name": "AI Assistant v1",
+        "description": "General AI assistant",
+        "instructions": "You are a helpful AI assistant. Help the user with their questions.",
+        "tools": [],
+        "builder_categories": [],
+        "conversation_starters": [],
+    },
+    {
+        "name": "Helper Legal",
+        "description": "Legal helper",
+        "instructions": "You are a legal assistant. Help with legal questions and document review.",
+        "tools": [],
+        "builder_categories": ["legal"],
+        "conversation_starters": [],
+    },
+    {
+        "name": "DRAFT Operations Assistant",
+        "description": "Ops helper draft",
+        "instructions": "Help with operational questions. Be concise and organized.",
+        "tools": [],
+        "builder_categories": ["operations"],
+        "conversation_starters": [],
+    },
+    {
+        "name": "Writing Helper",
+        "description": "Helps write things",
+        "instructions": "Help me write better. Be clear and professional.",
+        "tools": [],
+        "builder_categories": [],
+        "conversation_starters": [],
+    },
+    {
+        "name": "Meeting Notes v3",
+        "description": "Another meeting notes thing",
+        "instructions": "Summarize meetings into bullet points.",
+        "tools": [],
+        "builder_categories": ["productivity"],
+        "conversation_starters": [],
+    },
+]
+
 
 def _deterministic_id(index: int) -> str:
     h = hashlib.md5(f"demo-gpt-{index}".encode()).hexdigest()[:24]
@@ -695,27 +879,89 @@ def _deterministic_id(index: int) -> str:
 
 
 def generate_mock_gpts(count: int | None = None, seed: int = 42) -> list[dict]:
-    """Generate `count` normalized GPT dicts with deterministic randomness."""
+    """Generate `count` normalized GPT dicts with deterministic randomness.
+
+    Distribution reflects real enterprise GPT reality:
+    ~60% abandoned/experimental (1-2 sentence instructions, no tools)
+    ~40% functional or production GPTs from DEPARTMENT_TEMPLATES
+    """
     if count is None:
         count = get_demo_gpt_count()
 
     rng = _random.Random(seed)
 
-    # Flatten all templates
-    all_templates: list[tuple[str, dict]] = []
+    # Flatten all real templates
+    real_templates: list[tuple[str, dict]] = []
     for dept, templates in DEPARTMENT_TEMPLATES.items():
         for t in templates:
-            all_templates.append((dept, t))
+            real_templates.append((dept, t))
 
     now = datetime.now(timezone.utc)
     gpts: list[dict] = []
 
-    for i in range(count):
-        # Cycle through templates with variation suffixes
-        template_idx = i % len(all_templates)
-        suffix_idx = i // len(all_templates)
-        dept, template = all_templates[template_idx]
-        suffix = _SUFFIXES[suffix_idx % len(_SUFFIXES)] if suffix_idx > 0 else ""
+    # --- Inject guaranteed duplicate groups first ---
+    # These always appear so Run Clustering reliably surfaces them.
+    for g_idx, group in enumerate(_GUARANTEED_DUPLICATE_GROUPS):
+        for t_idx, tmpl in enumerate(group):
+            if len(gpts) >= count:
+                break
+            first, last = tmpl.get("_owner", ("Demo", "User"))
+            gpts.append({
+                "id": f"g-{hashlib.md5(f'guaranteed-dup-{g_idx}-{t_idx}'.encode()).hexdigest()[:24]}",
+                "name": tmpl["name"],
+                "description": tmpl["description"],
+                "instructions": tmpl["instructions"],
+                "owner_email": f"{first.lower()}.{last.lower()}@{DOMAIN}",
+                "builder_name": f"{first} {last}",
+                "created_at": now - timedelta(days=rng.randint(30, 180)),
+                "visibility": tmpl.get("_visibility", "invite-only"),
+                "recipients": [],
+                "shared_user_count": tmpl.get("_shared_count", 0),
+                "tools": tmpl.get("tools", []),
+                "files": [],
+                "builder_categories": tmpl.get("builder_categories", []),
+                "conversation_starters": tmpl.get("conversation_starters", []),
+            })
+
+    # --- Fill remaining slots with 60/40 distribution ---
+    real_idx = 0
+    abandoned_idx = 0
+
+    for i in range(count - len(gpts)):
+        # ~60% abandoned, ~40% real
+        is_abandoned = rng.random() < 0.60
+
+        if is_abandoned:
+            template = _ABANDONED_TEMPLATES[abandoned_idx % len(_ABANDONED_TEMPLATES)]
+            dept = "General"
+            abandoned_idx += 1
+            # Abandoned GPTs: visibility just-me or invite-only, 0 shared users
+            visibility = rng.choices(
+                ["just-me", "invite-only"],
+                weights=[70, 30],
+                k=1,
+            )[0]
+            shared_count = 0
+            tools: list = []
+            suffix = f" {rng.choice(['', '', '', '2', '3', 'v2', '- copy', '(old)'])}"
+            suffix = suffix.strip()
+            name = template["name"] + (f" {suffix}" if suffix else "")
+        else:
+            template_entry = real_templates[real_idx % len(real_templates)]
+            suffix_idx = real_idx // len(real_templates)
+            dept, template = template_entry
+            real_idx += 1
+            suffix = _SUFFIXES[suffix_idx % len(_SUFFIXES)] if suffix_idx > 0 else ""
+            name = template["name"] + suffix
+            # Real GPTs: normal visibility distribution
+            visibility = rng.choices(_VISIBILITY_OPTIONS, weights=_VISIBILITY_WEIGHTS, k=1)[0]
+            if visibility == "invite-only":
+                shared_count = rng.choices(range(6), weights=[30, 25, 20, 15, 7, 3], k=1)[0]
+            elif visibility == "just-me":
+                shared_count = 0
+            else:
+                shared_count = rng.randint(0, 50)
+            tools = template.get("tools") or rng.choice(_TOOL_OPTIONS)
 
         # Random builder
         first = rng.choice(FIRST_NAMES)
@@ -723,18 +969,7 @@ def generate_mock_gpts(count: int | None = None, seed: int = 42) -> list[dict]:
         builder_name = f"{first} {last}"
         owner_email = f"{first.lower()}.{last.lower()}@{DOMAIN}"
 
-        # Random visibility
-        visibility = rng.choices(_VISIBILITY_OPTIONS, weights=_VISIBILITY_WEIGHTS, k=1)[0]
-
-        # Random shared users (0-50, skewed lower for invite-only)
-        if visibility == "invite-only":
-            shared_count = rng.choices(range(6), weights=[30, 25, 20, 15, 7, 3], k=1)[0]
-        elif visibility == "just-me":
-            shared_count = 0
-        else:
-            shared_count = rng.randint(0, 50)
-
-        # Generate recipients to match shared_user_count
+        # Generate recipients
         recipients = []
         for r in range(shared_count):
             rf = rng.choice(FIRST_NAMES)
@@ -744,16 +979,16 @@ def generate_mock_gpts(count: int | None = None, seed: int = 42) -> list[dict]:
                 "email": f"{rf.lower()}.{rl.lower()}@{DOMAIN}",
             })
 
-        # Random created date in last 6 months
-        days_ago = rng.randint(1, 180)
+        # Random created date (abandoned GPTs skew older)
+        if is_abandoned:
+            days_ago = rng.randint(30, 360)
+        else:
+            days_ago = rng.randint(1, 180)
         created_at = now - timedelta(days=days_ago, hours=rng.randint(0, 23))
 
-        # Random tools (use template tools or random)
-        tools = template.get("tools") or rng.choice(_TOOL_OPTIONS)
-
-        # Random files (occasionally attach files)
+        # Random files (real GPTs only)
         files: list[dict] = []
-        if rng.random() < 0.3:
+        if not is_abandoned and rng.random() < 0.3:
             file_names = [
                 "training_data.csv", "policy_doc.pdf", "guidelines.docx",
                 "reference_material.pdf", "dataset.xlsx", "template.pptx",
@@ -762,7 +997,7 @@ def generate_mock_gpts(count: int | None = None, seed: int = 42) -> list[dict]:
 
         gpts.append({
             "id": _deterministic_id(i),
-            "name": template["name"] + suffix,
+            "name": name,
             "description": template["description"],
             "instructions": template["instructions"],
             "owner_email": owner_email,

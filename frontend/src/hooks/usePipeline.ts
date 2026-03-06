@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 
 export function useRunPipeline() {
@@ -43,4 +44,36 @@ export function usePipelineHistory() {
     queryKey: ["pipeline-history"],
     queryFn: api.getPipelineHistory,
   });
+}
+
+/**
+ * Global watcher — lives in App root. Polls pipeline status at all times.
+ * When the pipeline transitions running→idle, invalidates all GPT data queries
+ * so every view refreshes automatically regardless of which tab is active.
+ */
+export function useGlobalPipelineWatcher() {
+  const qc = useQueryClient();
+  const wasRunning = useRef<boolean | null>(null);
+
+  const { data: status } = useQuery({
+    queryKey: ["pipeline-status"],
+    queryFn: api.getPipelineStatus,
+    // Poll fast when running, slow otherwise
+    refetchInterval: (query) =>
+      (query.state.data as { running?: boolean } | undefined)?.running ? 1500 : 8000,
+  });
+
+  useEffect(() => {
+    if (status === undefined) return;
+    const isRunning = status.running;
+
+    // Transition: running → stopped
+    if (wasRunning.current === true && !isRunning) {
+      qc.invalidateQueries({ queryKey: ["pipeline-gpts"] });
+      qc.invalidateQueries({ queryKey: ["pipeline-summary"] });
+      qc.invalidateQueries({ queryKey: ["pipeline-history"] });
+    }
+
+    wasRunning.current = isRunning;
+  }, [status, qc]);
 }
