@@ -35,7 +35,6 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
       { id: "overview:departments", label: "Departments", sub: true },
       { id: "overview:maturity", label: "Maturity", sub: true },
       { id: "overview:output-types", label: "Output Types", sub: true },
-      { id: "enrichment", label: "Enrichment" },
     ],
   },
   {
@@ -52,6 +51,12 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
       { id: "recognition", label: "Recognition" },
       { id: "learning", label: "Learning" },
       { id: "workshops", label: "Workshops" },
+    ],
+  },
+  {
+    label: "Settings",
+    items: [
+      { id: "enrichment", label: "Pipeline Setup" },
     ],
   },
 ];

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Sidebar, { type LeaderPage } from "./Sidebar";
 import Overview from "./Overview";
-import Enrichment from "./Enrichment";
+import PipelineSetupPage from "./PipelineSetupPage";
 import RiskPanel from "./RiskPanel";
 import QualityScores from "./QualityScores";
 import Duplicates from "./Duplicates";
@@ -15,11 +15,7 @@ import MaturityPage from "./sub/MaturityPage";
 import OutputTypesPage from "./sub/OutputTypesPage";
 import { usePipelineGPTs } from "../../hooks/usePipeline";
 
-interface LeaderLayoutProps {
-  onOpenWizard: () => void;
-}
-
-export default function LeaderLayout({ onOpenWizard }: LeaderLayoutProps) {
+export default function LeaderLayout() {
   const [page, setPage] = useState<LeaderPage>("overview");
   const { data: gpts = [] } = usePipelineGPTs();
 
@@ -49,7 +45,7 @@ export default function LeaderLayout({ onOpenWizard }: LeaderLayoutProps) {
         {page === "overview:departments" && <DepartmentsPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:maturity" && <MaturityPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:output-types" && <OutputTypesPage gpts={gpts} onBack={() => setPage("overview")} />}
-        {page === "enrichment" && <Enrichment gpts={gpts} onOpenWizard={onOpenWizard} />}
+        {page === "enrichment" && <PipelineSetupPage />}
         {page === "risk" && <RiskPanel gpts={gpts} />}
         {page === "quality" && <QualityScores gpts={gpts} />}
         {page === "duplicates" && <Duplicates gpts={gpts} />}

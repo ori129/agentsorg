@@ -27,6 +27,16 @@ dist/
 *.log
 docker-compose.override.yml
 
+# Data — never commit workspace data, exports, or backups
+*.sql.gz
+*.dump
+*.bak
+data/
+exports/
+backups/
+*.csv
+*.parquet
+
 # OS
 .DS_Store
 Thumbs.db
