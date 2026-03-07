@@ -322,7 +322,7 @@ async def recommend_org(db: AsyncSession = Depends(get_db)):
     avg_qual = round(sum(qual_vals) / len(qual_vals), 1) if qual_vals else None
 
     org_profile = f"""
-Organisation GPT Registry — Snapshot ({total} GPTs total, {len(enriched)} semantically enriched):
+Organisation AgentsOrg — Snapshot ({total} GPTs total, {len(enriched)} semantically enriched):
 
 Prompting quality:
   - Average score: {avg_qual}/10 ({len(low_quality)} GPTs scored ≤4/10 — "poor quality")

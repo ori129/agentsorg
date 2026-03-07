@@ -2,15 +2,15 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-gpt_registry}
+      POSTGRES_USER: ${POSTGRES_USER:-agentsorg}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-gpt_registry}
+      POSTGRES_DB: ${POSTGRES_DB:-agentsorg}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gpt_registry}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentsorg}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,7 +20,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://gpt_registry:changeme@postgres:5432/gpt_registry}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://agentsorg:changeme@postgres:5432/agentsorg}
       FERNET_KEY: ${FERNET_KEY}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
     depends_on:

@@ -31,7 +31,7 @@ def main():
 
     url = os.getenv(
         "DATABASE_URL",
-        "postgresql+asyncpg://gpt_registry:changeme@localhost:5432/gpt_registry",
+        "postgresql+asyncpg://agentsorg:changeme@localhost:5432/agentsorg",
     )
 
     if "--yes" not in sys.argv:

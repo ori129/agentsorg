@@ -1,6 +1,6 @@
-# AI Transformation Intel
+# AgentsOrg
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 Enterprise AI governance platform for organizations running Custom GPTs on OpenAI. Connects to the OpenAI Compliance API to discover, classify, and semantically enrich every GPT in your workspace — then surfaces actionable intelligence through a leader dashboard, an employee portal, and a learning & development module.
 
@@ -62,8 +62,8 @@ Read-only GPT discovery for non-admin users. Search and browse GPTs available to
 
 ```bash
 # 1. Clone and enter the repo
-git clone https://github.com/aarbiv/CuatomGPT-Mapping.git
-cd CuatomGPT-Mapping
+git clone https://github.com/ori129/agentsorg.git
+cd agentsorg
 
 # 2. Create your .env file
 cp .env.example .env
@@ -318,4 +318,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+This project is licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) for details.

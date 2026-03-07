@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="GPT Registry", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="AgentsOrg", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
