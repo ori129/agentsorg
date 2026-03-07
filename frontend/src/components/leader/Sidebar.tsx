@@ -11,7 +11,8 @@ export type LeaderPage =
   | "quality"
   | "recognition"
   | "learning"
-  | "workshops";
+  | "workshops"
+  | "users";
 
 interface SidebarProps {
   page: LeaderPage;
@@ -19,6 +20,7 @@ interface SidebarProps {
   riskCount?: number;
   duplicateCount?: number;
   enrichmentPct?: number;
+  isAdmin?: boolean;
 }
 
 type NavItem =
@@ -35,7 +37,6 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
       { id: "overview:departments", label: "Departments", sub: true },
       { id: "overview:maturity", label: "Maturity", sub: true },
       { id: "overview:output-types", label: "Output Types", sub: true },
-      { id: "enrichment", label: "Enrichment" },
     ],
   },
   {
@@ -54,6 +55,13 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
       { id: "workshops", label: "Workshops" },
     ],
   },
+  {
+    label: "Settings",
+    items: [
+      { id: "enrichment", label: "Pipeline Setup" },
+      { id: "users", label: "Users" },
+    ],
+  },
 ];
 
 export default function Sidebar({
@@ -62,6 +70,7 @@ export default function Sidebar({
   riskCount,
   duplicateCount,
   enrichmentPct,
+  isAdmin,
 }: SidebarProps) {
   const getBadge = (id: LeaderPage): { value: string | number; color: string } | null => {
     if (id === "risk" && riskCount !== undefined && riskCount > 0)
@@ -88,7 +97,7 @@ export default function Sidebar({
         borderRight: "1px solid var(--c-border)",
       }}
     >
-      {SECTIONS.map((section) => (
+      {SECTIONS.filter((s) => s.label !== "Settings" || isAdmin).map((section) => (
         <div key={section.label} className="mb-6">
           {section.label && (
             <div

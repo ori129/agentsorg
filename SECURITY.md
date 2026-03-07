@@ -9,12 +9,11 @@ before it is disclosed publicly.
 
 ### How to report
 
-Open a [GitHub Security Advisory](https://github.com/ori129/agentsorg/security/advisories/new)
-in this repository. This keeps the report private between you and the maintainers.
-
-Alternatively, email both maintainers directly:
+Email both maintainers directly:
 - Ori Simantov — ori129@gmail.com
 - Alon Arbiv — (add email)
+
+Please do not use GitHub Issues or Discussions for security reports.
 
 Include in your report:
 - A description of the vulnerability

@@ -16,6 +16,23 @@ async function request<T>(
 }
 
 export const api = {
+  getAuthStatus: () => request<import("../types").AuthStatus>("/auth/status"),
+  register: (email: string) =>
+    request<import("../types").WorkspaceUser>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  login: (email: string) =>
+    request<import("../types").WorkspaceUser>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  updateUserRole: (userId: string, system_role: string) =>
+    request<import("../types").WorkspaceUser>(`/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ system_role }),
+    }),
+
   getConfig: () => request<import("../types").Configuration>("/config"),
   updateConfig: (data: Partial<import("../types").Configuration>) =>
     request<import("../types").Configuration>("/config", {
@@ -52,6 +69,10 @@ export const api = {
   getPipelineHistory: () => request<import("../types").SyncLog[]>("/pipeline/history"),
 
   resetRegistry: () => request<{ message: string }>("/admin/reset", { method: "POST" }),
+
+  getUsers: () => request<import("../types").WorkspaceUser[]>("/users"),
+  importUsers: () =>
+    request<import("../types").UserImportResult>("/users/import", { method: "POST" }),
 
   getDemoState: () => request<import("../types").DemoState>("/demo"),
   updateDemoState: (data: { enabled: boolean; size: string }) =>

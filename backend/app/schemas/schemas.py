@@ -248,3 +248,38 @@ class ClusterGroup(BaseModel):
 
 class ClusteringStatus(BaseModel):
     status: str  # idle | running | completed
+
+
+class WorkspaceUserRead(BaseModel):
+    id: str
+    email: str
+    name: str | None
+    created_at: datetime | None
+    role: str
+    status: str
+    system_role: str
+    imported_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserImportResult(BaseModel):
+    imported: int
+    updated: int
+    total: int
+
+
+class AuthStatus(BaseModel):
+    initialized: bool
+
+
+class RegisterRequest(BaseModel):
+    email: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+
+
+class SystemRoleUpdate(BaseModel):
+    system_role: str  # system-admin | ai-leader | employee
