@@ -1,0 +1,47 @@
+name: Feature Request
+description: Propose a new feature or improvement.
+labels: [enhancement]
+assignees:
+  - ori129
+  - aarbiv
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a feature request, consider starting a
+        [Discussion](https://github.com/ori129/agentsorg/discussions) first —
+        especially for larger ideas. That way we can align before you invest
+        time building something.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the problem or gap this feature addresses.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should the feature do? Be as specific as you can.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you think about?
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Are you willing to implement this?
+      options:
+        - "Yes — I'll open a PR"
+        - "Maybe — with some guidance"
+        - "No — just proposing the idea"
+    validations:
+      required: true
