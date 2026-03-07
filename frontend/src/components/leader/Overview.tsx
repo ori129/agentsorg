@@ -18,25 +18,17 @@ function useOverviewData(gpts: GPTItem[]) {
     const enriched = gpts.filter((g) => g.semantic_enriched_at);
 
     // ── KPI strip ──
-    const totalGpts = hasData ? gpts.length : 137;
-    const uniqueBuilders = hasData
-      ? new Set(gpts.map((g) => g.owner_email).filter(Boolean)).size
-      : 43;
+    const totalGpts = gpts.length;
+    const uniqueBuilders = new Set(gpts.map((g) => g.owner_email).filter(Boolean)).size;
     const avgSoph =
       enriched.length > 0
         ? (enriched.reduce((s, g) => s + (g.sophistication_score ?? 0), 0) / enriched.length).toFixed(1)
-        : hasData ? "—" : "2.1";
-    const riskCount = hasData
-      ? gpts.filter((g) => g.risk_level === "high" || g.risk_level === "critical").length
-      : 8;
+        : "—";
+    const riskCount = gpts.filter((g) => g.risk_level === "high" || g.risk_level === "critical").length;
 
     // ── Creation velocity (last 6 months) ──
     const velocity: { month: string; count: number }[] = (() => {
-      if (!hasData) return [
-        { month: "Sep", count: 12 }, { month: "Oct", count: 18 },
-        { month: "Nov", count: 31 }, { month: "Dec", count: 24 },
-        { month: "Jan", count: 41 }, { month: "Feb", count: 38 },
-      ];
+      if (!hasData) return [];
       const now = new Date();
       const buckets: Record<string, number> = {};
       for (let i = 5; i >= 0; i--) {
@@ -55,12 +47,7 @@ function useOverviewData(gpts: GPTItem[]) {
 
     // ── By department ──
     const byDept: { dept: string; count: number }[] = (() => {
-      if (!hasData) return [
-        { dept: "Sales", count: 34 }, { dept: "Marketing", count: 28 },
-        { dept: "Engineering", count: 22 }, { dept: "HR", count: 19 },
-        { dept: "Finance", count: 14 }, { dept: "Legal", count: 11 },
-        { dept: "Operations", count: 9 },
-      ];
+      if (!hasData) return [];
       const counts: Record<string, number> = {};
       for (const g of gpts) {
         const dept = g.primary_category || (g.builder_categories?.[0] as string) || "General";
@@ -74,16 +61,7 @@ function useOverviewData(gpts: GPTItem[]) {
 
     // ── Business process distribution (from enrichment) ──
     const processDistribution: { name: string; count: number }[] = (() => {
-      if (!hasEnrichment) return [
-        { name: "Contract Review", count: 8 },
-        { name: "Lead Qualification", count: 6 },
-        { name: "Employee Onboarding", count: 5 },
-        { name: "Code Review", count: 4 },
-        { name: "Budget Analysis", count: 3 },
-        { name: "Meeting Summarization", count: 3 },
-        { name: "RFP Response", count: 2 },
-        { name: "Vendor Evaluation", count: 1 },
-      ];
+      if (!hasEnrichment) return [];
       // key = lowercase for grouping; display name = first-seen casing (backend normalizes to Title Case)
       const counts: Record<string, number> = {};
       const display: Record<string, string> = {};
@@ -106,13 +84,7 @@ function useOverviewData(gpts: GPTItem[]) {
 
     // ── Top risks ──
     const topRisks: { name: string; level: string; flag: string }[] = (() => {
-      if (!hasEnrichment) return [
-        { name: "HR Onboarding Guide", level: "critical", flag: "accesses_hr_data" },
-        { name: "Salesforce Deal Intel", level: "high", flag: "customer_data_exposure" },
-        { name: "Legal Contract Analyzer", level: "high", flag: "accesses_legal_data" },
-        { name: "Budget Q&A Assistant", level: "medium", flag: "accesses_financial_data" },
-        { name: "PR Draft Assistant", level: "medium", flag: "output_used_externally" },
-      ];
+      if (!hasEnrichment) return [];
       const order: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
       return enriched
         .filter((g) => g.risk_level && g.risk_level !== "low")
@@ -127,7 +99,7 @@ function useOverviewData(gpts: GPTItem[]) {
 
     // ── Maturity distribution ──
     const maturity = (() => {
-      if (!hasEnrichment) return { tier1: 60, tier2: 25, tier3: 15 };
+      if (!hasEnrichment) return { tier1: 0, tier2: 0, tier3: 0 };
       const t1 = enriched.filter((g) => (g.sophistication_score ?? 0) <= 2).length;
       const t2 = enriched.filter((g) => g.sophistication_score === 3).length;
       const t3 = enriched.filter((g) => (g.sophistication_score ?? 0) >= 4).length;
@@ -141,14 +113,7 @@ function useOverviewData(gpts: GPTItem[]) {
 
     // ── Output type distribution ──
     const outputTypes: { type: string; count: number; pct: number }[] = (() => {
-      if (!hasEnrichment) return [
-        { type: "Document", count: 42, pct: 31 },
-        { type: "Analysis", count: 28, pct: 20 },
-        { type: "Conversation", count: 25, pct: 18 },
-        { type: "Content", count: 21, pct: 15 },
-        { type: "Code", count: 14, pct: 10 },
-        { type: "Other", count: 7, pct: 6 },
-      ];
+      if (!hasEnrichment) return [];
       const counts: Record<string, number> = {};
       for (const g of enriched) {
         const t = g.output_type ?? "other";
@@ -175,33 +140,19 @@ function useOverviewData(gpts: GPTItem[]) {
         if (g.prompting_quality_score != null) builderMap[name].scores.push(g.prompting_quality_score);
       }
     }
-    const allBuilders: { name: string; gpts: number; avgQuality: number }[] = hasData
-      ? Object.entries(builderMap)
-          .sort((a, b) => b[1].count - a[1].count)
-          .map(([name, { count, scores }]) => ({
-            name,
-            gpts: count,
-            avgQuality: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
-          }))
-      : [
-          { name: "Alex Chen", gpts: 12, avgQuality: 4.2 },
-          { name: "Maria Santos", gpts: 9, avgQuality: 3.8 },
-          { name: "James Wright", gpts: 7, avgQuality: 4.5 },
-          { name: "Priya Patel", gpts: 6, avgQuality: 2.9 },
-          { name: "Tom Müller", gpts: 5, avgQuality: 3.1 },
-        ];
+    const allBuilders: { name: string; gpts: number; avgQuality: number }[] = Object.entries(builderMap)
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([name, { count, scores }]) => ({
+        name,
+        gpts: count,
+        avgQuality: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      }));
     const topBuilders = allBuilders.slice(0, 5);
     const totalBuilders = allBuilders.length;
 
     // ── Quality by dept ──
     const qualityByDept: { dept: string; avgScore: number }[] = (() => {
-      if (!hasEnrichment) return [
-        { dept: "Engineering", avgScore: 3.8 },
-        { dept: "Sales", avgScore: 3.2 },
-        { dept: "Legal", avgScore: 4.1 },
-        { dept: "Marketing", avgScore: 2.4 },
-        { dept: "HR", avgScore: 2.7 },
-      ];
+      if (!hasEnrichment) return [];
       const deptMap: Record<string, number[]> = {};
       for (const g of enriched) {
         if (g.prompting_quality_score == null) continue;
@@ -322,7 +273,6 @@ function ViewAllLink({ label, onClick }: { label: string; onClick: () => void })
 
 export default function Overview({ gpts, onSetPage }: OverviewProps) {
   const d = useOverviewData(gpts);
-  const isMock = !d.hasData || !d.hasEnrichment;
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
   const { data: clusters = [] } = useQuery<ClusterGroup[]>({
     queryKey: ["clustering-results"],
@@ -347,18 +297,6 @@ export default function Overview({ gpts, onSetPage }: OverviewProps) {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <GPTDrawer filter={drawer} onClose={() => setDrawer(null)} />
-
-      {isMock && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg mb-5 text-sm"
-          style={{ background: "#1c1200", border: "1px solid #78350f", color: "#f59e0b" }}>
-          <span>⚠</span>
-          <span>
-            {d.hasData
-              ? "Run pipeline with Classification enabled to see semantic KPIs."
-              : "Sample data — enable Demo and run the pipeline to populate real data."}
-          </span>
-        </div>
-      )}
 
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">

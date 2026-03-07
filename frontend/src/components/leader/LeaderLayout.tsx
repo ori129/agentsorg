@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Sidebar, { type LeaderPage } from "./Sidebar";
 import Overview from "./Overview";
 import PipelineSetupPage from "./PipelineSetupPage";
@@ -20,8 +20,18 @@ import { useAuth } from "../../contexts/AuthContext";
 export default function LeaderLayout() {
   const { systemRole } = useAuth();
   const isAdmin = systemRole === "system-admin";
+  const { data: gpts = [], isSuccess } = usePipelineGPTs();
   const [page, setPage] = useState<LeaderPage>("overview");
-  const { data: gpts = [] } = usePipelineGPTs();
+  const didRedirect = useRef(false);
+
+  useEffect(() => {
+    if (isSuccess && !didRedirect.current) {
+      didRedirect.current = true;
+      if (gpts.length === 0 && isAdmin) {
+        setPage("enrichment");
+      }
+    }
+  }, [isSuccess, gpts.length, isAdmin]);
 
   const riskCount = gpts.filter(
     (g) => g.risk_level === "high" || g.risk_level === "critical"

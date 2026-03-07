@@ -22,16 +22,7 @@ export default function RiskPanel({ gpts }: RiskPanelProps) {
   const [sortBy, setSortBy] = useState<"risk" | "name">("risk");
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
 
-  const hasEnrichment = gpts.some((g) => g.semantic_enriched_at);
-  const enrichedGpts = gpts.filter((g) => g.semantic_enriched_at && g.risk_level);
-
-  const mockGpts = hasEnrichment ? ([] as GPTItem[]) : ([
-    { id: "m1", name: "HR Onboarding Guide (Compensation Access)", description: null, owner_email: "hrbp@acme.com", builder_name: "Lisa Chen", created_at: null, visibility: "invite-only", shared_user_count: 3, tools: [], builder_categories: ["hr"], primary_category: "HR", secondary_category: null, classification_confidence: null, llm_summary: null, use_case_description: null, instructions: null, risk_level: "critical", risk_flags: ["accesses_hr_data", "accesses_financial_data"], sophistication_score: 5, sophistication_rationale: null, prompting_quality_score: 4, prompting_quality_rationale: null, prompting_quality_flags: [], roi_potential_score: 5, roi_rationale: null, intended_audience: "HR Business Partners", integration_flags: ["Workday"], output_type: "document", adoption_friction_score: 2, adoption_friction_rationale: null, semantic_enriched_at: "2026-03-01T00:00:00Z", business_process: "employee onboarding" },
-    { id: "m2", name: "Salesforce Deal Intelligence", description: null, owner_email: "sales.ops@acme.com", builder_name: "Marco Bianchi", created_at: null, visibility: "invite-only", shared_user_count: 12, tools: [], builder_categories: ["sales"], primary_category: "Sales", secondary_category: null, classification_confidence: null, llm_summary: null, use_case_description: null, instructions: null, risk_level: "high", risk_flags: ["customer_data_exposure", "accesses_financial_data"], sophistication_score: 5, sophistication_rationale: null, prompting_quality_score: 5, prompting_quality_rationale: null, prompting_quality_flags: [], roi_potential_score: 5, roi_rationale: null, intended_audience: "Sales team", integration_flags: ["Salesforce"], output_type: "analysis", adoption_friction_score: 3, adoption_friction_rationale: null, semantic_enriched_at: "2026-03-01T00:00:00Z", business_process: "deal qualification" },
-    { id: "m3", name: "Legal Contract Risk Analyzer", description: null, owner_email: "legal@acme.com", builder_name: "Sophie Müller", created_at: null, visibility: "invite-only", shared_user_count: 4, tools: [], builder_categories: ["legal"], primary_category: "Legal", secondary_category: null, classification_confidence: null, llm_summary: null, use_case_description: null, instructions: null, risk_level: "high", risk_flags: ["accesses_legal_data", "ip_exposure"], sophistication_score: 5, sophistication_rationale: null, prompting_quality_score: 5, prompting_quality_rationale: null, prompting_quality_flags: [], roi_potential_score: 4, roi_rationale: null, intended_audience: "Legal team", integration_flags: [], output_type: "document", adoption_friction_score: 3, adoption_friction_rationale: null, semantic_enriched_at: "2026-03-01T00:00:00Z", business_process: "contract review" },
-  ] as unknown as GPTItem[]);
-
-  const displayGpts = hasEnrichment ? enrichedGpts : [...enrichedGpts, ...mockGpts];
+  const displayGpts = gpts.filter((g) => g.semantic_enriched_at && g.risk_level);
 
   const filtered = displayGpts
     .filter((g) => filter === "all" || g.risk_level === filter)
@@ -45,13 +36,6 @@ export default function RiskPanel({ gpts }: RiskPanelProps) {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <GPTDrawer filter={drawer} onClose={() => setDrawer(null)} />
-
-      {!hasEnrichment && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg mb-5 text-sm"
-          style={{ background: "#1c1200", border: "1px solid #78350f", color: "#f59e0b" }}>
-          ⚠ Sample data — run pipeline with Classification enabled to see real risk analysis.
-        </div>
-      )}
 
       <h1 className="text-xl font-bold mb-2" style={{ color: "var(--c-text)" }}>Risk Panel</h1>
       <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>GPTs with sensitive data access or compliance exposure. Click any row to inspect.</p>
