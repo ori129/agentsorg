@@ -30,7 +30,7 @@ jobs:
           path-to-signatures: '.github/cla-signatures.json'
           path-to-document: 'CLA-individual.md'
           branch: 'main'
-          allowlist: bot*
+          allowlist: bot*,ori129,aarbiv
 
           # Message posted on PRs where the contributor has not signed
           custom-notsigned-prcomment: |
