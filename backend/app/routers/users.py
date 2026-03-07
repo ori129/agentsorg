@@ -24,10 +24,14 @@ async def import_users(db: AsyncSession = Depends(get_db)):
 
     if is_demo_mode():
         from app.services.mock_fetcher import MockComplianceAPIClient
+
         client = MockComplianceAPIClient()
     else:
         from app.services.compliance_api import ComplianceAPIClient
-        api_key = decrypt(config.compliance_api_key) if config.compliance_api_key else ""
+
+        api_key = (
+            decrypt(config.compliance_api_key) if config.compliance_api_key else ""
+        )
         client = ComplianceAPIClient(api_key=api_key, base_url=config.base_url)
 
     try:
@@ -59,15 +63,17 @@ async def import_users(db: AsyncSession = Depends(get_db)):
                 # Admin registered locally — update to real OpenAI ID
                 await db.delete(existing)
                 await db.flush()
-                db.add(WorkspaceUser(
-                    id=u["id"],
-                    email=email or existing.email,
-                    name=u.get("name") or existing.name,
-                    created_at=u.get("created_at") or existing.created_at,
-                    role=u.get("role", existing.role),
-                    status=u.get("status", existing.status),
-                    system_role=existing.system_role,
-                ))
+                db.add(
+                    WorkspaceUser(
+                        id=u["id"],
+                        email=email or existing.email,
+                        name=u.get("name") or existing.name,
+                        created_at=u.get("created_at") or existing.created_at,
+                        role=u.get("role", existing.role),
+                        status=u.get("status", existing.status),
+                        system_role=existing.system_role,
+                    )
+                )
             else:
                 existing.email = email or existing.email
                 existing.name = u.get("name") or existing.name
@@ -76,28 +82,30 @@ async def import_users(db: AsyncSession = Depends(get_db)):
                 existing.status = u.get("status", existing.status)
             updated += 1
         else:
-            db.add(WorkspaceUser(
-                id=u["id"],
-                email=email,
-                name=u.get("name"),
-                created_at=u.get("created_at"),
-                role=u.get("role", "standard-user"),
-                status=u.get("status", "active"),
-                system_role="employee",
-            ))
+            db.add(
+                WorkspaceUser(
+                    id=u["id"],
+                    email=email,
+                    name=u.get("name"),
+                    created_at=u.get("created_at"),
+                    role=u.get("role", "standard-user"),
+                    status=u.get("status", "active"),
+                    system_role="employee",
+                )
+            )
             imported += 1
 
     await db.commit()
-    logger.info(f"User import complete: {imported} new, {updated} updated, {len(raw_users)} total")
+    logger.info(
+        f"User import complete: {imported} new, {updated} updated, {len(raw_users)} total"
+    )
 
     return UserImportResult(imported=imported, updated=updated, total=len(raw_users))
 
 
 @router.get("/users", response_model=list[WorkspaceUserRead])
 async def list_users(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(WorkspaceUser).order_by(WorkspaceUser.email)
-    )
+    result = await db.execute(select(WorkspaceUser).order_by(WorkspaceUser.email))
     return result.scalars().all()
 
 
@@ -120,9 +128,9 @@ async def update_user_role(
     # Prevent removing the last system admin
     if user.system_role == "system-admin" and body.system_role != "system-admin":
         admin_count = await db.scalar(
-            select(func.count()).select_from(WorkspaceUser).where(
-                WorkspaceUser.system_role == "system-admin"
-            )
+            select(func.count())
+            .select_from(WorkspaceUser)
+            .where(WorkspaceUser.system_role == "system-admin")
         )
         if admin_count <= 1:
             raise HTTPException(

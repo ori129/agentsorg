@@ -158,11 +158,14 @@ class ComplianceAPIClient:
                 created_at = None
                 if isinstance(created_at_raw, (int, float)):
                     from datetime import datetime, timezone
+
                     created_at = datetime.fromtimestamp(created_at_raw, tz=timezone.utc)
                 u["created_at"] = created_at
 
             all_users.extend(users)
-            logger.info(f"Users page: got {len(users)}, has_more={data.get('has_more')}")
+            logger.info(
+                f"Users page: got {len(users)}, has_more={data.get('has_more')}"
+            )
 
             if not data.get("has_more", False) or not users:
                 break

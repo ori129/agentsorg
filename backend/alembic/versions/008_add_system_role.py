@@ -5,6 +5,7 @@ Revises: 007
 Create Date: 2026-03-07
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -19,7 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.add_column(
         "workspace_users",
-        sa.Column("system_role", sa.String(20), nullable=False, server_default="employee"),
+        sa.Column(
+            "system_role", sa.String(20), nullable=False, server_default="employee"
+        ),
     )
 
 

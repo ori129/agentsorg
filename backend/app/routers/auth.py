@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.models import WorkspaceUser
-from app.schemas.schemas import AuthStatus, LoginRequest, RegisterRequest, WorkspaceUserRead
+from app.schemas.schemas import (
+    AuthStatus,
+    LoginRequest,
+    RegisterRequest,
+    WorkspaceUserRead,
+)
 
 router = APIRouter(tags=["auth"])
 logger = logging.getLogger(__name__)
