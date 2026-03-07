@@ -120,7 +120,6 @@ async def enrich_all(req: EnrichAllRequest) -> EnrichAllResult:
     overrides = req.prompt_overrides or {}
 
     import asyncio
-    import time
 
     async def _run_one(kpi_name: str) -> tuple[str, dict, int, float]:
         prompt_override = overrides.get(kpi_name)

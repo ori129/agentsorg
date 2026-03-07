@@ -5,10 +5,9 @@ User-activated: POST /run triggers async clustering, results available via GET /
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import select, text
+from sqlalchemy import text
 
 from app.database import async_session
 from app.schemas.schemas import ClusterGroup, ClusteringStatus

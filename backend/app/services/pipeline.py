@@ -189,7 +189,7 @@ async def _execute_pipeline(db: AsyncSession):
                     "[DEMO] Using keyword-based classifier" if demo else "Starting classification...")
 
         result_cats = await db.execute(
-            select(Category).where(Category.enabled == True)
+            select(Category).where(Category.enabled.is_(True))
         )
         categories = list(result_cats.scalars().all())
 

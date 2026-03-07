@@ -9,10 +9,6 @@ jobs:
     name: Enforce conventional commits
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -20,5 +16,10 @@ jobs:
       - name: Install commitlint
         run: npm install --no-save @commitlint/cli @commitlint/config-conventional
 
-      - name: Lint commit messages
-        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+      - name: Lint PR title
+        # We squash merge, so the PR title becomes the only commit on main.
+        # Linting the title is sufficient and avoids failing on historical commits.
+        run: |
+          echo "${{ github.event.pull_request.title }}" | npx commitlint --config - <<'EOF'
+          { "extends": ["@commitlint/config-conventional"] }
+          EOF

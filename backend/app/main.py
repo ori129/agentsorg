@@ -3,11 +3,11 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import admin, categories, configuration, demo, pipeline
