@@ -69,14 +69,18 @@ class ComplianceAPIClient:
                 params=params,
             )
 
-            logger.info(f"Response: status={response.status_code} length={len(response.text)}")
+            logger.info(
+                f"Response: status={response.status_code} length={len(response.text)}"
+            )
 
             data = response.json()
             gpts = data.get("data", [])
             all_gpts.extend(gpts)
             page += 1
 
-            logger.info(f"Page {page}: got {len(gpts)} GPTs, has_more={data.get('has_more')}")
+            logger.info(
+                f"Page {page}: got {len(gpts)} GPTs, has_more={data.get('has_more')}"
+            )
 
             if on_page:
                 await on_page(gpts, page)
@@ -137,7 +141,9 @@ class ComplianceAPIClient:
         last_exc: Exception | None = None
         for attempt in range(max_retries):
             try:
-                logger.info(f"HTTP {method} {url} (attempt {attempt + 1}/{max_retries})")
+                logger.info(
+                    f"HTTP {method} {url} (attempt {attempt + 1}/{max_retries})"
+                )
                 resp = await self._client.request(method, url, **kwargs)
                 if resp.status_code < 500:
                     resp.raise_for_status()

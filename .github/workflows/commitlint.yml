@@ -1,0 +1,24 @@
+name: Commit Lint
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  commitlint:
+    name: Enforce conventional commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install commitlint
+        run: npm install --no-save @commitlint/cli @commitlint/config-conventional
+
+      - name: Lint PR title
+        # We squash merge — the PR title is the only commit that lands on main.
+        # commitlint.config.js in the repo root is picked up automatically.
+        run: echo "${{ github.event.pull_request.title }}" | npx commitlint

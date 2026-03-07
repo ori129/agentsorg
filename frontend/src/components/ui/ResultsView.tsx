@@ -288,6 +288,95 @@ export default function ResultsView({ summary, gpts }: ResultsViewProps) {
                               </span>
                             </div>
                           )}
+                          {/* Semantic enrichment fields */}
+                          {gpt.semantic_enriched_at && (
+                            <div className="mt-3 pt-3 border-t border-gray-200">
+                              <div className="font-medium text-gray-500 mb-2 text-xs uppercase tracking-wide">
+                                Semantic Intelligence
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                {gpt.business_process && (
+                                  <div>
+                                    <span className="font-medium text-gray-500 text-xs">Business Process: </span>
+                                    <span className="text-gray-700 text-xs">{gpt.business_process}</span>
+                                  </div>
+                                )}
+                                {gpt.intended_audience && (
+                                  <div>
+                                    <span className="font-medium text-gray-500 text-xs">Audience: </span>
+                                    <span className="text-gray-700 text-xs">{gpt.intended_audience}</span>
+                                  </div>
+                                )}
+                                {gpt.output_type && (
+                                  <div>
+                                    <span className="font-medium text-gray-500 text-xs">Output Type: </span>
+                                    <span className="text-gray-700 text-xs capitalize">{gpt.output_type}</span>
+                                  </div>
+                                )}
+                                {gpt.risk_level && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="font-medium text-gray-500 text-xs">Risk: </span>
+                                    <span
+                                      className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                      style={{
+                                        background:
+                                          gpt.risk_level === "critical" ? "#f3e8ff" :
+                                          gpt.risk_level === "high" ? "#fee2e2" :
+                                          gpt.risk_level === "medium" ? "#fef3c7" : "#d1fae5",
+                                        color:
+                                          gpt.risk_level === "critical" ? "#7c3aed" :
+                                          gpt.risk_level === "high" ? "#dc2626" :
+                                          gpt.risk_level === "medium" ? "#d97706" : "#059669",
+                                      }}
+                                    >
+                                      {gpt.risk_level}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Score rows */}
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                {[
+                                  { label: "Sophistication", score: gpt.sophistication_score },
+                                  { label: "Quality", score: gpt.prompting_quality_score },
+                                  { label: "ROI Potential", score: gpt.roi_potential_score },
+                                  { label: "Adoption Ease", score: gpt.adoption_friction_score },
+                                ].map(({ label, score }) => score != null && (
+                                  <div key={label} className="flex items-center gap-2">
+                                    <span className="text-gray-500 text-xs w-28">{label}:</span>
+                                    <span className="inline-flex gap-0.5">
+                                      {Array.from({ length: 5 }).map((_, i) => (
+                                        <span
+                                          key={i}
+                                          className="w-2 h-2 rounded-full inline-block"
+                                          style={{
+                                            background: i < score
+                                              ? (score >= 4 ? "#10b981" : score >= 3 ? "#f59e0b" : "#ef4444")
+                                              : "#e5e7eb",
+                                          }}
+                                        />
+                                      ))}
+                                    </span>
+                                    <span className="text-gray-400 text-xs">{score}/5</span>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Integration chips */}
+                              {(gpt.integration_flags ?? []).length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  <span className="text-gray-500 text-xs mr-1">Integrations:</span>
+                                  {(gpt.integration_flags ?? []).map((f: string) => (
+                                    <span
+                                      key={f}
+                                      className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700"
+                                    >
+                                      {f}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

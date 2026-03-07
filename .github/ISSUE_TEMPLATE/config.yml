@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/ori129/agentsorg/discussions/new?category=q-a
+    about: Questions, help, and general discussion belong in Discussions, not Issues.
+  - name: Share an idea (RFC)
+    url: https://github.com/ori129/agentsorg/discussions/new?category=ideas
+    about: Not sure if something is a bug or feature? Start a Discussion first.

@@ -1,0 +1,692 @@
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { ClusterGroup, GPTItem } from "../../types";
+import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
+import type { LeaderPage } from "./Sidebar";
+
+interface OverviewProps {
+  gpts: GPTItem[];
+  onSetPage: (p: LeaderPage) => void;
+}
+
+// ── Data derivation ───────────────────────────────────────────────────────────
+
+function useOverviewData(gpts: GPTItem[]) {
+  return useMemo(() => {
+    const hasData = gpts.length > 0;
+    const hasEnrichment = gpts.some((g) => g.semantic_enriched_at);
+    const enriched = gpts.filter((g) => g.semantic_enriched_at);
+
+    // ── KPI strip ──
+    const totalGpts = hasData ? gpts.length : 137;
+    const uniqueBuilders = hasData
+      ? new Set(gpts.map((g) => g.owner_email).filter(Boolean)).size
+      : 43;
+    const avgSoph =
+      enriched.length > 0
+        ? (enriched.reduce((s, g) => s + (g.sophistication_score ?? 0), 0) / enriched.length).toFixed(1)
+        : hasData ? "—" : "2.1";
+    const riskCount = hasData
+      ? gpts.filter((g) => g.risk_level === "high" || g.risk_level === "critical").length
+      : 8;
+
+    // ── Creation velocity (last 6 months) ──
+    const velocity: { month: string; count: number }[] = (() => {
+      if (!hasData) return [
+        { month: "Sep", count: 12 }, { month: "Oct", count: 18 },
+        { month: "Nov", count: 31 }, { month: "Dec", count: 24 },
+        { month: "Jan", count: 41 }, { month: "Feb", count: 38 },
+      ];
+      const now = new Date();
+      const buckets: Record<string, number> = {};
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = d.toLocaleString("en-US", { month: "short" });
+        buckets[key] = 0;
+      }
+      for (const g of gpts) {
+        if (!g.created_at) continue;
+        const d = new Date(g.created_at);
+        const key = d.toLocaleString("en-US", { month: "short" });
+        if (key in buckets) buckets[key]++;
+      }
+      return Object.entries(buckets).map(([month, count]) => ({ month, count }));
+    })();
+
+    // ── By department ──
+    const byDept: { dept: string; count: number }[] = (() => {
+      if (!hasData) return [
+        { dept: "Sales", count: 34 }, { dept: "Marketing", count: 28 },
+        { dept: "Engineering", count: 22 }, { dept: "HR", count: 19 },
+        { dept: "Finance", count: 14 }, { dept: "Legal", count: 11 },
+        { dept: "Operations", count: 9 },
+      ];
+      const counts: Record<string, number> = {};
+      for (const g of gpts) {
+        const dept = g.primary_category || (g.builder_categories?.[0] as string) || "General";
+        counts[dept] = (counts[dept] ?? 0) + 1;
+      }
+      return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 7)
+        .map(([dept, count]) => ({ dept, count }));
+    })();
+
+    // ── Business process distribution (from enrichment) ──
+    const processDistribution: { name: string; count: number }[] = (() => {
+      if (!hasEnrichment) return [
+        { name: "Contract Review", count: 8 },
+        { name: "Lead Qualification", count: 6 },
+        { name: "Employee Onboarding", count: 5 },
+        { name: "Code Review", count: 4 },
+        { name: "Budget Analysis", count: 3 },
+        { name: "Meeting Summarization", count: 3 },
+        { name: "RFP Response", count: 2 },
+        { name: "Vendor Evaluation", count: 1 },
+      ];
+      // key = lowercase for grouping; display name = first-seen casing (backend normalizes to Title Case)
+      const counts: Record<string, number> = {};
+      const display: Record<string, string> = {};
+      enriched.forEach((g) => {
+        if (g.business_process) {
+          const key = g.business_process.trim().toLowerCase();
+          counts[key] = (counts[key] ?? 0) + 1;
+          if (!display[key]) display[key] = g.business_process.trim();
+        }
+      });
+      return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([key, count]) => ({ name: display[key], count }));
+    })();
+    const noProcessCount = hasEnrichment
+      ? enriched.filter((g) => !g.business_process).length
+      : 0;
+    const totalEnriched = enriched.length;
+
+    // ── Top risks ──
+    const topRisks: { name: string; level: string; flag: string }[] = (() => {
+      if (!hasEnrichment) return [
+        { name: "HR Onboarding Guide", level: "critical", flag: "accesses_hr_data" },
+        { name: "Salesforce Deal Intel", level: "high", flag: "customer_data_exposure" },
+        { name: "Legal Contract Analyzer", level: "high", flag: "accesses_legal_data" },
+        { name: "Budget Q&A Assistant", level: "medium", flag: "accesses_financial_data" },
+        { name: "PR Draft Assistant", level: "medium", flag: "output_used_externally" },
+      ];
+      const order: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+      return enriched
+        .filter((g) => g.risk_level && g.risk_level !== "low")
+        .sort((a, b) => (order[a.risk_level!] ?? 3) - (order[b.risk_level!] ?? 3))
+        .slice(0, 5)
+        .map((g) => ({
+          name: g.name,
+          level: g.risk_level!,
+          flag: g.risk_flags?.[0] ?? "",
+        }));
+    })();
+
+    // ── Maturity distribution ──
+    const maturity = (() => {
+      if (!hasEnrichment) return { tier1: 60, tier2: 25, tier3: 15 };
+      const t1 = enriched.filter((g) => (g.sophistication_score ?? 0) <= 2).length;
+      const t2 = enriched.filter((g) => g.sophistication_score === 3).length;
+      const t3 = enriched.filter((g) => (g.sophistication_score ?? 0) >= 4).length;
+      const total = enriched.length || 1;
+      return {
+        tier1: Math.round((t1 / total) * 100),
+        tier2: Math.round((t2 / total) * 100),
+        tier3: Math.round((t3 / total) * 100),
+      };
+    })();
+
+    // ── Output type distribution ──
+    const outputTypes: { type: string; count: number; pct: number }[] = (() => {
+      if (!hasEnrichment) return [
+        { type: "Document", count: 42, pct: 31 },
+        { type: "Analysis", count: 28, pct: 20 },
+        { type: "Conversation", count: 25, pct: 18 },
+        { type: "Content", count: 21, pct: 15 },
+        { type: "Code", count: 14, pct: 10 },
+        { type: "Other", count: 7, pct: 6 },
+      ];
+      const counts: Record<string, number> = {};
+      for (const g of enriched) {
+        const t = g.output_type ?? "other";
+        counts[t] = (counts[t] ?? 0) + 1;
+      }
+      const total = enriched.length || 1;
+      return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([type, count]) => ({
+          type: type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, " "),
+          count,
+          pct: Math.round((count / total) * 100),
+        }));
+    })();
+
+    // ── Top builders ──
+    const builderMap: Record<string, { count: number; scores: number[] }> = {};
+    if (hasData) {
+      for (const g of gpts) {
+        const name = g.builder_name || g.owner_email || "Unknown";
+        if (!builderMap[name]) builderMap[name] = { count: 0, scores: [] };
+        builderMap[name].count++;
+        if (g.prompting_quality_score != null) builderMap[name].scores.push(g.prompting_quality_score);
+      }
+    }
+    const allBuilders: { name: string; gpts: number; avgQuality: number }[] = hasData
+      ? Object.entries(builderMap)
+          .sort((a, b) => b[1].count - a[1].count)
+          .map(([name, { count, scores }]) => ({
+            name,
+            gpts: count,
+            avgQuality: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+          }))
+      : [
+          { name: "Alex Chen", gpts: 12, avgQuality: 4.2 },
+          { name: "Maria Santos", gpts: 9, avgQuality: 3.8 },
+          { name: "James Wright", gpts: 7, avgQuality: 4.5 },
+          { name: "Priya Patel", gpts: 6, avgQuality: 2.9 },
+          { name: "Tom Müller", gpts: 5, avgQuality: 3.1 },
+        ];
+    const topBuilders = allBuilders.slice(0, 5);
+    const totalBuilders = allBuilders.length;
+
+    // ── Quality by dept ──
+    const qualityByDept: { dept: string; avgScore: number }[] = (() => {
+      if (!hasEnrichment) return [
+        { dept: "Engineering", avgScore: 3.8 },
+        { dept: "Sales", avgScore: 3.2 },
+        { dept: "Legal", avgScore: 4.1 },
+        { dept: "Marketing", avgScore: 2.4 },
+        { dept: "HR", avgScore: 2.7 },
+      ];
+      const deptMap: Record<string, number[]> = {};
+      for (const g of enriched) {
+        if (g.prompting_quality_score == null) continue;
+        const dept = g.primary_category || (g.builder_categories?.[0] as string) || "General";
+        if (!deptMap[dept]) deptMap[dept] = [];
+        deptMap[dept].push(g.prompting_quality_score);
+      }
+      return Object.entries(deptMap)
+        .map(([dept, scores]) => ({
+          dept,
+          avgScore: scores.reduce((a, b) => a + b, 0) / scores.length,
+        }))
+        .sort((a, b) => b.avgScore - a.avgScore)
+        .slice(0, 5);
+    })();
+
+    // ── Lowest quality dept for callout ──
+    const lowestQualityDept = qualityByDept.length
+      ? [...qualityByDept].sort((a, b) => a.avgScore - b.avgScore)[0]
+      : null;
+
+    return {
+      hasData, hasEnrichment,
+      totalGpts, uniqueBuilders, avgSoph, riskCount,
+      velocity, byDept, processDistribution, noProcessCount, totalEnriched, topRisks,
+      maturity, outputTypes, topBuilders, totalBuilders, allBuilders, qualityByDept, lowestQualityDept,
+    };
+  }, [gpts]);
+}
+
+// ── Small reusable components ─────────────────────────────────────────────────
+
+const RISK_COLORS: Record<string, string> = {
+  critical: "#8b5cf6", high: "#ef4444", medium: "#f59e0b", low: "#10b981",
+};
+
+function ScoreDots({ score }: { score: number }) {
+  return (
+    <span className="inline-flex gap-1 items-center">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <span key={i} className="inline-block w-2 h-2 rounded-full"
+          style={{ background: i < score ? (score >= 4 ? "#10b981" : score >= 3 ? "#f59e0b" : "#ef4444") : "var(--c-border)" }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function KpiCard({ label, value, sub, color, onClick }: { label: string; value: string | number; sub?: string; color: string; onClick?: () => void }) {
+  return (
+    <div
+      className="rounded-xl p-4 flex flex-col gap-1 transition-colors"
+      style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)", cursor: onClick ? "pointer" : "default" }}
+      onClick={onClick}
+      onMouseEnter={(e) => onClick && ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--c-accent-bg)")}
+      onMouseLeave={(e) => onClick && ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--c-border)")}
+    >
+      <div className="text-xs" style={{ color: "var(--c-text-4)" }}>{label}</div>
+      <div className="text-2xl font-bold" style={{ color }}>{value}</div>
+      {sub && <div className="text-xs" style={{ color: "var(--c-text-4)" }}>{sub}</div>}
+    </div>
+  );
+}
+
+const CLICKABLE_ROW = {
+  cursor: "pointer",
+  borderRadius: 6,
+  padding: "2px 4px",
+  margin: "0 -4px",
+} as React.CSSProperties;
+
+function Card({ title, children, onExpand }: { title: string; children: React.ReactNode; onExpand?: () => void }) {
+  return (
+    <div className="rounded-xl p-5" style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--c-text-4)" }}>
+          {title}
+        </div>
+        {onExpand && (
+          <button
+            onClick={onExpand}
+            className="text-xs px-1.5 py-0.5 rounded transition-colors"
+            style={{ color: "var(--c-text-5)", background: "none", border: "none", cursor: "pointer" }}
+            title="Open full view"
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "#3b82f6";
+              (e.currentTarget as HTMLButtonElement).style.background = "var(--c-accent-bg)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--c-text-5)";
+              (e.currentTarget as HTMLButtonElement).style.background = "none";
+            }}
+          >
+            ↗
+          </button>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function ViewAllLink({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="mt-3 text-xs font-medium"
+      style={{ color: "#3b82f6", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.7")}
+      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+    >
+      {label} →
+    </button>
+  );
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+
+export default function Overview({ gpts, onSetPage }: OverviewProps) {
+  const d = useOverviewData(gpts);
+  const isMock = !d.hasData || !d.hasEnrichment;
+  const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+  const { data: clusters = [] } = useQuery<ClusterGroup[]>({
+    queryKey: ["clustering-results"],
+    queryFn: () => fetch("/api/v1/clustering/results").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
+  const velMax = Math.max(...d.velocity.map((m) => m.count), 1);
+  const deptMax = Math.max(...d.byDept.map((x) => x.count), 1);
+  const procMax = Math.max(...d.processDistribution.map((p) => p.count), 1);
+  const noProcessPct = d.totalEnriched > 0
+    ? Math.round((d.noProcessCount / d.totalEnriched) * 100)
+    : 0;
+
+  const open = (label: string, subset: GPTItem[]) =>
+    setDrawer({ label, gpts: subset });
+
+  // Pre-compute filter subsets
+  const riskGpts = gpts.filter((g) => g.risk_level === "high" || g.risk_level === "critical");
+  const noProcessGpts = gpts.filter((g) => !g.business_process);
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      <GPTDrawer filter={drawer} onClose={() => setDrawer(null)} />
+
+      {isMock && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg mb-5 text-sm"
+          style={{ background: "#1c1200", border: "1px solid #78350f", color: "#f59e0b" }}>
+          <span>⚠</span>
+          <span>
+            {d.hasData
+              ? "Run pipeline with Classification enabled to see semantic KPIs."
+              : "Sample data — enable Demo and run the pipeline to populate real data."}
+          </span>
+        </div>
+      )}
+
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold" style={{ color: "var(--c-text)" }}>AI Portfolio Overview</h1>
+          <div className="text-sm mt-0.5" style={{ color: "var(--c-text-4)" }}>
+            {d.totalGpts} GPTs across organization
+          </div>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div className="grid grid-cols-5 gap-3 mb-6">
+        <KpiCard label="Total GPTs" value={d.totalGpts.toLocaleString()} sub="in registry" color="#3b82f6"
+          onClick={() => open("All GPTs", gpts)} />
+        <KpiCard label="Active Builders" value={d.uniqueBuilders.toLocaleString()} sub="created ≥1 GPT" color="#6366f1"
+          onClick={() => open("All GPTs — by builder", [...gpts].sort((a, b) => ((a.builder_name ?? a.owner_email) ?? "").localeCompare((b.builder_name ?? b.owner_email) ?? "")))} />
+        <KpiCard label="Avg Sophistication" value={d.avgSoph} sub="out of 5" color="#f59e0b"
+          onClick={() => open("By Sophistication", [...gpts].sort((a, b) => (b.sophistication_score ?? 0) - (a.sophistication_score ?? 0)))} />
+        <KpiCard label="Risk Flags" value={d.riskCount.toLocaleString()} sub="high or critical" color="#ef4444"
+          onClick={() => open("High & Critical Risk GPTs", riskGpts)} />
+        <KpiCard label="Business Processes" value={d.processDistribution.length.toLocaleString()} sub="unique workflows" color="#10b981"
+          onClick={() => open("GPTs with identified business process", gpts.filter((g) => g.business_process))} />
+      </div>
+
+      {/* Row 1: velocity + by dept */}
+      <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "60% 40%" }}>
+        <Card title="Creation Velocity (last 6 months)">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-end gap-2" style={{ height: 88 }}>
+              {d.velocity.map((m) => (
+                <div
+                  key={m.month}
+                  className="flex flex-col items-center justify-end flex-1 gap-1"
+                  style={{ cursor: m.count > 0 ? "pointer" : "default" }}
+                  onClick={() => {
+                    if (!m.count) return;
+                    const subset = gpts.filter((g) => {
+                      if (!g.created_at) return false;
+                      const d = new Date(g.created_at);
+                      return d.toLocaleString("default", { month: "short" }) === m.month;
+                    });
+                    open(`Created in ${m.month}`, subset);
+                  }}
+                >
+                  <div className="text-xs" style={{ color: "var(--c-text-4)" }}>{m.count}</div>
+                  <div
+                    className="w-full rounded-t transition-opacity hover:opacity-80"
+                    style={{
+                      height: m.count > 0 ? Math.max(4, (m.count / velMax) * 64) : 2,
+                      background: "linear-gradient(180deg, #3b82f6, var(--c-accent-bg))",
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              {d.velocity.map((m) => (
+                <div key={m.month} className="flex-1 text-center text-xs" style={{ color: "var(--c-text-4)" }}>
+                  {m.month}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        <Card title="GPTs by Department" onExpand={() => onSetPage("overview:departments")}>
+          <div className="space-y-2">
+            {d.byDept.map((dep) => (
+              <div
+                key={dep.dept}
+                className="flex items-center gap-2 rounded px-1 -mx-1 transition-colors"
+                style={{ cursor: "pointer" }}
+                onClick={() => open(dep.dept, gpts.filter((g) => (g.primary_category || (g.builder_categories?.[0] as string) || "General") === dep.dept))}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div className="text-xs w-20 truncate" style={{ color: "var(--c-text-2)" }}>{dep.dept}</div>
+                <div className="flex-1 rounded-full overflow-hidden" style={{ background: "var(--c-border)", height: 8 }}>
+                  <div className="h-full rounded-full"
+                    style={{ width: `${(dep.count / deptMax) * 100}%`, background: "#6366f1" }}
+                  />
+                </div>
+                <div className="text-xs w-8 text-right" style={{ color: "var(--c-text-3)" }}>{dep.count.toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Row 2: process distribution + risk list */}
+      <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "60% 40%" }}>
+        <Card title="Business Processes in Use" onExpand={() => onSetPage("overview:processes")}>
+          {d.processDistribution.length === 0 ? (
+            <div className="text-xs" style={{ color: "var(--c-text-4)" }}>
+              No enrichment data yet. Run the pipeline with an OpenAI key to extract business processes.
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {d.processDistribution.map((p, i) => (
+                  <div
+                    key={p.name}
+                    className="flex items-center gap-2 rounded px-1 -mx-1 transition-colors"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => open(p.name, gpts.filter((g) => g.business_process === p.name))}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div className="text-xs w-4 text-right shrink-0" style={{ color: "var(--c-text-5)" }}>{i + 1}</div>
+                    <div className="text-xs truncate" style={{ color: "var(--c-text-2)", width: 160, minWidth: 160 }}>{p.name}</div>
+                    <div className="flex-1 rounded-full overflow-hidden" style={{ background: "var(--c-border)", height: 6 }}>
+                      <div className="h-full rounded-full"
+                        style={{ width: `${(p.count / procMax) * 100}%`, background: "linear-gradient(90deg, #10b981, #3b82f6)" }}
+                      />
+                    </div>
+                    <div className="text-xs w-6 text-right shrink-0" style={{ color: "var(--c-text-3)" }}>{p.count}</div>
+                  </div>
+                ))}
+              </div>
+              {d.noProcessCount > 0 && (
+                <div
+                  className="mt-3 flex items-center gap-2 text-xs rounded px-2 py-1 -mx-2 transition-colors"
+                  style={{ color: "var(--c-text-4)", cursor: "pointer" }}
+                  onClick={() => open("No identified business process (experimental)", noProcessGpts)}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: "var(--c-text-5)" }} />
+                  {d.noProcessCount.toLocaleString()} GPTs ({noProcessPct}%) have no identifiable business process — likely experimental
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+
+        <Card title="Top Risk Items">
+          <div className="space-y-2">
+            {d.topRisks.length === 0 ? (
+              <div className="text-xs" style={{ color: "var(--c-text-4)" }}>No high/critical risk GPTs found.</div>
+            ) : d.topRisks.map((r) => (
+              <div
+                key={r.name}
+                className="flex items-center justify-between text-xs py-1 rounded px-1 -mx-1 transition-colors"
+                style={{ borderBottom: "1px solid var(--c-border)", cursor: "pointer" }}
+                onClick={() => {
+                  const g = gpts.find((g) => g.name === r.name);
+                  if (g) open(r.name, [g]);
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div className="truncate" style={{ color: "var(--c-text-2)", maxWidth: 160 }}>{r.name}</div>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold ml-2 shrink-0"
+                  style={{ background: RISK_COLORS[r.level] + "22", color: RISK_COLORS[r.level] }}>
+                  {r.level}
+                </span>
+              </div>
+            ))}
+          </div>
+          {riskGpts.length > 5 && (
+            <ViewAllLink
+              label={`View all ${riskGpts.length.toLocaleString()} risk GPTs`}
+              onClick={() => open("High & Critical Risk GPTs", riskGpts)}
+            />
+          )}
+        </Card>
+      </div>
+
+      {/* Row 3: maturity + redundancy + output type */}
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        <Card title="Portfolio Maturity" onExpand={() => onSetPage("overview:maturity")}>
+          <div className="flex flex-col items-center py-2">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="48" fill="none" stroke="var(--c-border)" strokeWidth="12" />
+              <circle cx="60" cy="60" r="48" fill="none" stroke="#3b82f6" strokeWidth="12"
+                strokeDasharray={`${301 * d.maturity.tier1 / 100} 301`} strokeLinecap="round"
+                transform="rotate(-90 60 60)" />
+              <circle cx="60" cy="60" r="48" fill="none" stroke="#f59e0b" strokeWidth="12"
+                strokeDasharray={`${301 * d.maturity.tier2 / 100} 301`} strokeLinecap="round"
+                transform={`rotate(${-90 + 360 * d.maturity.tier1 / 100} 60 60)`} />
+              <circle cx="60" cy="60" r="48" fill="none" stroke="#10b981" strokeWidth="12"
+                strokeDasharray={`${301 * d.maturity.tier3 / 100} 301`} strokeLinecap="round"
+                transform={`rotate(${-90 + 360 * (d.maturity.tier1 + d.maturity.tier2) / 100} 60 60)`} />
+            </svg>
+            <div className="flex flex-col gap-1 mt-3 text-xs">
+              {[
+                { label: `Production (${d.maturity.tier3}%)`, color: "#10b981", scores: [4, 5] },
+                { label: `Functional (${d.maturity.tier2}%)`, color: "#f59e0b", scores: [3] },
+                { label: `Experimental (${d.maturity.tier1}%)`, color: "#3b82f6", scores: [1, 2] },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-2 rounded px-1.5 py-0.5 -mx-1.5 transition-colors"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => open(item.label, gpts.filter((g) => item.scores.includes(g.sophistication_score ?? 0)))}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: item.color }} />
+                  <span style={{ color: "var(--c-text-3)" }}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Redundancy Clusters">
+          {clusters.length === 0 ? (
+            <div className="text-xs" style={{ color: "var(--c-text-4)" }}>
+              No clusters yet. Run clustering from the Duplicates panel to detect redundant builds.
+            </div>
+          ) : (
+            <div className="space-y-2 text-xs">
+              {clusters.slice(0, 5).map((c, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between px-2 py-1.5 rounded transition-colors"
+                  style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)", cursor: "pointer" }}
+                  onClick={() => {
+                    const subset = gpts.filter((g) => c.gpt_ids.includes(g.id));
+                    open(c.gpt_names[0] ?? c.theme, subset);
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--c-bg)")}
+                >
+                  <span className="truncate" style={{ color: "var(--c-text-2)", maxWidth: 130 }}>
+                    {c.gpt_names[0] ?? c.theme}
+                  </span>
+                  <span style={{ color: "#f59e0b", flexShrink: 0 }}>{c.gpt_ids.length} GPTs</span>
+                </div>
+              ))}
+              {clusters.length > 5 && (
+                <ViewAllLink
+                  label={`View all ${clusters.length} clusters`}
+                  onClick={() => {
+                    const subset = gpts.filter((g) => clusters.some((c) => c.gpt_ids.includes(g.id)));
+                    open(`All ${clusters.length} redundancy clusters`, subset);
+                  }}
+                />
+              )}
+            </div>
+          )}
+        </Card>
+
+        <Card title="Output Classification" onExpand={() => onSetPage("overview:output-types")}>
+          <div className="space-y-2 text-xs">
+            {d.outputTypes.map((o) => (
+              <div
+                key={o.type}
+                className="flex items-center gap-2 rounded px-1 -mx-1 transition-colors"
+                style={{ cursor: "pointer" }}
+                onClick={() => open(o.type, gpts.filter((g) => (g.output_type ?? "other").replace(/_/g, " ").toLowerCase() === o.type.toLowerCase()))}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div className="w-24 text-right" style={{ color: "var(--c-text-3)" }}>{o.type}</div>
+                <div className="flex-1 rounded-full overflow-hidden" style={{ background: "var(--c-border)", height: 6 }}>
+                  <div className="h-full rounded-full" style={{ width: `${o.pct}%`, background: "#6366f1" }} />
+                </div>
+                <div style={{ color: "var(--c-text-4)" }}>{o.count}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Row 4: top builders + quality by dept */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card title="Top Builders" onExpand={() => onSetPage("overview:builders")}>
+          <div className="space-y-2">
+            {d.topBuilders.map((b, idx) => (
+              <div
+                key={b.name}
+                className="flex items-center justify-between text-xs py-1 rounded px-1 -mx-1 transition-colors"
+                style={{ borderBottom: "1px solid var(--c-border)", cursor: "pointer" }}
+                onClick={() => open(`GPTs by ${b.name}`, gpts.filter((g) => (g.builder_name ?? g.owner_email) === b.name))}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div className="flex items-center gap-2">
+                  <span style={{ color: "var(--c-text-5)", width: 16 }}>#{idx + 1}</span>
+                  <span className="truncate" style={{ color: "var(--c-text-2)", maxWidth: 140 }}>{b.name}</span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span style={{ color: "var(--c-text-4)" }}>{b.gpts.toLocaleString()} GPTs</span>
+                  {b.avgQuality > 0 && <ScoreDots score={Math.round(b.avgQuality)} />}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Prompting Quality by Department">
+          <div className="space-y-3">
+            {d.qualityByDept.map((dep) => (
+              <div
+                key={dep.dept}
+                className="text-xs rounded px-1 -mx-1 pb-1 transition-colors"
+                style={{ cursor: "pointer" }}
+                onClick={() => open(`${dep.dept} GPTs`, gpts.filter((g) => (g.primary_category || (g.builder_categories?.[0] as string) || "General") === dep.dept))}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span style={{ color: "var(--c-text-2)" }}>{dep.dept}</span>
+                  <span style={{ color: "var(--c-text-4)" }}>{dep.avgScore.toFixed(1)}/5</span>
+                </div>
+                <div className="rounded-full overflow-hidden" style={{ background: "var(--c-border)", height: 6 }}>
+                  <div className="h-full rounded-full"
+                    style={{
+                      width: `${(dep.avgScore / 5) * 100}%`,
+                      background: dep.avgScore >= 3.5 ? "#10b981" : dep.avgScore >= 2.5 ? "#f59e0b" : "#ef4444",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          {d.lowestQualityDept && d.lowestQualityDept.avgScore < 3 && (
+            <div className="mt-4 px-3 py-2 rounded-lg text-xs"
+              style={{ background: "#1c1200", border: "1px solid #78350f", color: "#f59e0b" }}>
+              {d.lowestQualityDept.dept} avg {d.lowestQualityDept.avgScore.toFixed(1)}/5 — prompt engineering
+              workshop recommended.
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}

@@ -69,11 +69,47 @@ export interface GPTItem {
   shared_user_count: number;
   tools: unknown[] | null;
   builder_categories: string[] | null;
+  conversation_starters?: string[] | null;
   primary_category: string | null;
   secondary_category: string | null;
   classification_confidence: number | null;
   llm_summary: string | null;
   use_case_description: string | null;
+  instructions: string | null;
+  // Semantic enrichment
+  business_process: string | null;
+  risk_flags: string[] | null;
+  risk_level: string | null;
+  sophistication_score: number | null;
+  sophistication_rationale: string | null;
+  prompting_quality_score: number | null;
+  prompting_quality_rationale: string | null;
+  prompting_quality_flags: string[] | null;
+  roi_potential_score: number | null;
+  roi_rationale: string | null;
+  intended_audience: string | null;
+  integration_flags: string[] | null;
+  output_type: string | null;
+  adoption_friction_score: number | null;
+  adoption_friction_rationale: string | null;
+  semantic_enriched_at: string | null;
+}
+
+export interface GPTSearchResult extends GPTItem {
+  reasoning: string | null;
+  confidence: "high" | "medium" | "low" | null;
+  match_score: number | null;
+}
+
+export interface ClusterGroup {
+  theme: string;
+  gpt_ids: string[];
+  gpt_names: string[];
+  estimated_wasted_hours: number | null;
+}
+
+export interface ClusteringStatus {
+  status: "idle" | "running" | "completed";
 }
 
 export interface TestConnectionResult {

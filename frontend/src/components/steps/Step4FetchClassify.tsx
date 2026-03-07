@@ -85,12 +85,19 @@ export default function Step4FetchClassify({ onViewResults }: Step4Props) {
   const handleRun = useCallback(() => {
     setPhase("idle");
     setShowLogs(true);
-    qc.setQueryData(["pipeline-status"], undefined);
 
     runPipeline.mutate(undefined, {
       onSuccess: (data) => {
         setSyncLogId(data.sync_log_id);
         runStartedAt.current = Date.now();
+        // Optimistically mark as running so Effect 2 doesn't race to "done"
+        // before the first real poll comes back.
+        qc.setQueryData(["pipeline-status"], {
+          running: true,
+          progress: 0,
+          stage: "Starting...",
+          sync_log_id: data.sync_log_id,
+        });
         setPhase("running");
       },
     });

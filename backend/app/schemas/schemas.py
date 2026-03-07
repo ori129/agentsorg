@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ConfigurationRead(BaseModel):
@@ -124,10 +124,127 @@ class GPTRead(BaseModel):
     shared_user_count: int
     tools: list | None
     builder_categories: list | None
+    conversation_starters: list | None = None
     primary_category: str | None = None
     secondary_category: str | None = None
     classification_confidence: float | None
     llm_summary: str | None
     use_case_description: str | None = None
+    instructions: str | None = None
+    # Semantic enrichment fields
+    business_process: str | None = None
+    risk_flags: list | None = None
+    risk_level: str | None = None
+    sophistication_score: int | None = None
+    sophistication_rationale: str | None = None
+    prompting_quality_score: int | None = None
+    prompting_quality_rationale: str | None = None
+    prompting_quality_flags: list | None = None
+    roi_potential_score: int | None = None
+    roi_rationale: str | None = None
+    intended_audience: str | None = None
+    integration_flags: list | None = None
+    output_type: str | None = None
+    adoption_friction_score: int | None = None
+    adoption_friction_rationale: str | None = None
+    semantic_enriched_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class GPTSearchResult(GPTRead):
+    reasoning: str | None = None
+    confidence: str | None = None  # "high" | "medium" | "low"
+    match_score: int | None = None  # 0-100
+
+
+class WorkshopCreate(BaseModel):
+    title: str
+    description: str | None = None
+    event_date: date
+    duration_hours: float | None = None
+    facilitator: str | None = None
+
+
+class WorkshopRead(WorkshopCreate):
+    id: int
+    created_at: datetime
+    participant_count: int
+    tagged_gpt_count: int
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomCourseRead(BaseModel):
+    id: int
+    url: str
+    description: str
+    uploaded_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CustomCourseUploadResult(BaseModel):
+    added: int
+    updated: int
+    errors: list[str]
+
+
+class BuilderRecognition(BaseModel):
+    email: str
+    name: str | None
+    composite_score: float
+    volume_score: float
+    quality_score: float
+    adoption_score: float
+    risk_hygiene_score: float
+    gpt_count: int
+    avg_sophistication: float | None
+    avg_quality: float | None
+
+
+class CourseRecommendation(BaseModel):
+    course_name: str
+    url: str
+    category: str
+    reasoning: str
+    priority: int
+
+
+class OrgLearningReport(BaseModel):
+    skill_gaps: list[str]
+    recommended_courses: list[CourseRecommendation]
+    summary: str
+
+
+class EmployeeLearningReport(BaseModel):
+    employee_email: str
+    recommended_courses: list[CourseRecommendation]
+    gap_summary: str
+
+
+class WorkshopImpactAuto(BaseModel):
+    participant_email: str
+    gpts_before: int
+    gpts_after: int
+    avg_quality_before: float | None
+    avg_quality_after: float | None
+    avg_sophistication_before: float | None
+    avg_sophistication_after: float | None
+
+
+class WorkshopImpact(BaseModel):
+    workshop_id: int
+    auto_stats: list[WorkshopImpactAuto]
+    tagged_gpts: list[str]
+    summary_delta_quality: float | None
+    summary_delta_sophistication: float | None
+
+
+class ClusterGroup(BaseModel):
+    theme: str
+    gpt_ids: list[str]
+    gpt_names: list[str]
+    estimated_wasted_hours: float | None = None
+
+
+class ClusteringStatus(BaseModel):
+    status: str  # idle | running | completed

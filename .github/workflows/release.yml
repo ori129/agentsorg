@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "Error: releases must be tagged on main."
+            exit 1
+          fi
+
+      - name: Build changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          CURRENT_TAG=${GITHUB_REF_NAME}
+
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+
+          FEATURES=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^feat" | head -50)
+          FIXES=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^fix" | head -50)
+          CHORES=$(git log $RANGE --pretty=format:"- %s (%h)" --grep="^chore\|^ci\|^refactor\|^perf\|^docs" | head -50)
+
+          BODY=""
+          if [ -n "$FEATURES" ]; then
+            BODY="${BODY}## Features\n${FEATURES}\n\n"
+          fi
+          if [ -n "$FIXES" ]; then
+            BODY="${BODY}## Bug Fixes\n${FIXES}\n\n"
+          fi
+          if [ -n "$CHORES" ]; then
+            BODY="${BODY}## Maintenance\n${CHORES}\n\n"
+          fi
+          if [ -z "$BODY" ]; then
+            BODY="No conventional commits found since ${PREV_TAG:-beginning}."
+          fi
+
+          # Write to file to safely pass multiline content
+          printf "%b" "$BODY" > release_notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

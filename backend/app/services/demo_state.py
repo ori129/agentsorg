@@ -23,7 +23,9 @@ def get_demo_state() -> dict:
 
 def set_demo_state(enabled: bool, size: str = "medium") -> dict:
     if size not in SIZE_MAP:
-        raise ValueError(f"Invalid size: {size}. Must be one of {list(SIZE_MAP.keys())}")
+        raise ValueError(
+            f"Invalid size: {size}. Must be one of {list(SIZE_MAP.keys())}"
+        )
     _demo_state["enabled"] = enabled
     _demo_state["size"] = size
     return dict(_demo_state)

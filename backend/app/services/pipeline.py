@@ -23,6 +23,8 @@ from app.services.filter_engine import filter_gpts
 from app.services.mock_classifier import MockClassifier
 from app.services.mock_embedder import MockEmbedder
 from app.services.mock_fetcher import MockComplianceAPIClient
+from app.services.mock_semantic_enricher import MockSemanticEnricher
+from app.services.semantic_enricher import SemanticEnricher
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +43,16 @@ def get_pipeline_status() -> dict:
 
 async def _log(db: AsyncSession, sync_log_id: int, level: str, message: str):
     # Always print to stdout
-    log_fn = logger.error if level == "error" else logger.warning if level == "warn" else logger.info
+    log_fn = (
+        logger.error
+        if level == "error"
+        else logger.warning
+        if level == "warn"
+        else logger.info
+    )
     log_fn(f"[pipeline:{sync_log_id}] {message}")
     try:
-        entry = PipelineLogEntry(
-            sync_log_id=sync_log_id, level=level, message=message
-        )
+        entry = PipelineLogEntry(sync_log_id=sync_log_id, level=level, message=message)
         db.add(entry)
         await db.commit()
     except Exception as e:
@@ -80,7 +86,10 @@ async def run_pipeline():
                 if _current_status.get("sync_log_id"):
                     try:
                         await _log(
-                            db, _current_status["sync_log_id"], "error", f"Pipeline failed: {e}"
+                            db,
+                            _current_status["sync_log_id"],
+                            "error",
+                            f"Pipeline failed: {e}",
                         )
                         result = await db.execute(
                             select(SyncLog).where(
@@ -116,7 +125,9 @@ async def _execute_pipeline(db: AsyncSession):
         configuration_snapshot={
             "workspace_id": config.workspace_id if config else None,
             "include_all": config.include_all if config else True,
-            "classification_enabled": config.classification_enabled if config else False,
+            "classification_enabled": config.classification_enabled
+            if config
+            else False,
             "demo_mode": demo,
         }
     )
@@ -158,9 +169,13 @@ async def _execute_pipeline(db: AsyncSession):
     # Log first GPT for debugging
     if all_gpts:
         first = all_gpts[0]
-        await _log(db, sync_log.id, "info",
+        await _log(
+            db,
+            sync_log.id,
+            "info",
             f"Sample GPT: name={first.get('name')}, visibility={first.get('visibility')}, "
-            f"owner={first.get('owner_email')}, shared_users={first.get('shared_user_count')}")
+            f"owner={first.get('owner_email')}, shared_users={first.get('shared_user_count')}",
+        )
 
     # Step 2: Filter
     _current_status["stage"] = "filtering"
@@ -176,18 +191,26 @@ async def _execute_pipeline(db: AsyncSession):
     )
 
     # Step 3: Classify (if enabled)
-    classification_enabled = config.classification_enabled if config else False
+    classification_enabled = demo or (
+        config.classification_enabled if config else False
+    )
     has_openai_key = demo or (config and config.openai_api_key)
 
     classifications: list[dict | None] = [None] * len(filtered_gpts)
     if classification_enabled and has_openai_key:
         _current_status["stage"] = "classifying"
         _current_status["progress"] = 40.0
-        await _log(db, sync_log.id, "info",
-                    "[DEMO] Using keyword-based classifier" if demo else "Starting classification...")
+        await _log(
+            db,
+            sync_log.id,
+            "info",
+            "[DEMO] Using keyword-based classifier"
+            if demo
+            else "Starting classification...",
+        )
 
         result_cats = await db.execute(
-            select(Category).where(Category.enabled == True)
+            select(Category).where(Category.enabled.is_(True))
         )
         categories = list(result_cats.scalars().all())
 
@@ -217,22 +240,106 @@ async def _execute_pipeline(db: AsyncSession):
 
             sync_log.gpts_classified = classified_count
             await db.commit()
-            await _log(
-                db, sync_log.id, "info", f"Classified {classified_count} GPTs"
-            )
+            await _log(db, sync_log.id, "info", f"Classified {classified_count} GPTs")
             _current_status["progress"] = 65.0
         else:
-            await _log(db, sync_log.id, "warn", "No enabled categories, skipping classification")
+            await _log(
+                db,
+                sync_log.id,
+                "warn",
+                "No enabled categories, skipping classification",
+            )
     else:
         await _log(db, sync_log.id, "info", "Classification disabled, skipping")
+
+    # Step 3.5: Semantic Enrichment (if classification enabled and API key available)
+    enrichments: list[dict | None] = [None] * len(filtered_gpts)
+    if classification_enabled and has_openai_key:
+        _current_status["stage"] = "enriching"
+        _current_status["progress"] = 65.0
+        await _log(
+            db,
+            sync_log.id,
+            "info",
+            "[DEMO] Running mock semantic enrichment"
+            if demo
+            else "Running semantic enrichment...",
+        )
+        try:
+            if demo:
+                enricher = MockSemanticEnricher()
+            else:
+                openai_key = decrypt(config.openai_api_key)
+                enricher = SemanticEnricher(openai_key, config.classification_model)
+            enrichments = await enricher.enrich_batch(filtered_gpts, classifications)
+            enriched_count = sum(1 for e in enrichments if e is not None)
+            await _log(
+                db,
+                sync_log.id,
+                "info",
+                f"Enriched {enriched_count} GPTs with semantic KPIs",
+            )
+        except Exception as e:
+            await _log(
+                db, sync_log.id, "warn", f"Semantic enrichment failed (non-fatal): {e}"
+            )
+        _current_status["progress"] = 72.0
+
+    # Step 3.6: Normalize business process names (real mode only — demo strings are already consistent)
+    if not demo and any(e and e.get("business_process") for e in enrichments):
+        raw_processes = [
+            e["business_process"]
+            for e in enrichments
+            if e and e.get("business_process")
+        ]
+        unique_count = len(set(p.strip().lower() for p in raw_processes))
+        if unique_count > 1:
+            await _log(
+                db,
+                sync_log.id,
+                "info",
+                f"Normalizing {unique_count} distinct business process names into canonical labels...",
+            )
+            try:
+                openai_key = decrypt(config.openai_api_key)
+                normalizer = SemanticEnricher(openai_key, config.classification_model)
+                bp_mapping = await normalizer.normalize_business_processes(
+                    raw_processes
+                )
+                canonical_count = len(set(bp_mapping.values()))
+                for enr in enrichments:
+                    if enr and enr.get("business_process"):
+                        enr["business_process"] = bp_mapping.get(
+                            enr["business_process"].strip(),
+                            enr["business_process"].strip().title(),
+                        )
+                await _log(
+                    db,
+                    sync_log.id,
+                    "info",
+                    f"Normalized to {canonical_count} canonical process name(s)",
+                )
+            except Exception as e:
+                await _log(
+                    db,
+                    sync_log.id,
+                    "warn",
+                    f"Business process normalization failed (non-fatal): {e}",
+                )
 
     # Step 4: Embed (if classification enabled and API key available)
     embeddings: list[list[float] | None] = [None] * len(filtered_gpts)
     if classification_enabled and has_openai_key:
         _current_status["stage"] = "embedding"
-        _current_status["progress"] = 70.0
-        await _log(db, sync_log.id, "info",
-                    "[DEMO] Using deterministic embeddings" if demo else "Generating embeddings...")
+        _current_status["progress"] = 75.0
+        await _log(
+            db,
+            sync_log.id,
+            "info",
+            "[DEMO] Using deterministic embeddings"
+            if demo
+            else "Generating embeddings...",
+        )
 
         if demo:
             embedder = MockEmbedder()
@@ -241,12 +348,17 @@ async def _execute_pipeline(db: AsyncSession):
             embedder = Embedder(openai_key)
 
         try:
-            embedding_results = await embedder.embed_batch(filtered_gpts, classifications)
+            embedding_results = await embedder.embed_batch(
+                filtered_gpts, classifications
+            )
             embeddings = embedding_results  # type: ignore[assignment]
             sync_log.gpts_embedded = len(embedding_results)
             await db.commit()
             await _log(
-                db, sync_log.id, "info", f"Generated {len(embedding_results)} embeddings"
+                db,
+                sync_log.id,
+                "info",
+                f"Generated {len(embedding_results)} embeddings",
             )
         except Exception as e:
             await _log(db, sync_log.id, "warn", f"Embedding failed: {e}")
@@ -255,7 +367,9 @@ async def _execute_pipeline(db: AsyncSession):
     # Step 5: Store GPTs
     _current_status["stage"] = "storing"
     _current_status["progress"] = 90.0
-    await _log(db, sync_log.id, "info", f"Storing {len(filtered_gpts)} GPTs in database...")
+    await _log(
+        db, sync_log.id, "info", f"Storing {len(filtered_gpts)} GPTs in database..."
+    )
 
     # Clear existing GPTs
     await db.execute(delete(GPT))
@@ -269,12 +383,23 @@ async def _execute_pipeline(db: AsyncSession):
     for i, gpt_data in enumerate(filtered_gpts):
         cls = classifications[i]
         emb = embeddings[i] if i < len(embeddings) else None
+        enr = enrichments[i] if i < len(enrichments) else None
 
         primary_cat_id = None
         secondary_cat_id = None
         if cls and not isinstance(cls, Exception):
             primary_cat_id = cat_lookup.get(cls.get("primary_category", ""))
             secondary_cat_id = cat_lookup.get(cls.get("secondary_category", ""))
+
+        # Parse semantic_enriched_at from string if present
+        sem_at = None
+        if enr and enr.get("semantic_enriched_at"):
+            from datetime import datetime as _dt
+
+            try:
+                sem_at = _dt.fromisoformat(enr["semantic_enriched_at"])
+            except Exception:
+                sem_at = now
 
         gpt = GPT(
             id=gpt_data["id"],
@@ -299,13 +424,34 @@ async def _execute_pipeline(db: AsyncSession):
             embedding=emb,
             sync_log_id=sync_log.id,
             indexed_at=now,
+            # Semantic enrichment
+            business_process=enr.get("business_process") if enr else None,
+            risk_flags=enr.get("risk_flags") if enr else None,
+            risk_level=enr.get("risk_level") if enr else None,
+            sophistication_score=enr.get("sophistication_score") if enr else None,
+            sophistication_rationale=enr.get("sophistication_rationale")
+            if enr
+            else None,
+            prompting_quality_score=enr.get("prompting_quality_score") if enr else None,
+            prompting_quality_rationale=enr.get("prompting_quality_rationale")
+            if enr
+            else None,
+            prompting_quality_flags=enr.get("prompting_quality_flags") if enr else None,
+            roi_potential_score=enr.get("roi_potential_score") if enr else None,
+            roi_rationale=enr.get("roi_rationale") if enr else None,
+            intended_audience=enr.get("intended_audience") if enr else None,
+            integration_flags=enr.get("integration_flags") if enr else None,
+            output_type=enr.get("output_type") if enr else None,
+            adoption_friction_score=enr.get("adoption_friction_score") if enr else None,
+            adoption_friction_rationale=enr.get("adoption_friction_rationale")
+            if enr
+            else None,
+            semantic_enriched_at=sem_at,
         )
         db.add(gpt)
 
     await db.commit()
-    await _log(
-        db, sync_log.id, "info", f"Stored {len(filtered_gpts)} GPTs in database"
-    )
+    await _log(db, sync_log.id, "info", f"Stored {len(filtered_gpts)} GPTs in database")
 
     # Finalize
     sync_log.status = "completed"

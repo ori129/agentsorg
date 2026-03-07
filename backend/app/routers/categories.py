@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -9,24 +9,74 @@ from app.schemas.schemas import CategoryCreate, CategoryRead, CategoryUpdate
 router = APIRouter(tags=["categories"])
 
 DEFAULT_CATEGORIES = [
-    {"name": "Writing & Content", "description": "Content creation, copywriting, editing", "color": "#3B82F6"},
-    {"name": "Data & Analytics", "description": "Data analysis, reporting, visualization", "color": "#10B981"},
-    {"name": "Engineering", "description": "Software development, DevOps, architecture", "color": "#6366F1"},
-    {"name": "Sales & Marketing", "description": "Lead gen, campaigns, sales enablement", "color": "#F59E0B"},
-    {"name": "HR & People", "description": "Recruiting, onboarding, employee experience", "color": "#EC4899"},
-    {"name": "Legal & Compliance", "description": "Contract review, policy, regulatory", "color": "#8B5CF6"},
-    {"name": "Finance", "description": "Budgeting, forecasting, accounting", "color": "#14B8A6"},
-    {"name": "Customer Support", "description": "Ticketing, knowledge base, chatbots", "color": "#F97316"},
-    {"name": "Product & Design", "description": "Product management, UX research, design", "color": "#06B6D4"},
-    {"name": "Operations", "description": "Process automation, supply chain, logistics", "color": "#84CC16"},
-    {"name": "Research", "description": "Market research, competitive intelligence", "color": "#A855F7"},
-    {"name": "Other", "description": "Uncategorized or multi-purpose GPTs", "color": "#6B7280"},
+    {
+        "name": "Writing & Content",
+        "description": "Content creation, copywriting, editing",
+        "color": "#3B82F6",
+    },
+    {
+        "name": "Data & Analytics",
+        "description": "Data analysis, reporting, visualization",
+        "color": "#10B981",
+    },
+    {
+        "name": "Engineering",
+        "description": "Software development, DevOps, architecture",
+        "color": "#6366F1",
+    },
+    {
+        "name": "Sales & Marketing",
+        "description": "Lead gen, campaigns, sales enablement",
+        "color": "#F59E0B",
+    },
+    {
+        "name": "HR & People",
+        "description": "Recruiting, onboarding, employee experience",
+        "color": "#EC4899",
+    },
+    {
+        "name": "Legal & Compliance",
+        "description": "Contract review, policy, regulatory",
+        "color": "#8B5CF6",
+    },
+    {
+        "name": "Finance",
+        "description": "Budgeting, forecasting, accounting",
+        "color": "#14B8A6",
+    },
+    {
+        "name": "Customer Support",
+        "description": "Ticketing, knowledge base, chatbots",
+        "color": "#F97316",
+    },
+    {
+        "name": "Product & Design",
+        "description": "Product management, UX research, design",
+        "color": "#06B6D4",
+    },
+    {
+        "name": "Operations",
+        "description": "Process automation, supply chain, logistics",
+        "color": "#84CC16",
+    },
+    {
+        "name": "Research",
+        "description": "Market research, competitive intelligence",
+        "color": "#A855F7",
+    },
+    {
+        "name": "Other",
+        "description": "Uncategorized or multi-purpose GPTs",
+        "color": "#6B7280",
+    },
 ]
 
 
 @router.get("/categories", response_model=list[CategoryRead])
 async def list_categories(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Category).order_by(Category.sort_order, Category.id))
+    result = await db.execute(
+        select(Category).order_by(Category.sort_order, Category.id)
+    )
     return result.scalars().all()
 
 
@@ -73,5 +123,7 @@ async def seed_categories(db: AsyncSession = Depends(get_db)):
         if not existing.scalar_one_or_none():
             db.add(Category(**cat_data, sort_order=i))
     await db.commit()
-    result = await db.execute(select(Category).order_by(Category.sort_order, Category.id))
+    result = await db.execute(
+        select(Category).order_by(Category.sort_order, Category.id)
+    )
     return result.scalars().all()
