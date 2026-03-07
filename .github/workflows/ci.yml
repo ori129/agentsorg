@@ -27,16 +27,8 @@ jobs:
         run: ruff format --check backend/
 
       - name: Tests
-        run: |
-          cd backend
-          python -m pytest --tb=short -q
-          EXIT=$?
-          # exit code 5 = no tests collected, treat as pass until test suite is built out
-          if [ $EXIT -eq 5 ]; then
-            echo "No tests collected — skipping"
-          elif [ $EXIT -ne 0 ]; then
-            exit $EXIT
-          fi
+        # exit code 5 = no tests collected; treat as pass until test suite is built out
+        run: cd backend && python -m pytest --tb=short -q || [ $? -eq 5 ]
 
   frontend:
     name: Frontend — type check
