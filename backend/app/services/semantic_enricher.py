@@ -334,11 +334,14 @@ KPI_PROMPTS["_all"] = PROMPT_ALL_KPIS
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _build_gpt_context(gpt: dict) -> str:
     instructions = gpt.get("instructions") or ""
     excerpt = instructions[:800] if len(instructions) > 800 else instructions
     tools = gpt.get("tools") or []
-    tool_names = [t.get("type", str(t)) if isinstance(t, dict) else str(t) for t in tools]
+    tool_names = [
+        t.get("type", str(t)) if isinstance(t, dict) else str(t) for t in tools
+    ]
     files = gpt.get("files") or []
     starters = gpt.get("conversation_starters") or []
     starters_preview = ""
@@ -362,11 +365,14 @@ def _build_gpt_context(gpt: dict) -> str:
 # SemanticEnricher — 1 call per GPT, all GPTs concurrent
 # ---------------------------------------------------------------------------
 
+
 class SemanticEnricher:
     def __init__(self, openai_api_key: str, model: str = "gpt-4o-mini"):
         self._client = AsyncOpenAI(api_key=openai_api_key)
         self._model = model
-        self._semaphore = asyncio.Semaphore(20)  # 1 call/GPT → can be much more aggressive
+        self._semaphore = asyncio.Semaphore(
+            20
+        )  # 1 call/GPT → can be much more aggressive
 
     async def _call(self, prompt: str) -> tuple[dict, int]:
         """Single LLM call. Returns (parsed_json, total_tokens)."""
@@ -393,16 +399,22 @@ class SemanticEnricher:
         result["semantic_enriched_at"] = datetime.now(timezone.utc).isoformat()
         return result
 
-    async def enrich_batch(self, gpts: list[dict], classifications: list[dict | None]) -> list[dict | None]:
+    async def enrich_batch(
+        self, gpts: list[dict], classifications: list[dict | None]
+    ) -> list[dict | None]:
         tasks = [
-            self.enrich_gpt(gpt, classifications[i] if i < len(classifications) else None)
+            self.enrich_gpt(
+                gpt, classifications[i] if i < len(classifications) else None
+            )
             for i, gpt in enumerate(gpts)
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         output = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.warning(f"Enrichment failed for GPT '{gpts[i].get('name')}': {result}")
+                logger.warning(
+                    f"Enrichment failed for GPT '{gpts[i].get('name')}': {result}"
+                )
                 output.append(None)
             else:
                 output.append(result)
@@ -423,7 +435,9 @@ class SemanticEnricher:
         latency_ms = (time.time() - start) * 1000
         return result, tokens, latency_ms
 
-    async def normalize_business_processes(self, raw_values: list[str]) -> dict[str, str]:
+    async def normalize_business_processes(
+        self, raw_values: list[str]
+    ) -> dict[str, str]:
         """
         Takes all distinct business_process strings extracted during enrichment and
         returns a mapping {raw -> canonical} that merges variants of the same process

@@ -88,12 +88,14 @@ async def _run_clustering_task():
                 wasted = (len(c_ids) - 1) * 4.0
                 # Derive theme from names (simple heuristic)
                 theme = _infer_theme(c_names)
-                groups.append(ClusterGroup(
-                    theme=theme,
-                    gpt_ids=c_ids,
-                    gpt_names=c_names,
-                    estimated_wasted_hours=wasted,
-                ))
+                groups.append(
+                    ClusterGroup(
+                        theme=theme,
+                        gpt_ids=c_ids,
+                        gpt_names=c_names,
+                        estimated_wasted_hours=wasted,
+                    )
+                )
 
             _clustering_results = groups
             _clustering_status["status"] = "completed"

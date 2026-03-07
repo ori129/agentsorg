@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.encryption import decrypt, encrypt, mask
 from app.models.models import Configuration
-from app.schemas.schemas import ConfigurationRead, ConfigurationUpdate, TestConnectionResult
+from app.schemas.schemas import (
+    ConfigurationRead,
+    ConfigurationUpdate,
+    TestConnectionResult,
+)
 
 router = APIRouter(tags=["configuration"])
 
@@ -41,9 +45,7 @@ async def get_config(db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/config", response_model=ConfigurationRead)
-async def update_config(
-    data: ConfigurationUpdate, db: AsyncSession = Depends(get_db)
-):
+async def update_config(data: ConfigurationUpdate, db: AsyncSession = Depends(get_db)):
     config = await get_or_create_config(db)
     update_data = data.model_dump(exclude_unset=True)
 
@@ -85,9 +87,7 @@ async def test_connection(db: AsyncSession = Depends(get_db)):
         )
 
     if not config.workspace_id:
-        return TestConnectionResult(
-            success=False, message="Workspace ID is required."
-        )
+        return TestConnectionResult(success=False, message="Workspace ID is required.")
 
     import httpx
 

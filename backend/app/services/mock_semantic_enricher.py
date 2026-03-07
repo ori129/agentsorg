@@ -40,7 +40,17 @@ def _is_abandoned(gpt: dict, seed: int) -> bool:
     tool_count = _tool_count(gpt)
     name = _name_lower(gpt)
     # Explicit abandoned signals in name
-    abandoned_signals = ["my gpt", "test", "draft", "ignore", "helper", "final", "temp", "v2", "v3"]
+    abandoned_signals = [
+        "my gpt",
+        "test",
+        "draft",
+        "ignore",
+        "helper",
+        "final",
+        "temp",
+        "v2",
+        "v3",
+    ]
     name_is_throwaway = any(s in name for s in abandoned_signals)
     if name_is_throwaway and instr_len < 500:
         return True
@@ -136,10 +146,29 @@ _INTEGRATIONS_BY_CATEGORY = {
 
 # Niche technical keywords that drive adoption friction up
 _NICHE_TECH_KEYWORDS = [
-    "suitescript", "netsuite", "salesforce apex", "workday studio", "sql",
-    "python", "javascript", "api", "regex", "xpath", "powershell", "bash",
-    "kubernetes", "terraform", "snowflake", "dbt", "tableau", "looker",
-    "jira automation", "servicenow", "sap", "oracle", "azure devops",
+    "suitescript",
+    "netsuite",
+    "salesforce apex",
+    "workday studio",
+    "sql",
+    "python",
+    "javascript",
+    "api",
+    "regex",
+    "xpath",
+    "powershell",
+    "bash",
+    "kubernetes",
+    "terraform",
+    "snowflake",
+    "dbt",
+    "tableau",
+    "looker",
+    "jira automation",
+    "servicenow",
+    "sap",
+    "oracle",
+    "azure devops",
 ]
 
 
@@ -157,7 +186,9 @@ def _enrich_single(gpt: dict) -> dict:
     # Strictly anchored to instruction length (mirrors real LLM prompt rules)
     if instr_len < 150:
         soph = 1
-        soph_rationale = "Minimal system prompt — 1-2 sentences with no structure or constraints."
+        soph_rationale = (
+            "Minimal system prompt — 1-2 sentences with no structure or constraints."
+        )
     elif instr_len < 500:
         soph = 2
         soph_rationale = "Short paragraph with some context but no output format or behavioral constraints."
@@ -191,14 +222,19 @@ def _enrich_single(gpt: dict) -> dict:
     # Also strictly anchored to length + technique signals
     if instr_len < 150:
         pq = 1
-        pq_rationale = "Single sentence or placeholder — no prompting technique applied."
+        pq_rationale = (
+            "Single sentence or placeholder — no prompting technique applied."
+        )
         pq_flags = ["no_output_format", "no_constraints", "no_persona"]
     elif instr_len < 500:
         pq = 2
         pq_rationale = "Basic role assignment with minimal instructions; no format spec or constraints defined."
         pq_flags = ["no_output_format", "no_constraints", "no_examples"]
     elif instr_len < 1200:
-        has_format_signal = any(kw in instr for kw in ["format", "output", "respond with", "return", "structure"])
+        has_format_signal = any(
+            kw in instr
+            for kw in ["format", "output", "respond with", "return", "structure"]
+        )
         if has_format_signal:
             pq = 3
             pq_rationale = "Has role definition and some format guidance; lacks examples or explicit constraint rules."
@@ -270,7 +306,10 @@ def _enrich_single(gpt: dict) -> dict:
             risk_flags.append("no_guardrails")
 
     r = seed % 100
-    if risk_flags and any(f in risk_flags for f in ["accesses_hr_data", "accesses_legal_data", "accesses_financial_data"]):
+    if risk_flags and any(
+        f in risk_flags
+        for f in ["accesses_hr_data", "accesses_legal_data", "accesses_financial_data"]
+    ):
         risk_level = "high" if len(risk_flags) >= 2 else "medium"
     elif risk_flags:
         risk_level = "medium"
@@ -333,7 +372,9 @@ def _enrich_single(gpt: dict) -> dict:
 
     if integration_flags:
         af = max(af - 1, 1)
-        af_rationale += " System integration dependencies add additional setup overhead."
+        af_rationale += (
+            " System integration dependencies add additional setup overhead."
+        )
 
     return {
         "business_process": bp,
@@ -359,5 +400,7 @@ class MockSemanticEnricher:
     async def enrich_gpt(self, gpt: dict, _classification: dict | None = None) -> dict:
         return _enrich_single(gpt)
 
-    async def enrich_batch(self, gpts: list[dict], classifications: list[dict | None]) -> list[dict | None]:
+    async def enrich_batch(
+        self, gpts: list[dict], classifications: list[dict | None]
+    ) -> list[dict | None]:
         return [_enrich_single(gpt) for gpt in gpts]

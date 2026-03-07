@@ -7,7 +7,9 @@ from app.models.models import Category
 
 
 class Classifier:
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini", max_concurrent: int = 5):
+    def __init__(
+        self, api_key: str, model: str = "gpt-4o-mini", max_concurrent: int = 5
+    ):
         self._client = AsyncOpenAI(api_key=api_key)
         self._model = model
         self._semaphore = asyncio.Semaphore(max_concurrent)
@@ -23,11 +25,11 @@ class Classifier:
 
             prompt = f"""Classify this Custom GPT into the most appropriate categories.
 
-Available categories: {', '.join(cat_names)}
+Available categories: {", ".join(cat_names)}
 
 GPT Details:
-- Name: {gpt.get('name', 'Unknown')}
-- Description: {gpt.get('description', 'N/A')}
+- Name: {gpt.get("name", "Unknown")}
+- Description: {gpt.get("description", "N/A")}
 - Instructions (truncated): {instructions_text}
 - Tools: {json.dumps(tools)}
 - Builder Categories: {json.dumps(builder_cats)}

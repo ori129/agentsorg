@@ -17,7 +17,7 @@ export default {
         "revert",   // reverts a previous commit
       ],
     ],
-    "subject-case": [2, "always", "lower-case"],
+    "subject-case": [0], // disabled — proper nouns (AgentsOrg, OpenAI, GPT) are valid
     "header-max-length": [2, "always", 100],
   },
 };

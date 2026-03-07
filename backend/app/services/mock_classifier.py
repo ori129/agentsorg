@@ -157,7 +157,9 @@ class MockClassifier:
 
         results = []
         for i, gpt in enumerate(gpts):
-            results.append(self._classify_single(gpt, enabled_names, enabled_list, bucket_cache, i))
+            results.append(
+                self._classify_single(gpt, enabled_names, enabled_list, bucket_cache, i)
+            )
 
         # Simulate delay: ~0.5s per batch of 20
         await asyncio.sleep(0.5 * len(gpts) / 20)

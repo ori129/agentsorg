@@ -34,7 +34,14 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.encryption import decrypt
-from app.models.models import Configuration, CustomCourse, GPT, Workshop, WorkshopGPTTag, WorkshopParticipant
+from app.models.models import (
+    Configuration,
+    CustomCourse,
+    GPT,
+    Workshop,
+    WorkshopGPTTag,
+    WorkshopParticipant,
+)
 from app.schemas.schemas import (
     BuilderRecognition,
     CourseRecommendation,
@@ -84,7 +91,11 @@ def _walk_videos(obj: Any, seen: dict | None = None) -> dict:
     if seen is None:
         seen = {}
     if isinstance(obj, dict):
-        if obj.get("__typename") == "LVTenantVideo" and "slug" in obj and "title" in obj:
+        if (
+            obj.get("__typename") == "LVTenantVideo"
+            and "slug" in obj
+            and "title" in obj
+        ):
             seen[obj["slug"]] = obj
         else:
             for v in obj.values():
@@ -108,8 +119,14 @@ async def _fetch_academy_catalog() -> list[dict]:
     import httpx
 
     now = time.monotonic()
-    if _academy_catalog_cache["videos"] and (now - _academy_catalog_cache["ts"]) < _CATALOG_TTL:
-        logger.info("Using cached academy catalog (%d videos)", len(_academy_catalog_cache["videos"]))
+    if (
+        _academy_catalog_cache["videos"]
+        and (now - _academy_catalog_cache["ts"]) < _CATALOG_TTL
+    ):
+        logger.info(
+            "Using cached academy catalog (%d videos)",
+            len(_academy_catalog_cache["videos"]),
+        )
         return _academy_catalog_cache["videos"]
 
     all_videos: dict[str, Any] = {}
@@ -129,7 +146,9 @@ async def _fetch_academy_catalog() -> list[dict]:
                 found = _walk_videos(page_data["props"]["pageProps"])
                 new = {k: v for k, v in found.items() if k not in all_videos}
                 all_videos.update(new)
-                logger.info("Scraped %s → %d videos (%d new)", page_url, len(found), len(new))
+                logger.info(
+                    "Scraped %s → %d videos (%d new)", page_url, len(found), len(new)
+                )
             except Exception as e:
                 logger.warning("Failed to scrape %s: %s", page_url, e)
 
@@ -140,16 +159,18 @@ async def _fetch_academy_catalog() -> list[dict]:
         tag_lower = {t.lower() for t in tag_names}
         is_showcase = bool(tag_lower & _SHOWCASE_TAGS)
         url = f"{_ACADEMY_BASE}/public/videos/{slug}"
-        result.append({
-            "title": v["title"],
-            "url": url,
-            "slug": slug,
-            "tags": tag_names,
-            "summary": (v.get("summary") or "").strip()[:300],
-            "duration_min": (v.get("duration") or 0) // 60,
-            "view_count": v.get("viewCount", 0),
-            "is_showcase": is_showcase,
-        })
+        result.append(
+            {
+                "title": v["title"],
+                "url": url,
+                "slug": slug,
+                "tags": tag_names,
+                "summary": (v.get("summary") or "").strip()[:300],
+                "duration_min": (v.get("duration") or 0) // 60,
+                "view_count": v.get("viewCount", 0),
+                "is_showcase": is_showcase,
+            }
+        )
 
     # Sort: non-showcase first, then by view count
     result.sort(key=lambda x: (x["is_showcase"], -x["view_count"]))
@@ -169,6 +190,7 @@ async def _fetch_academy_catalog() -> list[dict]:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _is_valid_academy_url(url: str) -> bool:
     """Accept only real academy.openai.com content URLs (not homepage)."""
@@ -226,12 +248,18 @@ def _builder_scores(gpts: list[GPT]) -> BuilderRecognition:
     volume_score = min(100.0, (math.log1p(vol_raw) / math.log1p(20)) * 100)
 
     # Quality: avg (sophistication + quality) / 2 scaled to 0-100
-    soph_vals = [g.sophistication_score for g in gpts if g.sophistication_score is not None]
-    qual_vals = [g.prompting_quality_score for g in gpts if g.prompting_quality_score is not None]
+    soph_vals = [
+        g.sophistication_score for g in gpts if g.sophistication_score is not None
+    ]
+    qual_vals = [
+        g.prompting_quality_score for g in gpts if g.prompting_quality_score is not None
+    ]
     avg_soph = (sum(soph_vals) / len(soph_vals)) if soph_vals else None
     avg_qual = (sum(qual_vals) / len(qual_vals)) if qual_vals else None
     combined = [v for v in [avg_soph, avg_qual] if v is not None]
-    quality_score = (sum(combined) / len(combined)) if combined else 0.0  # already 1-10 scale
+    quality_score = (
+        (sum(combined) / len(combined)) if combined else 0.0
+    )  # already 1-10 scale
     quality_score = min(100.0, quality_score * 10)  # convert 0-10 → 0-100
 
     # Adoption: log-normalize total shared_user_count, 500 = 100
@@ -267,11 +295,10 @@ def _builder_scores(gpts: list[GPT]) -> BuilderRecognition:
 # Recognition
 # ---------------------------------------------------------------------------
 
+
 @router.get("/recognition", response_model=list[BuilderRecognition])
 async def get_recognition(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(GPT).where(GPT.owner_email.isnot(None))
-    )
+    result = await db.execute(select(GPT).where(GPT.owner_email.isnot(None)))
     gpts = result.scalars().all()
 
     by_owner: dict[str, list[GPT]] = {}
@@ -286,6 +313,7 @@ async def get_recognition(db: AsyncSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # LLM Recommendations — Org-wide
 # ---------------------------------------------------------------------------
+
 
 @router.post("/recommend-org", response_model=OrgLearningReport)
 async def recommend_org(db: AsyncSession = Depends(get_db)):
@@ -304,13 +332,31 @@ async def recommend_org(db: AsyncSession = Depends(get_db)):
     # Aggregate org stats
     total = len(gpts)
     enriched = [g for g in gpts if g.semantic_enriched_at]
-    soph_vals = [g.sophistication_score for g in enriched if g.sophistication_score is not None]
-    qual_vals = [g.prompting_quality_score for g in enriched if g.prompting_quality_score is not None]
+    soph_vals = [
+        g.sophistication_score for g in enriched if g.sophistication_score is not None
+    ]
+    qual_vals = [
+        g.prompting_quality_score
+        for g in enriched
+        if g.prompting_quality_score is not None
+    ]
     risk_vals = [g for g in enriched if g.risk_level in ("high", "critical")]
     integration_vals = [g for g in enriched if g.integration_flags]
-    low_quality = [g for g in enriched if g.prompting_quality_score is not None and g.prompting_quality_score <= 4]
-    low_soph = [g for g in enriched if g.sophistication_score is not None and g.sophistication_score <= 3]
-    high_friction = [g for g in enriched if g.adoption_friction_score is not None and g.adoption_friction_score >= 7]
+    low_quality = [
+        g
+        for g in enriched
+        if g.prompting_quality_score is not None and g.prompting_quality_score <= 4
+    ]
+    low_soph = [
+        g
+        for g in enriched
+        if g.sophistication_score is not None and g.sophistication_score <= 3
+    ]
+    high_friction = [
+        g
+        for g in enriched
+        if g.adoption_friction_score is not None and g.adoption_friction_score >= 7
+    ]
 
     bp_counts: dict[str, int] = {}
     for g in enriched:
@@ -326,27 +372,27 @@ Organisation AgentsOrg — Snapshot ({total} GPTs total, {len(enriched)} semanti
 
 Prompting quality:
   - Average score: {avg_qual}/10 ({len(low_quality)} GPTs scored ≤4/10 — "poor quality")
-  - {len(low_quality)} poor-quality GPTs out of {len(enriched)} enriched ({round(len(low_quality)/max(len(enriched),1)*100)}%)
+  - {len(low_quality)} poor-quality GPTs out of {len(enriched)} enriched ({round(len(low_quality) / max(len(enriched), 1) * 100)}%)
 
 Sophistication:
   - Average score: {avg_soph}/10 ({len(low_soph)} GPTs scored ≤3/10 — "minimal instructions")
-  - {len(low_soph)} low-sophistication GPTs ({round(len(low_soph)/max(len(enriched),1)*100)}%)
+  - {len(low_soph)} low-sophistication GPTs ({round(len(low_soph) / max(len(enriched), 1) * 100)}%)
 
 Integrations:
-  - {len(integration_vals)} of {len(enriched)} GPTs have integrations ({round(len(integration_vals)/max(len(enriched),1)*100)}%)
+  - {len(integration_vals)} of {len(enriched)} GPTs have integrations ({round(len(integration_vals) / max(len(enriched), 1) * 100)}%)
 
 Risk:
-  - {len(risk_vals)} GPTs rated high/critical risk ({round(len(risk_vals)/max(len(enriched),1)*100)}%)
+  - {len(risk_vals)} GPTs rated high/critical risk ({round(len(risk_vals) / max(len(enriched), 1) * 100)}%)
 
 Adoption friction:
   - {len(high_friction)} GPTs with high adoption friction score (≥7/10)
 
-Top business processes: {', '.join(f"{bp} ({cnt})" for bp, cnt in top_processes) or 'none mapped yet'}
+Top business processes: {", ".join(f"{bp} ({cnt})" for bp, cnt in top_processes) or "none mapped yet"}
 """
 
     # Step 1: identify skill gaps and search topics via chat.completions
     # Topics must map to what academy.openai.com actually offers (general AI skills)
-    top_processes_str = ', '.join(f"{bp}" for bp, _ in top_processes) or 'general'
+    top_processes_str = ", ".join(f"{bp}" for bp, _ in top_processes) or "general"
     analysis = await _llm_json(
         client,
         "You are an L&D analyst. Identify skill gaps and generate search topics for academy.openai.com. "
@@ -354,8 +400,8 @@ Top business processes: {', '.join(f"{bp} ({cnt})" for bp, cnt in top_processes)
         "ChatGPT for business, AI for professions (sales, HR, educators, developers), "
         "responsible AI, workflow automation. It does NOT teach domain-specific software. "
         "Map the org's gaps to these AI skill categories. "
-        "Return JSON: {\"skill_gaps\": [\"...\"], \"summary\": \"...\", "
-        "\"search_topics\": [\"prompt engineering\", \"building custom GPTs\", \"ChatGPT for business\"]}",
+        'Return JSON: {"skill_gaps": ["..."], "summary": "...", '
+        '"search_topics": ["prompt engineering", "building custom GPTs", "ChatGPT for business"]}',
         f"{org_profile}\n\nOrg domain: {top_processes_str}\n\n"
         "Generate 2-3 academy.openai.com search topics that match this org's AI skill gaps. "
         "Use general AI skill terms, not domain-specific ones.",
@@ -374,16 +420,18 @@ Top business processes: {', '.join(f"{bp} ({cnt})" for bp, cnt in top_processes)
     # Merge custom courses from DB into pool
     custom_result = await db.execute(select(CustomCourse))
     for c in custom_result.scalars().all():
-        found_courses.append({
-            "title": c.description,
-            "url": c.url,
-            "tags": ["Custom"],
-            "summary": "",
-            "duration_min": 0,
-            "view_count": 0,
-            "is_showcase": False,
-            "is_custom": True,
-        })
+        found_courses.append(
+            {
+                "title": c.description,
+                "url": c.url,
+                "tags": ["Custom"],
+                "summary": "",
+                "duration_min": 0,
+                "view_count": 0,
+                "is_showcase": False,
+                "is_custom": True,
+            }
+        )
 
     # Shuffle so view-count ordering doesn't anchor the LLM to the same top items every call
     random.shuffle(found_courses)
@@ -393,7 +441,7 @@ Top business processes: {', '.join(f"{bp} ({cnt})" for bp, cnt in top_processes)
     if found_courses:
         valid_urls = {c["url"] for c in found_courses}
         catalog_text = "\n".join(
-            f"{i+1}. {'[Custom] ' if c.get('is_custom') else '[Showcase] ' if c.get('is_showcase') else ''}{c['title']} | tags: {', '.join(c['tags'][:4])} | {c['duration_min']}min | {c['url']}"
+            f"{i + 1}. {'[Custom] ' if c.get('is_custom') else '[Showcase] ' if c.get('is_showcase') else ''}{c['title']} | tags: {', '.join(c['tags'][:4])} | {c['duration_min']}min | {c['url']}"
             + (f"\n   {c['summary']}" if c["summary"] else "")
             for i, c in enumerate(found_courses)
         )
@@ -402,9 +450,9 @@ Top business processes: {', '.join(f"{bp} ({cnt})" for bp, cnt in top_processes)
             client,
             "You are an L&D analyst. Select the most relevant courses for this org. "
             "The list includes OpenAI Academy videos and [Custom] courses uploaded by the organisation. "
-            "Return JSON: {\"recommended_courses\": [{\"course_name\": \"exact title from list\", "
-            "\"url\": \"exact url from list\", \"category\": \"tag from list\", "
-            "\"reasoning\": \"evidence-backed reason tied to org stats\", \"priority\": 1}]}",
+            'Return JSON: {"recommended_courses": [{"course_name": "exact title from list", '
+            '"url": "exact url from list", "category": "tag from list", '
+            '"reasoning": "evidence-backed reason tied to org stats", "priority": 1}]}',
             f"{org_profile}\n\nIdentified skill gaps: {skill_gaps_str}\n\n"
             f"Available courses:\n{catalog_text}\n\n"
             "Select the best 3 courses. Use ONLY the exact titles and URLs from the list above.",
@@ -413,13 +461,15 @@ Top business processes: {', '.join(f"{bp} ({cnt})" for bp, cnt in top_processes)
             url = rec.get("url", "")
             if url not in valid_urls:
                 continue
-            courses.append(CourseRecommendation(
-                course_name=rec.get("course_name", ""),
-                url=url,
-                category=rec.get("category", ""),
-                reasoning=rec.get("reasoning", ""),
-                priority=rec.get("priority", 99),
-            ))
+            courses.append(
+                CourseRecommendation(
+                    course_name=rec.get("course_name", ""),
+                    url=url,
+                    category=rec.get("category", ""),
+                    reasoning=rec.get("reasoning", ""),
+                    priority=rec.get("priority", 99),
+                )
+            )
         courses.sort(key=lambda c: c.priority)
 
     return OrgLearningReport(
@@ -433,6 +483,7 @@ Top business processes: {', '.join(f"{bp} ({cnt})" for bp, cnt in top_processes)
 # LLM Recommendations — Per employee
 # ---------------------------------------------------------------------------
 
+
 @router.post("/recommend-employee", response_model=EmployeeLearningReport)
 async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
     email = body.get("email", "").strip()
@@ -441,9 +492,7 @@ async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
 
     client = await _get_openai_client(db)
 
-    result = await db.execute(
-        select(GPT).where(GPT.owner_email == email)
-    )
+    result = await db.execute(select(GPT).where(GPT.owner_email == email))
     gpts = result.scalars().all()
 
     if not gpts:
@@ -457,11 +506,17 @@ async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
     enriched = [g for g in gpts if g.semantic_enriched_at]
     has_integrations = any(g.integration_flags for g in gpts)
     risk_flags_present = any(g.risk_flags for g in gpts)
-    high_friction = [g for g in enriched if g.adoption_friction_score is not None and g.adoption_friction_score >= 7]
+    high_friction = [
+        g
+        for g in enriched
+        if g.adoption_friction_score is not None and g.adoption_friction_score >= 7
+    ]
 
     # Derive domain context from the actual GPT data
     business_processes = list({g.business_process for g in gpts if g.business_process})
-    intended_audiences = list({g.intended_audience for g in gpts if g.intended_audience})
+    intended_audiences = list(
+        {g.intended_audience for g in gpts if g.intended_audience}
+    )
     output_types = list({g.output_type for g in gpts if g.output_type})
 
     # Per-GPT detail — this is what differentiates people with similar aggregate scores
@@ -497,7 +552,7 @@ async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
     )
 
     profile = f"""
-Builder: {email} (display name: {scores.name or 'unknown'})
+Builder: {email} (display name: {scores.name or "unknown"})
 GPTs built: {scores.gpt_count}
 
 Domain context (what this person actually builds):
@@ -510,14 +565,16 @@ Aggregate scores (0-100 scale):
   Risk hygiene:      {scores.risk_hygiene_score}
 
 Individual GPTs:
-{chr(10).join(gpt_lines) if gpt_lines else '  (no data)'}
+{chr(10).join(gpt_lines) if gpt_lines else "  (no data)"}
 
-Has any integrations: {'yes' if has_integrations else 'no'}
-Has risk flags on any GPT: {'yes' if risk_flags_present else 'no'}
+Has any integrations: {"yes" if has_integrations else "no"}
+Has risk flags on any GPT: {"yes" if risk_flags_present else "no"}
 GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)} enriched
 """
 
-    domain_ctx = ", ".join(business_processes) if business_processes else "general/unknown"
+    domain_ctx = (
+        ", ".join(business_processes) if business_processes else "general/unknown"
+    )
 
     # Step 1: identify gaps and search topics via chat.completions
     # Topics must map to what academy.openai.com actually offers (general AI skills, not domain-specific)
@@ -530,8 +587,8 @@ GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)}
         "It does NOT teach domain-specific software (no NetSuite, no SAP, no Excel). "
         "Map the person's gaps to these AI skill categories for searching. "
         f"The person's domain is: {domain_ctx} — use this for reasoning but generate AI-skill search topics. "
-        "Return JSON: {\"gap_summary\": \"...\", "
-        "\"search_topics\": [\"prompt engineering\", \"building custom GPTs\"]}",
+        'Return JSON: {"gap_summary": "...", '
+        '"search_topics": ["prompt engineering", "building custom GPTs"]}',
         f"{profile}\n\nGenerate 2-3 academy.openai.com search topics that match this person's AI skill gaps.",
     )
 
@@ -547,16 +604,18 @@ GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)}
     # Merge custom courses from DB into pool
     custom_result = await db.execute(select(CustomCourse))
     for c in custom_result.scalars().all():
-        found_courses.append({
-            "title": c.description,
-            "url": c.url,
-            "tags": ["Custom"],
-            "summary": "",
-            "duration_min": 0,
-            "view_count": 0,
-            "is_showcase": False,
-            "is_custom": True,
-        })
+        found_courses.append(
+            {
+                "title": c.description,
+                "url": c.url,
+                "tags": ["Custom"],
+                "summary": "",
+                "duration_min": 0,
+                "view_count": 0,
+                "is_showcase": False,
+                "is_custom": True,
+            }
+        )
 
     # Shuffle so view-count ordering doesn't anchor the LLM to the same top items every call
     random.shuffle(found_courses)
@@ -566,7 +625,7 @@ GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)}
     if found_courses:
         valid_urls = {c["url"] for c in found_courses}
         catalog_text = "\n".join(
-            f"{i+1}. {'[Custom] ' if c.get('is_custom') else '[Showcase] ' if c.get('is_showcase') else ''}{c['title']} | tags: {', '.join(c['tags'][:4])} | {c['duration_min']}min | {c['url']}"
+            f"{i + 1}. {'[Custom] ' if c.get('is_custom') else '[Showcase] ' if c.get('is_showcase') else ''}{c['title']} | tags: {', '.join(c['tags'][:4])} | {c['duration_min']}min | {c['url']}"
             + (f"\n   {c['summary']}" if c["summary"] else "")
             for i, c in enumerate(found_courses)
         )
@@ -576,9 +635,9 @@ GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)}
             f"You are an L&D coach. Select the most relevant courses for this builder. "
             f"Domain: {domain_ctx}. Reasoning must reference specific GPT names and scores. "
             "The list includes OpenAI Academy videos and [Custom] courses uploaded by the organisation. "
-            "Return JSON: {\"recommended_courses\": [{\"course_name\": \"exact title from list\", "
-            "\"url\": \"exact url from list\", \"category\": \"tag from list\", "
-            "\"reasoning\": \"specific reason with GPT metrics\", \"priority\": 1}]}",
+            'Return JSON: {"recommended_courses": [{"course_name": "exact title from list", '
+            '"url": "exact url from list", "category": "tag from list", '
+            '"reasoning": "specific reason with GPT metrics", "priority": 1}]}',
             f"{profile}\n\nGap summary: {gap_summary}\n\n"
             f"Available courses:\n{catalog_text}\n\n"
             "Select 3 courses. Use ONLY the exact titles and URLs from the list above.",
@@ -587,13 +646,15 @@ GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)}
             url = rec.get("url", "")
             if url not in valid_urls:
                 continue
-            courses.append(CourseRecommendation(
-                course_name=rec.get("course_name", ""),
-                url=url,
-                category=rec.get("category", ""),
-                reasoning=rec.get("reasoning", ""),
-                priority=rec.get("priority", 99),
-            ))
+            courses.append(
+                CourseRecommendation(
+                    course_name=rec.get("course_name", ""),
+                    url=url,
+                    category=rec.get("category", ""),
+                    reasoning=rec.get("reasoning", ""),
+                    priority=rec.get("priority", 99),
+                )
+            )
         courses.sort(key=lambda c: c.priority)
 
     return EmployeeLearningReport(
@@ -606,6 +667,7 @@ GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)}
 # ---------------------------------------------------------------------------
 # Custom Courses
 # ---------------------------------------------------------------------------
+
 
 @router.get("/custom-courses", response_model=list[CustomCourseRead])
 async def list_custom_courses(db: AsyncSession = Depends(get_db)):
@@ -636,9 +698,7 @@ async def upload_custom_courses(
             continue
 
         # Check existence before upsert to distinguish added vs updated
-        existing = await db.execute(
-            select(CustomCourse).where(CustomCourse.url == url)
-        )
+        existing = await db.execute(select(CustomCourse).where(CustomCourse.url == url))
         exists = existing.scalar_one_or_none() is not None
 
         stmt = (
@@ -662,9 +722,7 @@ async def upload_custom_courses(
 
 @router.delete("/custom-courses/{course_id}", status_code=204)
 async def delete_custom_course(course_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(CustomCourse).where(CustomCourse.id == course_id)
-    )
+    result = await db.execute(select(CustomCourse).where(CustomCourse.id == course_id))
     course = result.scalar_one_or_none()
     if not course:
         raise HTTPException(status_code=404, detail="Custom course not found")
@@ -675,6 +733,7 @@ async def delete_custom_course(course_id: int, db: AsyncSession = Depends(get_db
 # ---------------------------------------------------------------------------
 # Workshop CRUD
 # ---------------------------------------------------------------------------
+
 
 def _workshop_to_read(w: Workshop) -> WorkshopRead:
     return WorkshopRead(
@@ -743,6 +802,7 @@ async def delete_workshop(workshop_id: int, db: AsyncSession = Depends(get_db)):
 # Participants
 # ---------------------------------------------------------------------------
 
+
 @router.post("/workshops/{workshop_id}/participants", status_code=201)
 async def add_participant(
     workshop_id: int, body: dict, db: AsyncSession = Depends(get_db)
@@ -782,10 +842,9 @@ async def remove_participant(
 # GPT Tags
 # ---------------------------------------------------------------------------
 
+
 @router.post("/workshops/{workshop_id}/tag-gpt", status_code=201)
-async def tag_gpt(
-    workshop_id: int, body: dict, db: AsyncSession = Depends(get_db)
-):
+async def tag_gpt(workshop_id: int, body: dict, db: AsyncSession = Depends(get_db)):
     gpt_id = body.get("gpt_id", "").strip()
     if not gpt_id:
         raise HTTPException(status_code=400, detail="gpt_id is required")
@@ -802,9 +861,7 @@ async def tag_gpt(
 
 
 @router.delete("/workshops/{workshop_id}/tag-gpt/{gpt_id}", status_code=204)
-async def untag_gpt(
-    workshop_id: int, gpt_id: str, db: AsyncSession = Depends(get_db)
-):
+async def untag_gpt(workshop_id: int, gpt_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(WorkshopGPTTag).where(
             WorkshopGPTTag.workshop_id == workshop_id,
@@ -821,16 +878,17 @@ async def untag_gpt(
 # Workshop Impact
 # ---------------------------------------------------------------------------
 
+
 @router.get("/workshops/{workshop_id}/impact", response_model=WorkshopImpact)
-async def get_workshop_impact(
-    workshop_id: int, db: AsyncSession = Depends(get_db)
-):
+async def get_workshop_impact(workshop_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(_with_rels().where(Workshop.id == workshop_id))
     w = result.scalar_one_or_none()
     if not w:
         raise HTTPException(status_code=404, detail="Workshop not found")
 
-    event_dt = datetime(w.event_date.year, w.event_date.month, w.event_date.day, tzinfo=timezone.utc)
+    event_dt = datetime(
+        w.event_date.year, w.event_date.month, w.event_date.day, tzinfo=timezone.utc
+    )
     participant_emails = [p.employee_email for p in w.participants]
 
     auto_stats: list[WorkshopImpactAuto] = []
@@ -855,15 +913,17 @@ async def get_workshop_impact(
         as_before = _avg(before, "sophistication_score")
         as_after = _avg(after, "sophistication_score")
 
-        auto_stats.append(WorkshopImpactAuto(
-            participant_email=email,
-            gpts_before=len(before),
-            gpts_after=len(after),
-            avg_quality_before=aq_before,
-            avg_quality_after=aq_after,
-            avg_sophistication_before=as_before,
-            avg_sophistication_after=as_after,
-        ))
+        auto_stats.append(
+            WorkshopImpactAuto(
+                participant_email=email,
+                gpts_before=len(before),
+                gpts_after=len(after),
+                avg_quality_before=aq_before,
+                avg_quality_after=aq_after,
+                avg_sophistication_before=as_before,
+                avg_sophistication_after=as_after,
+            )
+        )
 
         if aq_before is not None and aq_after is not None:
             delta_qualities.append(aq_after - aq_before)
@@ -871,7 +931,9 @@ async def get_workshop_impact(
             delta_sophs.append(as_after - as_before)
 
     summary_delta_quality = (
-        round(sum(delta_qualities) / len(delta_qualities), 2) if delta_qualities else None
+        round(sum(delta_qualities) / len(delta_qualities), 2)
+        if delta_qualities
+        else None
     )
     summary_delta_soph = (
         round(sum(delta_sophs) / len(delta_sophs), 2) if delta_sophs else None

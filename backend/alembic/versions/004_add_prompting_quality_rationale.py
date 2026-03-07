@@ -5,6 +5,7 @@ Revises: 003
 Create Date: 2026-03-04
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -17,7 +18,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("gpts", sa.Column("prompting_quality_rationale", sa.Text(), nullable=True))
+    op.add_column(
+        "gpts", sa.Column("prompting_quality_rationale", sa.Text(), nullable=True)
+    )
 
 
 def downgrade() -> None:

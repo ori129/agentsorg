@@ -8,9 +8,20 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
-from app.routers import admin, categories, clustering, configuration, demo, learning, pipeline, prompt_lab
+from app.routers import (
+    admin,
+    categories,
+    clustering,
+    configuration,
+    demo,
+    learning,
+    pipeline,
+    prompt_lab,
+)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
+)
 
 
 @asynccontextmanager

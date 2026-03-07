@@ -20,6 +20,7 @@ router = APIRouter(prefix="/prompt-lab", tags=["prompt-lab"])
 
 # ── Schemas ────────────────────────────────────────────────────────────────
 
+
 class KPIInfo(BaseModel):
     name: str
     prompt: str
@@ -50,18 +51,22 @@ class EnrichAllResult(BaseModel):
 
 # ── Helper ─────────────────────────────────────────────────────────────────
 
+
 async def _get_enricher() -> SemanticEnricher:
     async with async_session() as db:
         result = await db.execute(select(Configuration).where(Configuration.id == 1))
         config = result.scalar_one_or_none()
     if not config or not config.openai_api_key:
-        raise HTTPException(status_code=400, detail="No OpenAI API key configured. Set it in Step 1.")
+        raise HTTPException(
+            status_code=400, detail="No OpenAI API key configured. Set it in Step 1."
+        )
     openai_key = decrypt(config.openai_api_key)
     model = config.classification_model or "gpt-4o-mini"
     return SemanticEnricher(openai_key, model)
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/samples")
 async def get_samples() -> list[dict]:

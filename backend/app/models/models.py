@@ -123,11 +123,11 @@ class GPT(Base):
     output_type: Mapped[str | None] = mapped_column(String(50))
     adoption_friction_score: Mapped[int | None] = mapped_column(Integer)
     adoption_friction_rationale: Mapped[str | None] = mapped_column(Text)
-    semantic_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    sync_log_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("sync_logs.id")
+    semantic_enriched_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
     )
+
+    sync_log_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("sync_logs.id"))
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     primary_category: Mapped["Category | None"] = relationship(

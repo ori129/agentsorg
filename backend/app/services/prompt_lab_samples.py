@@ -84,7 +84,6 @@ PROMPT_LAB_SAMPLES: list[dict] = [
         "builder_categories": ["data"],
         "owner_email": "analyst@acme.com",
     },
-
     # ─────────────────────────────────────────────────────────────
     # TIER 2 — Functional but Basic (~7 GPTs, 35%)
     # ─────────────────────────────────────────────────────────────
@@ -211,7 +210,6 @@ PROMPT_LAB_SAMPLES: list[dict] = [
         "builder_categories": ["operations"],
         "owner_email": "ops.coordinator@acme.com",
     },
-
     # ─────────────────────────────────────────────────────────────
     # TIER 3 — Production GPTs (~5 GPTs, 25%)
     # ─────────────────────────────────────────────────────────────

@@ -22,19 +22,83 @@ from app.schemas.schemas import (
 from app.services.pipeline import get_pipeline_status, run_pipeline
 
 _STOP_WORDS = {
-    "i", "im", "i'm", "a", "an", "the", "and", "or", "to", "for", "looking",
-    "find", "help", "me", "my", "want", "need", "is", "are", "was", "were",
-    "be", "been", "have", "has", "do", "does", "will", "would", "could",
-    "should", "can", "that", "this", "with", "by", "at", "of", "in", "on",
-    "from", "as", "it", "who", "how", "what", "when", "where", "which",
-    "agent", "gpt", "tool", "assistant", "something", "some", "any",
-    "use", "used", "using", "get", "give", "make", "create", "define",
-    "like", "just", "also", "very", "really", "about",
+    "i",
+    "im",
+    "i'm",
+    "a",
+    "an",
+    "the",
+    "and",
+    "or",
+    "to",
+    "for",
+    "looking",
+    "find",
+    "help",
+    "me",
+    "my",
+    "want",
+    "need",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "have",
+    "has",
+    "do",
+    "does",
+    "will",
+    "would",
+    "could",
+    "should",
+    "can",
+    "that",
+    "this",
+    "with",
+    "by",
+    "at",
+    "of",
+    "in",
+    "on",
+    "from",
+    "as",
+    "it",
+    "who",
+    "how",
+    "what",
+    "when",
+    "where",
+    "which",
+    "agent",
+    "gpt",
+    "tool",
+    "assistant",
+    "something",
+    "some",
+    "any",
+    "use",
+    "used",
+    "using",
+    "get",
+    "give",
+    "make",
+    "create",
+    "define",
+    "like",
+    "just",
+    "also",
+    "very",
+    "really",
+    "about",
 }
+
 
 def _extract_keywords(query: str) -> list[str]:
     words = re.findall(r"[a-z]+", query.lower())
     return [w for w in words if w not in _STOP_WORDS and len(w) >= 3]
+
 
 router = APIRouter(tags=["pipeline"])
 
@@ -109,9 +173,7 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
 
 @router.get("/pipeline/gpts", response_model=list[GPTRead])
 async def list_gpts(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(GPT).order_by(GPT.created_at.desc())
-    )
+    result = await db.execute(select(GPT).order_by(GPT.created_at.desc()))
     gpts = result.scalars().all()
 
     # Build category lookup for names
@@ -120,42 +182,44 @@ async def list_gpts(db: AsyncSession = Depends(get_db)):
 
     out = []
     for g in gpts:
-        out.append(GPTRead(
-            id=g.id,
-            name=g.name,
-            description=g.description,
-            owner_email=g.owner_email,
-            builder_name=g.builder_name,
-            created_at=g.created_at,
-            visibility=g.visibility,
-            shared_user_count=g.shared_user_count,
-            tools=g.tools,
-            builder_categories=g.builder_categories,
-            conversation_starters=g.conversation_starters,
-            primary_category=cat_lookup.get(g.primary_category_id),
-            secondary_category=cat_lookup.get(g.secondary_category_id),
-            classification_confidence=g.classification_confidence,
-            llm_summary=g.llm_summary,
-            use_case_description=g.use_case_description,
-            instructions=g.instructions,
-            # Semantic enrichment
-            business_process=g.business_process,
-            risk_flags=g.risk_flags,
-            risk_level=g.risk_level,
-            sophistication_score=g.sophistication_score,
-            sophistication_rationale=g.sophistication_rationale,
-            prompting_quality_score=g.prompting_quality_score,
-            prompting_quality_rationale=g.prompting_quality_rationale,
-            prompting_quality_flags=g.prompting_quality_flags,
-            roi_potential_score=g.roi_potential_score,
-            roi_rationale=g.roi_rationale,
-            intended_audience=g.intended_audience,
-            integration_flags=g.integration_flags,
-            output_type=g.output_type,
-            adoption_friction_score=g.adoption_friction_score,
-            adoption_friction_rationale=g.adoption_friction_rationale,
-            semantic_enriched_at=g.semantic_enriched_at,
-        ))
+        out.append(
+            GPTRead(
+                id=g.id,
+                name=g.name,
+                description=g.description,
+                owner_email=g.owner_email,
+                builder_name=g.builder_name,
+                created_at=g.created_at,
+                visibility=g.visibility,
+                shared_user_count=g.shared_user_count,
+                tools=g.tools,
+                builder_categories=g.builder_categories,
+                conversation_starters=g.conversation_starters,
+                primary_category=cat_lookup.get(g.primary_category_id),
+                secondary_category=cat_lookup.get(g.secondary_category_id),
+                classification_confidence=g.classification_confidence,
+                llm_summary=g.llm_summary,
+                use_case_description=g.use_case_description,
+                instructions=g.instructions,
+                # Semantic enrichment
+                business_process=g.business_process,
+                risk_flags=g.risk_flags,
+                risk_level=g.risk_level,
+                sophistication_score=g.sophistication_score,
+                sophistication_rationale=g.sophistication_rationale,
+                prompting_quality_score=g.prompting_quality_score,
+                prompting_quality_rationale=g.prompting_quality_rationale,
+                prompting_quality_flags=g.prompting_quality_flags,
+                roi_potential_score=g.roi_potential_score,
+                roi_rationale=g.roi_rationale,
+                intended_audience=g.intended_audience,
+                integration_flags=g.integration_flags,
+                output_type=g.output_type,
+                adoption_friction_score=g.adoption_friction_score,
+                adoption_friction_rationale=g.adoption_friction_rationale,
+                semantic_enriched_at=g.semantic_enriched_at,
+            )
+        )
     return out
 
 
@@ -223,10 +287,19 @@ async def _keyword_candidates(q: str, db: AsyncSession) -> list[GPT]:
     raw = list(result.scalars().all())
 
     def _score(g: GPT) -> int:
-        fields = " ".join(filter(None, [
-            g.name, g.description, g.use_case_description,
-            g.llm_summary, g.business_process, g.intended_audience,
-        ])).lower()
+        fields = " ".join(
+            filter(
+                None,
+                [
+                    g.name,
+                    g.description,
+                    g.use_case_description,
+                    g.llm_summary,
+                    g.business_process,
+                    g.intended_audience,
+                ],
+            )
+        ).lower()
         return sum(1 for kw in keywords if kw in fields)
 
     # Only return GPTs that actually matched at least one keyword
@@ -237,7 +310,9 @@ async def _keyword_candidates(q: str, db: AsyncSession) -> list[GPT]:
 
 
 @router.get("/pipeline/search", response_model=list[GPTSearchResult])
-async def search_gpts(q: str = Query(..., min_length=1), db: AsyncSession = Depends(get_db)):
+async def search_gpts(
+    q: str = Query(..., min_length=1), db: AsyncSession = Depends(get_db)
+):
     # Load config for OpenAI key
     cfg_result = await db.execute(select(Configuration))
     config = cfg_result.scalar_one_or_none()
@@ -277,9 +352,7 @@ async def search_gpts(q: str = Query(..., min_length=1), db: AsyncSession = Depe
             )
             top_ids = [row[0] for row in vec_result.fetchall()]
             if top_ids:
-                gpt_result = await db.execute(
-                    select(GPT).where(GPT.id.in_(top_ids))
-                )
+                gpt_result = await db.execute(select(GPT).where(GPT.id.in_(top_ids)))
                 id_to_gpt = {g.id: g for g in gpt_result.scalars().all()}
                 # Preserve similarity order
                 candidates = [id_to_gpt[gid] for gid in top_ids if gid in id_to_gpt]
@@ -308,7 +381,7 @@ async def search_gpts(q: str = Query(..., min_length=1), db: AsyncSession = Depe
             gpt_summaries.append(" | ".join(summary_parts))
 
         prompt = (
-            f"An employee described their need: \"{q}\"\n\n"
+            f'An employee described their need: "{q}"\n\n'
             f"Here are {len(candidates)} GPTs available in the company:\n\n"
             + "\n".join(gpt_summaries)
             + "\n\nReturn a JSON array of the best matching GPTs for this employee's need. "
@@ -316,9 +389,9 @@ async def search_gpts(q: str = Query(..., min_length=1), db: AsyncSession = Depe
             "For each match, return:\n"
             "  index: the [N] index from above\n"
             "  reasoning: 1-2 sentences explaining exactly why this GPT fits their need\n"
-            "  confidence: \"high\" | \"medium\" | \"low\"\n"
+            '  confidence: "high" | "medium" | "low"\n'
             "  match_score: integer 0-100 (how precisely it matches the employee's stated need)\n\n"
-            "Return JSON only: [{\"index\": 0, \"reasoning\": \"...\", \"confidence\": \"high\", \"match_score\": 92}, ...]"
+            'Return JSON only: [{"index": 0, "reasoning": "...", "confidence": "high", "match_score": 92}, ...]'
         )
 
         try:
@@ -351,12 +424,14 @@ async def search_gpts(q: str = Query(..., min_length=1), db: AsyncSession = Depe
                     continue  # LLM itself rated it irrelevant
                 g = candidates[idx]
                 base = _gpt_to_read(g, cat_lookup)
-                out.append(GPTSearchResult(
-                    **base.model_dump(),
-                    reasoning=item.get("reasoning"),
-                    confidence=item.get("confidence"),
-                    match_score=score,
-                ))
+                out.append(
+                    GPTSearchResult(
+                        **base.model_dump(),
+                        reasoning=item.get("reasoning"),
+                        confidence=item.get("confidence"),
+                        match_score=score,
+                    )
+                )
             if out:
                 return out
             # LLM found no relevant matches — return nothing rather than a dump
@@ -370,16 +445,23 @@ async def search_gpts(q: str = Query(..., min_length=1), db: AsyncSession = Depe
     n_kw = len(keywords_for_score) or 1
 
     def _kw_match_score(g: GPT) -> int:
-        fields = " ".join(filter(None, [
-            g.name, g.description, g.use_case_description,
-            g.llm_summary, g.business_process, g.intended_audience,
-        ])).lower()
+        fields = " ".join(
+            filter(
+                None,
+                [
+                    g.name,
+                    g.description,
+                    g.use_case_description,
+                    g.llm_summary,
+                    g.business_process,
+                    g.intended_audience,
+                ],
+            )
+        ).lower()
         hits = sum(1 for kw in keywords_for_score if kw in fields)
         return int(round(hits / n_kw * 75))  # cap at 75 — keyword match, not semantic
 
-    scored_fallback = [
-        (g, _kw_match_score(g)) for g in candidates[:20]
-    ]
+    scored_fallback = [(g, _kw_match_score(g)) for g in candidates[:20]]
     return [
         GPTSearchResult(**_gpt_to_read(g, cat_lookup).model_dump(), match_score=s)
         for g, s in scored_fallback

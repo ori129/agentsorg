@@ -31,9 +31,7 @@ class Embedder:
         if classifications is None:
             classifications = [None] * len(gpts)
 
-        texts = [
-            self._build_text(gpt, cls) for gpt, cls in zip(gpts, classifications)
-        ]
+        texts = [self._build_text(gpt, cls) for gpt, cls in zip(gpts, classifications)]
 
         all_embeddings: list[list[float]] = []
         for i in range(0, len(texts), batch_size):

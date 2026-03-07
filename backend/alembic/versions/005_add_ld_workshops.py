@@ -5,6 +5,7 @@ Revises: 004
 Create Date: 2026-03-05
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -38,9 +39,7 @@ def upgrade() -> None:
         "workshop_participants",
         sa.Column("workshop_id", sa.Integer(), nullable=False),
         sa.Column("employee_email", sa.String(200), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["workshop_id"], ["workshops.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["workshop_id"], ["workshops.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("workshop_id", "employee_email"),
     )
 
@@ -54,9 +53,7 @@ def upgrade() -> None:
             server_default=sa.text("NOW()"),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(
-            ["workshop_id"], ["workshops.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["workshop_id"], ["workshops.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("workshop_id", "gpt_id"),
     )
 

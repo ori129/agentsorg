@@ -16,16 +16,28 @@ import struct
 # All GPTs in the same bucket share a base vector → cosine similarity ~0.97.
 # ---------------------------------------------------------------------------
 _SEMANTIC_BUCKETS = [
-    ("meeting-notes",    ["meeting", "recap", "notes", "standup", "minute", "summariz"]),
-    ("email-assistant",  ["email", "outreach", "inbox", "compose", "draft email"]),
-    ("code-review",      ["code review", "pull request", "pr review", "code quality"]),
-    ("legal-contract",   ["contract", "legal", "clause", "agreement", "litigation"]),
-    ("sales-assistant",  ["sales", "deal", "crm", "salesforce", "opportunity", "pipeline"]),
-    ("hr-assistant",     ["onboard", "employee", "hiring", "recruit", "people ops", "talent", " hr "]),
-    ("data-analytics",   ["analytics", "dashboard", "insight", "kpi", "data report"]),
-    ("marketing-content",["campaign", "brand voice", "seo", "marketing copy", "content strategy"]),
-    ("finance",          ["finance", "budget", "forecast", "expense", "revenue", "p&l"]),
-    ("customer-support", ["customer support", "ticket", "zendesk", "help desk", "customer service"]),
+    ("meeting-notes", ["meeting", "recap", "notes", "standup", "minute", "summariz"]),
+    ("email-assistant", ["email", "outreach", "inbox", "compose", "draft email"]),
+    ("code-review", ["code review", "pull request", "pr review", "code quality"]),
+    ("legal-contract", ["contract", "legal", "clause", "agreement", "litigation"]),
+    (
+        "sales-assistant",
+        ["sales", "deal", "crm", "salesforce", "opportunity", "pipeline"],
+    ),
+    (
+        "hr-assistant",
+        ["onboard", "employee", "hiring", "recruit", "people ops", "talent", " hr "],
+    ),
+    ("data-analytics", ["analytics", "dashboard", "insight", "kpi", "data report"]),
+    (
+        "marketing-content",
+        ["campaign", "brand voice", "seo", "marketing copy", "content strategy"],
+    ),
+    ("finance", ["finance", "budget", "forecast", "expense", "revenue", "p&l"]),
+    (
+        "customer-support",
+        ["customer support", "ticket", "zendesk", "help desk", "customer service"],
+    ),
 ]
 
 
@@ -74,23 +86,44 @@ class MockEmbedder:
             classifications = [None] * len(gpts)
         results = []
         for gpt, cls in zip(gpts, classifications):
-            use_case = (cls or {}).get("use_case_description", "") if isinstance(cls, dict) else ""
-            vec = self._deterministic_vector(gpt.get("id", ""), gpt.get("name", ""), use_case)
+            use_case = (
+                (cls or {}).get("use_case_description", "")
+                if isinstance(cls, dict)
+                else ""
+            )
+            vec = self._deterministic_vector(
+                gpt.get("id", ""), gpt.get("name", ""), use_case
+            )
             results.append(vec)
 
         await asyncio.sleep(0.3 * len(gpts) / 20)
         return results
 
     @staticmethod
-    def _deterministic_vector(gpt_id: str, name: str, use_case: str = "") -> list[float]:
+    def _deterministic_vector(
+        gpt_id: str, name: str, use_case: str = ""
+    ) -> list[float]:
         DIM = 1536
         bucket = _semantic_bucket(name, use_case)
 
         if bucket:
             # 95% shared bucket base + 5% unique noise → cosine sim ~0.97 within bucket
-            base = _normalize(_raw_vector(hashlib.sha256(f"bucket:{bucket}".encode()).digest(), DIM))
-            noise = _normalize(_raw_vector(hashlib.sha256(f"noise:{gpt_id}:{name}".encode()).digest(), DIM))
+            base = _normalize(
+                _raw_vector(hashlib.sha256(f"bucket:{bucket}".encode()).digest(), DIM)
+            )
+            noise = _normalize(
+                _raw_vector(
+                    hashlib.sha256(f"noise:{gpt_id}:{name}".encode()).digest(), DIM
+                )
+            )
             return _normalize([0.95 * b + 0.05 * n for b, n in zip(base, noise)])
         else:
             # No semantic match → fully unique (won't cluster)
-            return _normalize(_raw_vector(hashlib.sha256(f"unique:{gpt_id}:{name}:{use_case}".encode()).digest(), DIM))
+            return _normalize(
+                _raw_vector(
+                    hashlib.sha256(
+                        f"unique:{gpt_id}:{name}:{use_case}".encode()
+                    ).digest(),
+                    DIM,
+                )
+            )

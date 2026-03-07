@@ -5,6 +5,7 @@ Revises: 002
 Create Date: 2026-03-03
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -21,18 +22,35 @@ def upgrade() -> None:
     op.add_column("gpts", sa.Column("business_process", sa.Text(), nullable=True))
     op.add_column("gpts", sa.Column("risk_flags", postgresql.JSONB(), nullable=True))
     op.add_column("gpts", sa.Column("risk_level", sa.String(10), nullable=True))
-    op.add_column("gpts", sa.Column("sophistication_score", sa.Integer(), nullable=True))
-    op.add_column("gpts", sa.Column("sophistication_rationale", sa.Text(), nullable=True))
-    op.add_column("gpts", sa.Column("prompting_quality_score", sa.Integer(), nullable=True))
-    op.add_column("gpts", sa.Column("prompting_quality_flags", postgresql.JSONB(), nullable=True))
+    op.add_column(
+        "gpts", sa.Column("sophistication_score", sa.Integer(), nullable=True)
+    )
+    op.add_column(
+        "gpts", sa.Column("sophistication_rationale", sa.Text(), nullable=True)
+    )
+    op.add_column(
+        "gpts", sa.Column("prompting_quality_score", sa.Integer(), nullable=True)
+    )
+    op.add_column(
+        "gpts", sa.Column("prompting_quality_flags", postgresql.JSONB(), nullable=True)
+    )
     op.add_column("gpts", sa.Column("roi_potential_score", sa.Integer(), nullable=True))
     op.add_column("gpts", sa.Column("roi_rationale", sa.Text(), nullable=True))
     op.add_column("gpts", sa.Column("intended_audience", sa.Text(), nullable=True))
-    op.add_column("gpts", sa.Column("integration_flags", postgresql.JSONB(), nullable=True))
+    op.add_column(
+        "gpts", sa.Column("integration_flags", postgresql.JSONB(), nullable=True)
+    )
     op.add_column("gpts", sa.Column("output_type", sa.String(50), nullable=True))
-    op.add_column("gpts", sa.Column("adoption_friction_score", sa.Integer(), nullable=True))
-    op.add_column("gpts", sa.Column("adoption_friction_rationale", sa.Text(), nullable=True))
-    op.add_column("gpts", sa.Column("semantic_enriched_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "gpts", sa.Column("adoption_friction_score", sa.Integer(), nullable=True)
+    )
+    op.add_column(
+        "gpts", sa.Column("adoption_friction_rationale", sa.Text(), nullable=True)
+    )
+    op.add_column(
+        "gpts",
+        sa.Column("semantic_enriched_at", sa.DateTime(timezone=True), nullable=True),
+    )
 
 
 def downgrade() -> None:
