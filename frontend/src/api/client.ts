@@ -43,6 +43,10 @@ export const api = {
     request<import("../types").TestConnectionResult>("/config/test-connection", {
       method: "POST",
     }),
+  testOpenaiConnection: () =>
+    request<import("../types").TestConnectionResult>("/config/test-openai-connection", {
+      method: "POST",
+    }),
 
   getCategories: () => request<import("../types").Category[]>("/categories"),
   createCategory: (data: Partial<import("../types").Category>) =>

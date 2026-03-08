@@ -56,7 +56,25 @@ erDiagram
         int secondary_category_id FK "nullable"
         float classification_confidence "0-1"
         text llm_summary
+        text use_case_description
         vector embedding "1536 dims pgvector"
+        text business_process
+        jsonb risk_flags
+        varchar risk_level
+        int sophistication_score
+        text sophistication_rationale
+        int prompting_quality_score
+        text prompting_quality_rationale
+        jsonb prompting_quality_flags
+        int roi_potential_score
+        text roi_rationale
+        text intended_audience
+        jsonb integration_flags
+        varchar output_type
+        int adoption_friction_score
+        text adoption_friction_rationale
+        timestamp semantic_enriched_at
+        varchar content_hash "SHA-256 for change detection"
         int sync_log_id FK
         timestamp indexed_at
     }
@@ -69,7 +87,48 @@ erDiagram
         text message
     }
 
+    workshops {
+        int id PK
+        varchar title
+        text description
+        date event_date
+        float duration_hours
+        varchar facilitator
+        timestamp created_at
+    }
+
+    workshop_participants {
+        int workshop_id PK_FK
+        varchar employee_email PK
+    }
+
+    workshop_gpt_tags {
+        int workshop_id PK_FK
+        varchar gpt_id PK
+        timestamp tagged_at
+    }
+
+    custom_courses {
+        int id PK
+        varchar url UK
+        text description
+        timestamp uploaded_at
+    }
+
+    workspace_users {
+        varchar id PK
+        varchar email
+        varchar name
+        timestamp created_at
+        varchar role
+        varchar status
+        varchar system_role "default employee"
+        timestamp imported_at
+    }
+
     categories ||--o{ gpts : "primary_category"
     categories ||--o{ gpts : "secondary_category"
     sync_logs ||--o{ gpts : "belongs to sync"
     sync_logs ||--o{ pipeline_log_entries : "log entries"
+    workshops ||--o{ workshop_participants : "participants"
+    workshops ||--o{ workshop_gpt_tags : "tagged GPTs"

@@ -89,8 +89,10 @@ Run `make help` to see all available commands.
 The pipeline runs in stages and reports live progress to the frontend:
 
 ```
-Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) → Embed (75–85%) → Store (90%) → Done (100%)
+Fetch (5–30%) → Filter (35%) → Change Detection → Classify (40–65%) → Enrich (65–72%) → Embed (75–85%) → Store (90%) → Done (100%)
 ```
+
+**Incremental processing**: The pipeline computes a content hash (SHA-256) of each GPT's classifiable fields (name, description, instructions, tools, categories). On subsequent runs, unchanged GPTs skip classification, enrichment, and embedding — their cached results are carried forward. This avoids unnecessary OpenAI API costs.
 
 | Stage    | Real Mode                     | Demo Mode                    |
 |----------|-------------------------------|------------------------------|
@@ -144,7 +146,7 @@ Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
 ```
 ├── backend/
 │   ├── alembic/
-│   │   └── versions/                     # 001–006 migrations (auto-applied on startup)
+│   │   └── versions/                     # 001–009 migrations (auto-applied on startup)
 │   ├── app/
 │   │   ├── config.py                     # Environment settings
 │   │   ├── database.py                   # Async SQLAlchemy engine
@@ -233,6 +235,7 @@ Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
 | GET | `/api/v1/config` | Get configuration |
 | PUT | `/api/v1/config` | Update configuration |
 | POST | `/api/v1/config/test-connection` | Test Compliance API connection |
+| POST | `/api/v1/config/test-openai-connection` | Test OpenAI API connection |
 
 ### Pipeline
 | Method | Endpoint | Description |

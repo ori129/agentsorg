@@ -20,3 +20,7 @@ export function useUpdateConfig() {
 export function useTestConnection() {
   return useMutation({ mutationFn: api.testConnection });
 }
+
+export function useTestOpenaiConnection() {
+  return useMutation({ mutationFn: api.testOpenaiConnection });
+}

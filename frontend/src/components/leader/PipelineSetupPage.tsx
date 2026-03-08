@@ -48,7 +48,11 @@ const COMING_SOON = [
   },
 ];
 
-export default function PipelineSetupPage() {
+interface PipelineSetupPageProps {
+  onComplete?: () => void;
+}
+
+export default function PipelineSetupPage({ onComplete }: PipelineSetupPageProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [showResults, setShowResults] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(true);
@@ -74,7 +78,7 @@ export default function PipelineSetupPage() {
         {currentStep === 1 && <Step2FilterRules />}
         {currentStep === 2 && <Step3Categories />}
         {currentStep === 3 && (
-          <Step4FetchClassify onViewResults={() => setShowResults(true)} />
+          <Step4FetchClassify onViewResults={() => setShowResults(true)} onComplete={onComplete} />
         )}
       </div>
       <NavButtons

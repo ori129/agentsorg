@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import json
 import logging
 import traceback
 from datetime import datetime, timezone
@@ -27,6 +29,18 @@ from app.services.mock_semantic_enricher import MockSemanticEnricher
 from app.services.semantic_enricher import SemanticEnricher
 
 logger = logging.getLogger(__name__)
+
+
+def _content_hash(gpt_data: dict) -> str:
+    """Hash the fields that affect classification output."""
+    parts = [
+        gpt_data.get("name") or "",
+        gpt_data.get("description") or "",
+        gpt_data.get("instructions") or "",
+        json.dumps(gpt_data.get("tools") or [], sort_keys=True),
+        json.dumps(gpt_data.get("builder_categories") or [], sort_keys=True),
+    ]
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()
 
 _lock = asyncio.Lock()
 _current_status: dict = {
@@ -190,6 +204,36 @@ async def _execute_pipeline(db: AsyncSession):
         f"GPTs after filtering: {len(filtered_gpts)} (excluded {len(all_gpts) - len(filtered_gpts)})",
     )
 
+    # Snapshot existing GPTs for change detection
+    from sqlalchemy.orm import selectinload
+    existing_result = await db.execute(
+        select(GPT).options(
+            selectinload(GPT.primary_category),
+            selectinload(GPT.secondary_category),
+        )
+    )
+    prev_gpts = {g.id: g for g in existing_result.scalars().all()}
+
+    # Compute content hashes and detect changes
+    changed_indices = []
+    unchanged_indices = []
+    for i, gpt_data in enumerate(filtered_gpts):
+        h = _content_hash(gpt_data)
+        gpt_data["_content_hash"] = h
+        prev = prev_gpts.get(gpt_data["id"])
+        if prev and prev.content_hash == h and prev.primary_category_id is not None:
+            unchanged_indices.append(i)
+        else:
+            changed_indices.append(i)
+
+    await _log(
+        db,
+        sync_log.id,
+        "info",
+        f"Change detection: {len(changed_indices)} new/changed, "
+        f"{len(unchanged_indices)} unchanged (will reuse cached results)",
+    )
+
     # Step 3: Classify (if enabled)
     classification_enabled = demo or (
         config.classification_enabled if config else False
@@ -197,7 +241,19 @@ async def _execute_pipeline(db: AsyncSession):
     has_openai_key = demo or (config and config.openai_api_key)
 
     classifications: list[dict | None] = [None] * len(filtered_gpts)
-    if classification_enabled and has_openai_key:
+
+    # Carry forward classifications for unchanged GPTs
+    for idx in unchanged_indices:
+        prev = prev_gpts[filtered_gpts[idx]["id"]]
+        classifications[idx] = {
+            "primary_category": prev.primary_category.name if prev.primary_category else None,
+            "secondary_category": prev.secondary_category.name if prev.secondary_category else None,
+            "confidence": prev.classification_confidence,
+            "summary": prev.llm_summary,
+            "use_case_description": prev.use_case_description,
+        }
+
+    if classification_enabled and has_openai_key and changed_indices:
         _current_status["stage"] = "classifying"
         _current_status["progress"] = 40.0
         await _log(
@@ -206,7 +262,7 @@ async def _execute_pipeline(db: AsyncSession):
             "info",
             "[DEMO] Using keyword-based classifier"
             if demo
-            else "Starting classification...",
+            else f"Classifying {len(changed_indices)} GPTs...",
         )
 
         result_cats = await db.execute(
@@ -222,25 +278,32 @@ async def _execute_pipeline(db: AsyncSession):
                 classifier = Classifier(openai_key, config.classification_model)
 
             max_cats = config.max_categories_per_gpt if config else 2
+            changed_gpts = [filtered_gpts[i] for i in changed_indices]
             results = await classifier.classify_batch(
-                filtered_gpts, categories, max_cats
+                changed_gpts, categories, max_cats
             )
 
             classified_count = 0
             errors = []
-            for i, r in enumerate(results):
+            for ci, r in enumerate(results):
+                idx = changed_indices[ci]
                 if isinstance(r, Exception):
                     errors.append(
-                        f"Classification error for {filtered_gpts[i].get('name', 'unknown')}: {r}"
+                        f"Classification error for {filtered_gpts[idx].get('name', 'unknown')}: {r}"
                     )
                     await _log(db, sync_log.id, "warn", errors[-1])
                 else:
-                    classifications[i] = r
+                    classifications[idx] = r
                     classified_count += 1
 
-            sync_log.gpts_classified = classified_count
+            sync_log.gpts_classified = classified_count + len(unchanged_indices)
             await db.commit()
-            await _log(db, sync_log.id, "info", f"Classified {classified_count} GPTs")
+            await _log(
+                db,
+                sync_log.id,
+                "info",
+                f"Classified {classified_count} GPTs ({len(unchanged_indices)} reused from cache)",
+            )
             _current_status["progress"] = 65.0
         else:
             await _log(
@@ -249,12 +312,46 @@ async def _execute_pipeline(db: AsyncSession):
                 "warn",
                 "No enabled categories, skipping classification",
             )
+    elif classification_enabled and has_openai_key and not changed_indices:
+        sync_log.gpts_classified = len(unchanged_indices)
+        await db.commit()
+        await _log(
+            db,
+            sync_log.id,
+            "info",
+            f"All {len(unchanged_indices)} GPTs unchanged, reusing cached classifications",
+        )
+        _current_status["progress"] = 65.0
     else:
         await _log(db, sync_log.id, "info", "Classification disabled, skipping")
 
     # Step 3.5: Semantic Enrichment (if classification enabled and API key available)
     enrichments: list[dict | None] = [None] * len(filtered_gpts)
-    if classification_enabled and has_openai_key:
+
+    # Carry forward enrichment for unchanged GPTs
+    for idx in unchanged_indices:
+        prev = prev_gpts[filtered_gpts[idx]["id"]]
+        if prev.semantic_enriched_at:
+            enrichments[idx] = {
+                "business_process": prev.business_process,
+                "risk_flags": prev.risk_flags,
+                "risk_level": prev.risk_level,
+                "sophistication_score": prev.sophistication_score,
+                "sophistication_rationale": prev.sophistication_rationale,
+                "prompting_quality_score": prev.prompting_quality_score,
+                "prompting_quality_rationale": prev.prompting_quality_rationale,
+                "prompting_quality_flags": prev.prompting_quality_flags,
+                "roi_potential_score": prev.roi_potential_score,
+                "roi_rationale": prev.roi_rationale,
+                "intended_audience": prev.intended_audience,
+                "integration_flags": prev.integration_flags,
+                "output_type": prev.output_type,
+                "adoption_friction_score": prev.adoption_friction_score,
+                "adoption_friction_rationale": prev.adoption_friction_rationale,
+                "semantic_enriched_at": prev.semantic_enriched_at.isoformat() if prev.semantic_enriched_at else None,
+            }
+
+    if classification_enabled and has_openai_key and changed_indices:
         _current_status["stage"] = "enriching"
         _current_status["progress"] = 65.0
         await _log(
@@ -263,7 +360,7 @@ async def _execute_pipeline(db: AsyncSession):
             "info",
             "[DEMO] Running mock semantic enrichment"
             if demo
-            else "Running semantic enrichment...",
+            else f"Enriching {len(changed_indices)} changed GPTs...",
         )
         try:
             if demo:
@@ -271,19 +368,31 @@ async def _execute_pipeline(db: AsyncSession):
             else:
                 openai_key = decrypt(config.openai_api_key)
                 enricher = SemanticEnricher(openai_key, config.classification_model)
-            enrichments = await enricher.enrich_batch(filtered_gpts, classifications)
+            changed_gpts_for_enrich = [filtered_gpts[i] for i in changed_indices]
+            changed_cls_for_enrich = [classifications[i] for i in changed_indices]
+            changed_enrichments = await enricher.enrich_batch(changed_gpts_for_enrich, changed_cls_for_enrich)
+            for ci, enr in enumerate(changed_enrichments):
+                enrichments[changed_indices[ci]] = enr
             enriched_count = sum(1 for e in enrichments if e is not None)
             await _log(
                 db,
                 sync_log.id,
                 "info",
-                f"Enriched {enriched_count} GPTs with semantic KPIs",
+                f"Enriched {len(changed_indices)} GPTs ({len(unchanged_indices)} reused from cache, {enriched_count} total)",
             )
         except Exception as e:
             await _log(
                 db, sync_log.id, "warn", f"Semantic enrichment failed (non-fatal): {e}"
             )
         _current_status["progress"] = 72.0
+    elif classification_enabled and has_openai_key:
+        _current_status["progress"] = 72.0
+        await _log(
+            db,
+            sync_log.id,
+            "info",
+            f"All GPTs unchanged, reusing cached enrichment data",
+        )
 
     # Step 3.6: Normalize business process names (real mode only — demo strings are already consistent)
     if not demo and any(e and e.get("business_process") for e in enrichments):
@@ -329,7 +438,14 @@ async def _execute_pipeline(db: AsyncSession):
 
     # Step 4: Embed (if classification enabled and API key available)
     embeddings: list[list[float] | None] = [None] * len(filtered_gpts)
-    if classification_enabled and has_openai_key:
+
+    # Carry forward embeddings for unchanged GPTs
+    for idx in unchanged_indices:
+        prev = prev_gpts[filtered_gpts[idx]["id"]]
+        if prev.embedding is not None:
+            embeddings[idx] = list(prev.embedding)
+
+    if classification_enabled and has_openai_key and changed_indices:
         _current_status["stage"] = "embedding"
         _current_status["progress"] = 75.0
         await _log(
@@ -338,7 +454,7 @@ async def _execute_pipeline(db: AsyncSession):
             "info",
             "[DEMO] Using deterministic embeddings"
             if demo
-            else "Generating embeddings...",
+            else f"Generating embeddings for {len(changed_indices)} changed GPTs...",
         )
 
         if demo:
@@ -348,21 +464,35 @@ async def _execute_pipeline(db: AsyncSession):
             embedder = Embedder(openai_key)
 
         try:
+            changed_gpts_for_embed = [filtered_gpts[i] for i in changed_indices]
+            changed_cls_for_embed = [classifications[i] for i in changed_indices]
             embedding_results = await embedder.embed_batch(
-                filtered_gpts, classifications
+                changed_gpts_for_embed, changed_cls_for_embed
             )
-            embeddings = embedding_results  # type: ignore[assignment]
-            sync_log.gpts_embedded = len(embedding_results)
+            for ci, emb in enumerate(embedding_results):
+                embeddings[changed_indices[ci]] = emb
+            total_embedded = sum(1 for e in embeddings if e is not None)
+            sync_log.gpts_embedded = total_embedded
             await db.commit()
             await _log(
                 db,
                 sync_log.id,
                 "info",
-                f"Generated {len(embedding_results)} embeddings",
+                f"Generated {len(embedding_results)} embeddings ({len(unchanged_indices)} reused from cache)",
             )
         except Exception as e:
             await _log(db, sync_log.id, "warn", f"Embedding failed: {e}")
         _current_status["progress"] = 85.0
+    elif classification_enabled and has_openai_key:
+        sync_log.gpts_embedded = sum(1 for e in embeddings if e is not None)
+        await db.commit()
+        _current_status["progress"] = 85.0
+        await _log(
+            db,
+            sync_log.id,
+            "info",
+            f"All GPTs unchanged, reusing cached embeddings",
+        )
 
     # Step 5: Store GPTs
     _current_status["stage"] = "storing"
@@ -422,6 +552,7 @@ async def _execute_pipeline(db: AsyncSession):
             llm_summary=cls.get("summary") if cls else None,
             use_case_description=cls.get("use_case_description") if cls else None,
             embedding=emb,
+            content_hash=gpt_data.get("_content_hash"),
             sync_log_id=sync_log.id,
             indexed_at=now,
             # Semantic enrichment

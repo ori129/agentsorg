@@ -60,7 +60,7 @@ export default function LeaderLayout() {
         {page === "overview:departments" && <DepartmentsPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:maturity" && <MaturityPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:output-types" && <OutputTypesPage gpts={gpts} onBack={() => setPage("overview")} />}
-        {page === "enrichment" && <PipelineSetupPage />}
+        {page === "enrichment" && <PipelineSetupPage onComplete={() => setPage("overview")} />}
         {page === "risk" && <RiskPanel gpts={gpts} />}
         {page === "quality" && <QualityScores gpts={gpts} />}
         {page === "duplicates" && <Duplicates gpts={gpts} />}

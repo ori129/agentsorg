@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Card from "../layout/Card";
-import { useConfiguration, useUpdateConfig } from "../../hooks/useConfiguration";
+import { useConfiguration, useUpdateConfig, useTestOpenaiConnection } from "../../hooks/useConfiguration";
 import { HELP_LINKS } from "../../config/helpLinks";
 import {
   useCategories,
@@ -15,6 +15,7 @@ const MODELS = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"];
 export default function Step3Categories() {
   const { data: config, isLoading: configLoading } = useConfiguration();
   const updateConfig = useUpdateConfig();
+  const testOpenai = useTestOpenaiConnection();
   const { data: categories = [], isLoading: catLoading } = useCategories();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
@@ -45,6 +46,11 @@ export default function Step3Categories() {
       classification_model: model,
       max_categories_per_gpt: maxCategories,
     });
+  };
+
+  const handleTestOpenai = () => {
+    handleSaveClassification();
+    testOpenai.mutate();
   };
 
   const handleAddCategory = () => {
@@ -141,13 +147,40 @@ export default function Step3Categories() {
             </>
           )}
 
-          <button
-            onClick={handleSaveClassification}
-            disabled={updateConfig.isPending}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-          >
-            {updateConfig.isPending ? "Saving..." : "Save Settings"}
-          </button>
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              onClick={handleSaveClassification}
+              disabled={updateConfig.isPending}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            >
+              {updateConfig.isPending ? "Saving..." : "Save Settings"}
+            </button>
+            {classificationEnabled && (
+              <button
+                onClick={handleTestOpenai}
+                disabled={testOpenai.isPending}
+                className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 disabled:opacity-50"
+              >
+                {testOpenai.isPending ? "Testing..." : "Test Connection"}
+              </button>
+            )}
+          </div>
+
+          {testOpenai.isSuccess && (
+            <div className={`p-3 rounded-md text-sm ${testOpenai.data.success ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+              {testOpenai.data.message}
+            </div>
+          )}
+          {testOpenai.isError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+              {(testOpenai.error as Error).message}
+            </div>
+          )}
+          {updateConfig.isSuccess && !testOpenai.isSuccess && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
+              Classification settings saved.
+            </div>
+          )}
         </div>
       </Card>
 

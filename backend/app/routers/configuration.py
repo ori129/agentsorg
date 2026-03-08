@@ -121,3 +121,44 @@ async def test_connection(db: AsyncSession = Depends(get_db)):
             )
     except Exception as e:
         return TestConnectionResult(success=False, message=f"Connection failed: {e}")
+
+
+@router.post("/config/test-openai-connection", response_model=TestConnectionResult)
+async def test_openai_connection(db: AsyncSession = Depends(get_db)):
+    config = await get_or_create_config(db)
+
+    if not config.openai_api_key:
+        return TestConnectionResult(
+            success=False, message="No OpenAI API key configured."
+        )
+
+    import httpx
+
+    try:
+        api_key = decrypt(config.openai_api_key)
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": config.classification_model or "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": "ping"}],
+                    "max_tokens": 1,
+                },
+            )
+
+        if resp.status_code == 200:
+            model_used = resp.json().get("model", config.classification_model)
+            return TestConnectionResult(
+                success=True,
+                message=f"Successfully connected to the OpenAI API using model '{model_used}'.",
+            )
+        else:
+            return TestConnectionResult(
+                success=False,
+                message=f"API returned status {resp.status_code}: {resp.text[:300]}",
+            )
+    except Exception as e:
+        return TestConnectionResult(success=False, message=f"Connection failed: {e}")

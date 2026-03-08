@@ -127,6 +127,7 @@ class GPT(Base):
         DateTime(timezone=True)
     )
 
+    content_hash: Mapped[str | None] = mapped_column(String(64))
     sync_log_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("sync_logs.id"))
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
