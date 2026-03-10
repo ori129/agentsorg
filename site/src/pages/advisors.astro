@@ -1,0 +1,248 @@
+---
+import Base from '../layouts/Base.astro';
+import { advisors } from '../data/advisors.ts';
+
+const featured = advisors.filter(a => a.featured);
+const rest = advisors.filter(a => !a.featured);
+
+const APPLICATION_EMAIL = "ori129@gmail.com";
+const subject = encodeURIComponent("AgentsOrg Advisor Application");
+const body = encodeURIComponent(
+`Hi Ori,
+
+I'd like to apply to be listed as an AgentsOrg AI Transformation Advisor.
+
+Name:
+Firm / Company:
+Role / Title:
+Specialization (e.g. AI Governance, Enterprise AI Strategy):
+Region:
+Website or LinkedIn:
+Short bio (2 sentences):
+
+Why I want to be listed:
+
+How I plan to use AgentsOrg with clients:
+
+`
+);
+const mailtoLink = `mailto:${APPLICATION_EMAIL}?subject=${subject}&body=${body}`;
+
+const benefits = [
+  {
+    icon: `<svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`,
+    title: 'Instant Portfolio Assessment',
+    desc: 'Deploy AgentsOrg for any client and produce a comprehensive GPT portfolio audit in minutes — not weeks. 9 semantic KPIs per GPT, risk flagging, duplicate detection, and maturity analysis.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>`,
+    title: 'Data-Driven Recommendations',
+    desc: 'Move from opinion-based to evidence-based consulting. Show clients exactly where their AI maturity gaps are, which GPTs are risky, and where to invest in training.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+    title: 'Directory Listing & Visibility',
+    desc: 'Get listed alongside the world\'s leading AI transformation practitioners. Enterprises searching for help find you through agentsorg.ai and the GitHub community.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`,
+    title: 'Shared Methodology',
+    desc: 'Use the AI Transformation Intelligence framework, GPT Portfolio Maturity Model, and governance playbook. Deliver consistent, high-quality engagements.',
+  },
+];
+---
+
+<Base
+  title="AI Transformation Advisors Directory — AgentsOrg"
+  description="The leading directory of AI Transformation Advisors helping enterprises govern and optimize their ChatGPT Enterprise deployment. Apply to join or find an advisor."
+>
+  <!-- Hero -->
+  <section class="pt-32 pb-20 px-6 relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-b from-accent-2/5 via-transparent to-transparent pointer-events-none"></div>
+    <div class="max-w-5xl mx-auto text-center relative">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border bg-surface text-xs text-text-muted mb-8">
+        <span class="w-2 h-2 rounded-full bg-green animate-pulse"></span>
+        {advisors.length} Advisors Listed &middot; Now Accepting Applications
+      </div>
+
+      <h1 class="text-5xl md:text-6xl font-black tracking-tight mb-6">
+        AI Transformation<br />
+        <span class="bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">Advisors</span>
+      </h1>
+
+      <p class="text-xl text-text-muted max-w-3xl mx-auto mb-10 leading-relaxed">
+        Trusted consultants helping enterprises govern and optimize their ChatGPT investment.
+        Use AgentsOrg as your assessment toolkit. Deliver portfolio audits in minutes.
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href={mailtoLink} class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all hover:shadow-lg hover:shadow-accent/20">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Apply to Join
+        </a>
+        <a href="#directory" class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl border border-border bg-surface text-text font-semibold hover:border-accent/50 transition-all">
+          Browse Advisors
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Directory -->
+  <section id="directory" class="py-24 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Advisor Directory</h2>
+        <p class="text-text-muted text-lg">Leading practitioners in AI transformation, governance, and ChatGPT adoption.</p>
+      </div>
+
+      <!-- Featured advisors -->
+      {featured.length > 0 && (
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+          {featured.map((a) => (
+            <a href={a.url} target="_blank" rel="noopener noreferrer"
+              class="p-8 rounded-2xl border border-accent/20 bg-surface hover:border-accent/50 transition-all group block">
+              <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 class="text-xl font-bold group-hover:text-accent transition-colors">{a.name}</h3>
+                  <p class="text-text-muted text-sm mt-0.5">{a.role} &middot; {a.firm}</p>
+                </div>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                  <span class="px-2 py-1 rounded-full text-xs bg-accent/10 text-accent border border-accent/20 whitespace-nowrap">Featured</span>
+                  <span class="text-text-dim text-xs">{a.region}</span>
+                </div>
+              </div>
+              <span class="inline-block px-3 py-1 rounded-full text-xs bg-surface-2 text-text-muted border border-border mb-4">
+                {a.specialization}
+              </span>
+              <p class="text-text-muted text-sm leading-relaxed">{a.bio}</p>
+              <div class="mt-4 flex items-center gap-1 text-accent text-sm font-medium">
+                Visit Profile
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+
+      <!-- Rest of advisors -->
+      <div class="grid md:grid-cols-3 gap-6">
+        {rest.map((a) => (
+          <a href={a.url} target="_blank" rel="noopener noreferrer"
+            class="p-6 rounded-2xl border border-border bg-surface hover:border-accent/30 transition-all group block">
+            <div class="mb-3">
+              <h3 class="text-lg font-bold group-hover:text-accent transition-colors">{a.name}</h3>
+              <p class="text-text-muted text-xs mt-0.5">{a.role}</p>
+              <p class="text-text-dim text-xs">{a.firm}</p>
+            </div>
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-surface-2 text-text-muted border border-border mb-3">
+              {a.specialization}
+            </span>
+            <p class="text-text-muted text-sm leading-relaxed line-clamp-3">{a.bio}</p>
+            <div class="mt-4 flex items-center gap-1 text-accent text-xs font-medium">
+              {a.region} &middot; Visit Profile
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </div>
+          </a>
+        ))}
+
+        <!-- Open slot CTA -->
+        <div class="p-6 rounded-2xl border border-dashed border-border bg-surface/30 flex flex-col items-center justify-center text-center min-h-[200px]">
+          <svg class="w-8 h-8 text-text-dim mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          <p class="text-text-dim text-sm mb-3">Your profile here</p>
+          <a href={mailtoLink} class="text-accent text-sm font-medium hover:underline">Apply to Join</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Why join -->
+  <section class="py-24 px-6 bg-surface">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Why Advisors Choose AgentsOrg</h2>
+        <p class="text-text-muted text-lg max-w-2xl mx-auto">
+          Stop building one-off assessment spreadsheets. Use a proven open-source platform to deliver enterprise GPT governance at scale.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        {benefits.map((b) => (
+          <div class="p-8 rounded-2xl border border-border bg-bg hover:border-accent/30 transition-all group">
+            <div class="w-12 h-12 rounded-xl bg-surface flex items-center justify-center mb-5 border border-border" set:html={b.icon} />
+            <h3 class="text-lg font-semibold mb-3 group-hover:text-accent transition-colors">{b.title}</h3>
+            <p class="text-text-muted text-sm leading-relaxed">{b.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- The Advisor Workflow -->
+  <section class="py-24 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">The Advisor Workflow</h2>
+        <p class="text-text-muted text-lg">From client engagement to measurable transformation.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-16">
+        {[
+          { num: '01', title: 'Deploy for Your Client', desc: 'Clone AgentsOrg and run it on the client\'s infrastructure. Self-hosted — their GPT data never leaves their environment.' },
+          { num: '02', title: 'Run the Portfolio Assessment', desc: 'Connect to their OpenAI Compliance API. The pipeline discovers, classifies, and enriches every Custom GPT automatically.' },
+          { num: '03', title: 'Deliver the Intelligence Report', desc: 'Present maturity distribution, risk flags, duplicate clusters, top builders, and personalized L&D recommendations.' },
+          { num: '04', title: 'Guide the Transformation', desc: 'Build a roadmap from Experimental to Production. Set up governance processes. Run targeted workshops. Measure impact.' },
+        ].map((s) => (
+          <div class="p-8 rounded-2xl border border-border bg-surface relative overflow-hidden group hover:border-accent/30 transition-all">
+            <span class="absolute top-6 right-6 text-6xl font-black text-border/50 group-hover:text-accent/10 transition-colors">{s.num}</span>
+            <h3 class="text-xl font-bold mb-3 relative">{s.title}</h3>
+            <p class="text-text-muted relative leading-relaxed">{s.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <!-- Engagement timeline -->
+      <div class="p-8 rounded-2xl border border-border bg-surface max-w-2xl mx-auto">
+        <div class="text-text-dim text-xs mb-6 uppercase tracking-wider">Sample Engagement Timeline</div>
+        <div class="space-y-6">
+          {[
+            { tag: 'W1', color: 'accent', title: 'Discovery & Assessment', desc: 'Deploy AgentsOrg. Run pipeline. Generate initial portfolio analysis.' },
+            { tag: 'W2', color: 'accent', title: 'Findings & Recommendations', desc: 'Present maturity report, risk assessment, and duplicate analysis to leadership.' },
+            { tag: 'W3-4', color: 'violet', title: 'Governance & L&D Setup', desc: 'Design governance program. Run first targeted workshops. Set up ongoing monitoring.' },
+            { tag: 'M2+', color: 'green', title: 'Ongoing Optimization', desc: 'Monthly reviews. Quarterly maturity tracking. Continuous improvement.' },
+          ].map((step, i) => (
+            <div class="flex gap-4">
+              <div class="flex flex-col items-center">
+                <div class={`w-10 h-8 rounded-full bg-${step.color}/10 border border-${step.color}/30 flex items-center justify-center text-xs font-bold text-${step.color}`}>{step.tag}</div>
+                {i < 3 && <div class="w-px flex-1 bg-border mt-2"></div>}
+              </div>
+              <div class={i < 3 ? 'pb-4' : ''}>
+                <div class="font-semibold text-sm">{step.title}</div>
+                <div class="text-text-muted text-xs mt-1">{step.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Apply CTA -->
+  <section class="py-24 px-6 bg-surface">
+    <div class="max-w-3xl mx-auto">
+      <div class="p-12 rounded-3xl border border-accent/20 bg-gradient-to-br from-accent/5 via-bg to-accent-2/5 text-center">
+        <h2 class="text-3xl font-bold mb-4">Apply to Join the Directory</h2>
+        <p class="text-text-muted text-lg mb-8 leading-relaxed">
+          Send us a short intro about your practice and how you'd use AgentsOrg with clients.
+          Applications reviewed weekly — we'll reply within a few days.
+        </p>
+        <a href={mailtoLink}
+          class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all hover:shadow-lg hover:shadow-accent/20 text-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Apply via Email
+        </a>
+        <p class="text-text-dim text-xs mt-4">Opens your email client with a pre-filled template &middot; {APPLICATION_EMAIL}</p>
+      </div>
+    </div>
+  </section>
+</Base>

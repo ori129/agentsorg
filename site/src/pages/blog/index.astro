@@ -1,0 +1,70 @@
+---
+import Base from '../../layouts/Base.astro';
+
+const posts = [
+  {
+    slug: 'ai-transformation-intelligence',
+    title: 'What Is AI Transformation Intelligence?',
+    description: 'AI Transformation Intelligence is the practice of using data, semantic analysis, and automation to understand, govern, and optimize an organization\'s AI portfolio. Learn why it matters for enterprise ChatGPT customers.',
+    date: '2026-03-08',
+    readingTime: 8,
+    keywords: ['AI Transformation Intelligence', 'enterprise ChatGPT', 'GPT governance'],
+  },
+  {
+    slug: 'gpt-portfolio-maturity-model',
+    title: 'The GPT Portfolio Maturity Model: From Experimental to Production',
+    description: 'A framework for classifying enterprise Custom GPTs into Production, Functional, and Experimental tiers. Learn how to measure AI maturity and shift the curve toward production-grade AI.',
+    date: '2026-03-08',
+    readingTime: 10,
+    keywords: ['GPT maturity model', 'AI maturity', 'enterprise ChatGPT'],
+  },
+  {
+    slug: 'enterprise-custom-gpt-governance-guide',
+    title: 'The Enterprise Custom GPT Governance Guide',
+    description: 'A comprehensive guide to governing Custom GPTs in enterprise ChatGPT workspaces. Covers discovery, risk assessment, duplicate detection, quality standards, and building a governance program that scales.',
+    date: '2026-03-08',
+    readingTime: 12,
+    keywords: ['GPT governance', 'ChatGPT Enterprise governance', 'AI governance framework'],
+  },
+];
+---
+
+<Base
+  title="Blog — AgentsOrg"
+  description="Insights on AI Transformation Intelligence, enterprise ChatGPT governance, GPT portfolio maturity, and building AI programs that scale. By the AgentsOrg team."
+>
+  <section class="pt-32 pb-24 px-6">
+    <div class="max-w-4xl mx-auto">
+      <div class="mb-16">
+        <h1 class="text-4xl md:text-5xl font-black tracking-tight mb-4">Blog</h1>
+        <p class="text-text-muted text-xl">
+          Insights on AI transformation, ChatGPT governance, and the frameworks enterprises need to govern AI at scale.
+        </p>
+      </div>
+
+      <div class="space-y-6">
+        {posts.map((post) => (
+          <a href={`/blog/${post.slug}`}
+            class="block p-8 rounded-2xl border border-border bg-surface hover:border-accent/30 transition-all group">
+            <div class="flex items-center gap-3 mb-4 text-xs text-text-dim">
+              <time datetime={post.date}>
+                {new Date(post.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </time>
+              <span>&middot;</span>
+              <span>{post.readingTime} min read</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-3 group-hover:text-accent transition-colors leading-snug">
+              {post.title}
+            </h2>
+            <p class="text-text-muted leading-relaxed mb-4">{post.description}</p>
+            <div class="flex flex-wrap gap-2">
+              {post.keywords.map(k => (
+                <span class="px-2 py-1 rounded bg-surface-2 text-xs text-text-muted border border-border">{k}</span>
+              ))}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</Base>

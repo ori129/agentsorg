@@ -1,0 +1,490 @@
+---
+import Base from '../layouts/Base.astro';
+
+const features = [
+  {
+    icon: `<svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>`,
+    title: 'Automated Discovery',
+    desc: 'Connects to OpenAI\'s Compliance API to fetch every Custom GPT in your workspace. No spreadsheets. No surveys. Full inventory in minutes.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-accent-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>`,
+    title: '9-Dimension Semantic Enrichment',
+    desc: 'LLM-powered analysis scores every GPT on risk, sophistication, prompting quality, ROI potential, business process, audience, integrations, output type, and adoption friction.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
+    title: 'Risk & Compliance',
+    desc: 'Automatically flag high-risk GPTs. Surface data exposure concerns, compliance gaps, and ungoverned builds before they become incidents.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>`,
+    title: 'Duplicate Detection',
+    desc: 'pgvector-powered semantic clustering finds GPTs that solve the same problem — even when named completely differently. Stop paying for redundant builds.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`,
+    title: 'Builder Recognition & L&D',
+    desc: 'Composite builder scores identify your best GPT creators. Personalized OpenAI Academy course recommendations close actual skill gaps. Track workshop impact over time.',
+  },
+  {
+    icon: `<svg class="w-6 h-6 text-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>`,
+    title: 'Employee Discovery Portal',
+    desc: 'Read-only GPT discovery for the entire org. Help employees find the right GPT instead of building yet another duplicate.',
+  },
+];
+
+const steps = [
+  { num: '01', title: 'Deploy', desc: 'docker compose up — one command. Everything runs locally. Your data never leaves your infrastructure.' },
+  { num: '02', title: 'Connect', desc: 'Enter your OpenAI Compliance API credentials. Or launch Demo mode — no API keys needed.' },
+  { num: '03', title: 'Scan', desc: 'The pipeline discovers, classifies, and enriches every Custom GPT with 9 semantic KPIs automatically.' },
+  { num: '04', title: 'Act', desc: 'The Leader Dashboard surfaces risks, duplicates, quality gaps, and learning opportunities — ready for decisions.' },
+];
+
+const roadmap = [
+  {
+    phase: 'Phase 1',
+    status: 'current',
+    name: 'Discovery & Governance',
+    items: ['GPT discovery via Compliance API', '9-KPI semantic enrichment', 'Risk flagging & compliance scoring', 'Semantic duplicate detection', 'Builder recognition & L&D', 'OpenAI Academy course recommendations', 'Workshop tracking with impact correlation', 'Full demo mode — no API keys needed'],
+  },
+  {
+    phase: 'Phase 2',
+    status: 'next',
+    name: 'Deep Intelligence',
+    items: ['Conversation analytics (volume, patterns, satisfaction)', 'Usage-based adoption scoring', 'Cost attribution per GPT', 'Department-level benchmarking', 'GPT lifecycle tracking (creation to retirement)', 'Automated portfolio health reports'],
+  },
+  {
+    phase: 'Phase 3',
+    status: 'planned',
+    name: 'Action Layer',
+    items: ['Auto-generated governance policies', 'GPT retirement recommendations', 'Builder certification program', 'Slack & Teams alert integrations', 'Executive reporting & board-ready exports', 'Custom enrichment prompts'],
+  },
+  {
+    phase: 'Phase 4',
+    status: 'vision',
+    name: 'Ecosystem',
+    items: ['Microsoft Copilot Studio support', 'Google Gemini Gems support', 'Internal GPT marketplace', 'Cross-org anonymized benchmarking', 'Advisor marketplace', 'Enterprise SaaS offering'],
+  },
+];
+
+const faqs = [
+  {
+    q: 'Is AgentsOrg affiliated with OpenAI?',
+    a: 'No. AgentsOrg is an independent open-source project. It integrates with OpenAI\'s public APIs (Compliance API, GPT API, Embeddings API) but is not endorsed by or affiliated with OpenAI.',
+  },
+  {
+    q: 'Does my data leave my infrastructure?',
+    a: 'No. AgentsOrg is fully self-hosted. Your GPT metadata, enrichment data, and all analytics stay in your own PostgreSQL database on your own servers.',
+  },
+  {
+    q: 'Can I use AgentsOrg in production?',
+    a: 'Yes. AgentsOrg is licensed under Apache 2.0 — free for any use, including commercial and production deployments. No restrictions.',
+  },
+  {
+    q: 'What do I need to get started?',
+    a: 'Docker Desktop is all you need. Clone the repo, run docker compose up, and you\'re live. Demo mode lets you explore the full platform without any API keys.',
+  },
+  {
+    q: 'How is this different from OpenAI\'s admin console?',
+    a: 'OpenAI\'s admin console shows you a list of GPTs. AgentsOrg gives you intelligence — risk scores, quality assessments, duplicate detection, maturity analysis, builder recognition, and targeted learning recommendations.',
+  },
+  {
+    q: 'What is the GPT Portfolio Maturity Model?',
+    a: 'A framework that classifies every Custom GPT as Production (score 4-5), Functional (score 3), or Experimental (score 1-2) based on semantic analysis of system prompts, tooling, and configuration depth. Typical enterprises see ~60% Experimental, ~25% Functional, and ~15% Production.',
+  },
+];
+---
+
+<Base
+  title="AgentsOrg — AI Transformation Intelligence for Enterprise ChatGPT"
+  description="Open-source governance platform for enterprise Custom GPTs. Discover, assess, and optimize your GPT portfolio with 9-dimension semantic enrichment, risk detection, duplicate clustering, and AI-powered L&D recommendations."
+>
+  <!-- Hero -->
+  <section class="pt-32 pb-20 px-6 relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-b from-accent/5 via-transparent to-transparent pointer-events-none"></div>
+    <div class="absolute top-40 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-accent/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+    <div class="max-w-5xl mx-auto text-center relative">
+      <div class="animate-fade-in">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border bg-surface text-xs text-text-muted mb-8">
+          <span class="w-2 h-2 rounded-full bg-green animate-pulse"></span>
+          Open Source &middot; Apache 2.0 &middot; Built for Enterprise ChatGPT
+        </div>
+      </div>
+
+      <h1 class="text-5xl md:text-7xl font-black tracking-tight mb-6 animate-fade-in animate-delay-1">
+        AI Transformation<br />
+        <span class="bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">Intelligence</span>
+      </h1>
+
+      <p class="text-xl md:text-2xl text-text-muted max-w-3xl mx-auto mb-10 animate-fade-in animate-delay-2 leading-relaxed">
+        The open-source governance platform for enterprise ChatGPT.<br class="hidden md:block" />
+        Discover, assess, and optimize every Custom GPT across your organization.
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in animate-delay-3">
+        <a href="https://github.com/ori129/agentsorg" target="_blank" class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all hover:shadow-lg hover:shadow-accent/20">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a href="https://github.com/ori129/agentsorg#quick-start" target="_blank" class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl border border-border bg-surface text-text font-semibold hover:border-accent/50 hover:bg-surface-2 transition-all">
+          Try Demo Mode
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problem -->
+  <section class="py-24 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Your Enterprise Has a Shadow AI Problem</h2>
+        <p class="text-text-muted text-lg max-w-2xl mx-auto">
+          ChatGPT Enterprise unlocked creation. Hundreds of Custom GPTs later, no one knows what exists, what's risky, or what's working.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="p-8 rounded-2xl border border-border bg-surface hover:border-red/30 transition-colors">
+          <div class="w-12 h-12 rounded-xl bg-red/10 flex items-center justify-center mb-5">
+            <svg class="w-6 h-6 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Invisible Portfolio</h3>
+          <p class="text-text-muted leading-relaxed">
+            Hundreds of Custom GPTs built across departments. No one knows what exists, who built it, or if it handles sensitive data properly.
+          </p>
+        </div>
+
+        <div class="p-8 rounded-2xl border border-border bg-surface hover:border-amber/30 transition-colors">
+          <div class="w-12 h-12 rounded-xl bg-amber/10 flex items-center justify-center mb-5">
+            <svg class="w-6 h-6 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Zero Governance</h3>
+          <p class="text-text-muted leading-relaxed">
+            No risk assessment, no quality standards, no way to spot duplicates. Your compliance team is flying blind on generative AI.
+          </p>
+        </div>
+
+        <div class="p-8 rounded-2xl border border-border bg-surface hover:border-accent/30 transition-colors">
+          <div class="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-5">
+            <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Wasted Investment</h3>
+          <p class="text-text-muted leading-relaxed">
+            Teams rebuilding the same GPTs in parallel. No learning transfer from top builders. No way to measure ROI on your ChatGPT Enterprise spend.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="py-24 px-6 bg-surface">
+    <div class="max-w-6xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Full-Stack AI Transformation Intelligence</h2>
+        <p class="text-text-muted text-lg max-w-2xl mx-auto">
+          Connect to OpenAI's Compliance API. Get actionable intelligence across your entire Custom GPT portfolio in minutes.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {features.map((f) => (
+          <div class="p-8 rounded-2xl border border-border bg-bg hover:border-accent/30 transition-all group">
+            <div class="w-12 h-12 rounded-xl bg-surface-2 flex items-center justify-center mb-5" set:html={f.icon} />
+            <h3 class="text-lg font-semibold mb-3 group-hover:text-accent transition-colors">{f.title}</h3>
+            <p class="text-text-muted text-sm leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Built for Enterprise ChatGPT -->
+  <section class="py-24 px-6">
+    <div class="max-w-6xl mx-auto">
+      <div class="grid md:grid-cols-2 gap-16 items-center">
+        <div>
+          <h2 class="text-3xl md:text-4xl font-bold mb-6">
+            The Missing Governance Layer for
+            <span class="bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">OpenAI Enterprise</span>
+          </h2>
+          <p class="text-text-muted text-lg mb-6 leading-relaxed">
+            OpenAI gives you the engine. AgentsOrg gives you the cockpit. Purpose-built for organizations running ChatGPT Enterprise and Team — not a generic AI governance tool bolted onto every provider.
+          </p>
+          <ul class="space-y-4">
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-green mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span class="text-text-muted"><strong class="text-text">Self-hosted</strong> — your GPT data stays on your infrastructure. Always.</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-green mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span class="text-text-muted"><strong class="text-text">Apache 2.0</strong> — no vendor lock-in. Use it, modify it, deploy it. Free forever.</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-green mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span class="text-text-muted"><strong class="text-text">Deep OpenAI integration</strong> — Compliance API, GPT API, Embeddings API, OpenAI Academy courses.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="p-8 rounded-2xl border border-border bg-surface font-mono text-sm">
+          <div class="text-text-dim text-xs mb-6 font-sans uppercase tracking-wider">Architecture</div>
+          <div class="space-y-4">
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full bg-accent"></div>
+              <span class="text-text">OpenAI Compliance API</span>
+              <span class="text-text-dim ml-auto text-xs">Discovery</span>
+            </div>
+            <div class="border-l-2 border-border ml-1.5 h-4"></div>
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full bg-accent-2"></div>
+              <span class="text-text">AgentsOrg Pipeline</span>
+              <span class="text-text-dim ml-auto text-xs">Fetch &rarr; Filter &rarr; Classify &rarr; Enrich &rarr; Embed &rarr; Store</span>
+            </div>
+            <div class="border-l-2 border-border ml-1.5 h-4"></div>
+            <div class="p-4 rounded-lg border border-border bg-bg">
+              <div class="text-text-dim text-xs mb-3">9 Semantic KPIs per GPT</div>
+              <div class="flex flex-wrap gap-2">
+                {['Risk', 'Quality', 'ROI', 'Sophistication', 'Process', 'Audience', 'Integrations', 'Output', 'Friction'].map(kpi => (
+                  <span class="px-2 py-1 rounded bg-surface-2 text-xs text-text-muted">{kpi}</span>
+                ))}
+              </div>
+            </div>
+            <div class="border-l-2 border-border ml-1.5 h-4"></div>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="p-3 rounded-lg border border-border bg-bg text-center">
+                <div class="text-xs text-accent font-semibold">Leader</div>
+                <div class="text-xs text-text-dim mt-1">Dashboard</div>
+              </div>
+              <div class="p-3 rounded-lg border border-border bg-bg text-center">
+                <div class="text-xs text-green font-semibold">Employee</div>
+                <div class="text-xs text-text-dim mt-1">Portal</div>
+              </div>
+              <div class="p-3 rounded-lg border border-border bg-bg text-center">
+                <div class="text-xs text-violet font-semibold">L&D</div>
+                <div class="text-xs text-text-dim mt-1">Module</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how-it-works" class="py-24 px-6 bg-surface">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">From Zero to Intelligence in 4 Steps</h2>
+        <p class="text-text-muted text-lg">No agents to install. No SaaS to configure. One Docker command.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        {steps.map((s) => (
+          <div class="p-8 rounded-2xl border border-border bg-bg relative overflow-hidden group hover:border-accent/30 transition-all">
+            <span class="absolute top-6 right-6 text-6xl font-black text-border/50 group-hover:text-accent/10 transition-colors">{s.num}</span>
+            <h3 class="text-xl font-bold mb-3 relative">{s.title}</h3>
+            <p class="text-text-muted relative leading-relaxed">{s.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Maturity Model -->
+  <section class="py-24 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Understand Your AI Maturity at a Glance</h2>
+        <p class="text-text-muted text-lg max-w-2xl mx-auto">
+          The GPT Portfolio Maturity Model classifies every Custom GPT by sophistication, giving you a clear picture of your AI transformation progress.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="p-8 rounded-2xl border border-border bg-surface text-center">
+          <div class="w-16 h-16 rounded-2xl bg-red/10 flex items-center justify-center mx-auto mb-5">
+            <span class="text-2xl font-bold text-red">60%</span>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Experimental</h3>
+          <p class="text-text-dim text-xs mb-3">Sophistication 1-2</p>
+          <p class="text-text-muted text-sm">Early-stage or abandoned. Minimal instructions, no tools, no integrations. The "let me try ChatGPT" phase.</p>
+        </div>
+
+        <div class="p-8 rounded-2xl border border-border bg-surface text-center">
+          <div class="w-16 h-16 rounded-2xl bg-amber/10 flex items-center justify-center mx-auto mb-5">
+            <span class="text-2xl font-bold text-amber">25%</span>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Functional</h3>
+          <p class="text-text-dim text-xs mb-3">Sophistication 3</p>
+          <p class="text-text-muted text-sm">Useful and actively used. Structured prompts, some tooling. Delivering value but room to grow.</p>
+        </div>
+
+        <div class="p-8 rounded-2xl border border-border bg-surface text-center">
+          <div class="w-16 h-16 rounded-2xl bg-green/10 flex items-center justify-center mx-auto mb-5">
+            <span class="text-2xl font-bold text-green">15%</span>
+          </div>
+          <h3 class="text-lg font-bold mb-2">Production</h3>
+          <p class="text-text-dim text-xs mb-3">Sophistication 4-5</p>
+          <p class="text-text-muted text-sm">Full system prompts, integrations, tested workflows. These are your AI power users — recognize and learn from them.</p>
+        </div>
+      </div>
+
+      <p class="text-center text-text-dim text-sm mt-8">
+        Typical enterprise distribution. AgentsOrg helps you shift the curve toward Production.
+      </p>
+    </div>
+  </section>
+
+  <!-- Roadmap -->
+  <section id="roadmap" class="py-24 px-6 bg-surface">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Where We're Headed</h2>
+        <p class="text-text-muted text-lg">A transparent roadmap. Built in the open, shaped by the community.</p>
+      </div>
+
+      <div class="space-y-6">
+        {roadmap.map((r) => (
+          <div class={`p-8 rounded-2xl border bg-bg ${r.status === 'current' ? 'border-accent/50' : 'border-border'}`}>
+            <div class="flex flex-wrap items-center gap-4 mb-6">
+              <span class={`px-3 py-1 rounded-full text-xs font-semibold ${
+                r.status === 'current' ? 'bg-accent/10 text-accent' :
+                r.status === 'next' ? 'bg-violet/10 text-violet' :
+                r.status === 'planned' ? 'bg-amber/10 text-amber' :
+                'bg-surface-2 text-text-dim'
+              }`}>
+                {r.phase}{r.status === 'current' ? ' — Active' : ''}
+              </span>
+              <h3 class="text-xl font-bold">{r.name}</h3>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3">
+              {r.items.map((item) => (
+                <div class="flex items-start gap-2">
+                  {r.status === 'current' ? (
+                    <svg class="w-5 h-5 text-green mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  ) : (
+                    <svg class="w-5 h-5 text-text-dim mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>
+                  )}
+                  <span class="text-sm text-text-muted">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Advisors CTA -->
+  <section class="py-24 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+      <div class="p-12 rounded-3xl border border-accent/20 bg-gradient-to-br from-accent/5 via-surface to-accent-2/5 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-[100px] pointer-events-none"></div>
+        <h2 class="text-3xl md:text-4xl font-bold mb-4 relative">AI Transformation Advisors</h2>
+        <p class="text-text-muted text-lg mb-8 max-w-2xl mx-auto relative leading-relaxed">
+          Are you a consultant helping enterprises navigate AI transformation? Use AgentsOrg as your assessment tool.
+          Run GPT portfolio audits for clients in minutes. Get listed in our advisor directory.
+        </p>
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 relative">
+          <a href="/advisors" class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all">
+            View Advisor Directory
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a href="https://github.com/ori129/agentsorg/discussions/categories/advisors" target="_blank" class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl border border-border bg-surface text-text font-semibold hover:border-accent/50 transition-all">
+            Apply to Join
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Community -->
+  <section class="py-24 px-6 bg-surface">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Built in the Open</h2>
+        <p class="text-text-muted text-lg">Apache 2.0 licensed. Conventional Commits. CI/CD from day one.</p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <a href="https://github.com/ori129/agentsorg/blob/main/CONTRIBUTING.md" target="_blank" class="p-8 rounded-2xl border border-border bg-bg hover:border-accent/30 transition-all group text-center">
+          <div class="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-5">
+            <svg class="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold mb-2 group-hover:text-accent transition-colors">Contribute</h3>
+          <p class="text-text-muted text-sm">PRs welcome. Read our contributing guide to get started.</p>
+        </a>
+
+        <a href="https://github.com/ori129/agentsorg/discussions" target="_blank" class="p-8 rounded-2xl border border-border bg-bg hover:border-accent/30 transition-all group text-center">
+          <div class="w-12 h-12 rounded-xl bg-violet/10 flex items-center justify-center mx-auto mb-5">
+            <svg class="w-6 h-6 text-violet" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold mb-2 group-hover:text-violet transition-colors">Discuss</h3>
+          <p class="text-text-muted text-sm">Questions, ideas, and show-and-tell. Join the conversation.</p>
+        </a>
+
+        <a href="https://github.com/ori129/agentsorg/issues" target="_blank" class="p-8 rounded-2xl border border-border bg-bg hover:border-accent/30 transition-all group text-center">
+          <div class="w-12 h-12 rounded-xl bg-amber/10 flex items-center justify-center mx-auto mb-5">
+            <svg class="w-6 h-6 text-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 class="text-lg font-semibold mb-2 group-hover:text-amber transition-colors">Report</h3>
+          <p class="text-text-muted text-sm">Found a bug? File an issue. We respond within 48 hours.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="py-24 px-6">
+    <div class="max-w-3xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">Frequently Asked Questions</h2>
+      </div>
+
+      <div class="space-y-4">
+        {faqs.map((faq) => (
+          <details class="group p-6 rounded-2xl border border-border bg-surface hover:border-accent/30 transition-colors">
+            <summary class="cursor-pointer text-lg font-semibold flex items-center justify-between">
+              {faq.q}
+              <svg class="w-5 h-5 text-text-dim group-open:rotate-180 transition-transform shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </summary>
+            <p class="mt-4 text-text-muted leading-relaxed">{faq.a}</p>
+          </details>
+        ))}
+      </div>
+
+      <script type="application/ld+json" set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faqs.map(f => ({
+          "@type": "Question",
+          "name": f.q,
+          "acceptedAnswer": { "@type": "Answer", "text": f.a }
+        }))
+      })} />
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="py-24 px-6 bg-surface">
+    <div class="max-w-3xl mx-auto text-center">
+      <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to govern your GPT portfolio?</h2>
+      <p class="text-text-muted text-lg mb-10 leading-relaxed">
+        Deploy AgentsOrg in under 5 minutes. Demo mode included — no API keys required.
+      </p>
+      <div class="p-6 rounded-2xl border border-border bg-bg font-mono text-left mb-8 max-w-lg mx-auto text-sm">
+        <div><span class="text-text-dim">$</span> <span class="text-text">git clone https://github.com/ori129/agentsorg.git</span></div>
+        <div><span class="text-text-dim">$</span> <span class="text-text">cd agentsorg && make up</span></div>
+        <div class="text-green mt-2">Ready at http://localhost:3000</div>
+      </div>
+      <a href="https://github.com/ori129/agentsorg" target="_blank" class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all hover:shadow-lg hover:shadow-accent/20">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        Get Started on GitHub
+      </a>
+    </div>
+  </section>
+</Base>

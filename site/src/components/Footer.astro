@@ -1,0 +1,53 @@
+---
+const year = new Date().getFullYear();
+---
+<footer class="border-t border-border bg-surface">
+  <div class="max-w-7xl mx-auto px-6 py-16">
+    <div class="grid md:grid-cols-4 gap-12">
+      <!-- Brand -->
+      <div class="md:col-span-2">
+        <div class="flex items-center gap-2.5 mb-4">
+          <svg width="24" height="24" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1.5" y="1.5" width="25" height="25" rx="4" stroke="white" stroke-width="2"/>
+            <circle cx="10" cy="10" r="4" fill="white"/>
+          </svg>
+          <span class="text-base font-bold tracking-tight">AgentsOrg.ai</span>
+        </div>
+        <p class="text-text-muted text-sm max-w-md leading-relaxed">
+          AI Transformation Intelligence. The open-source governance platform for enterprise ChatGPT.
+          Discover, assess, and optimize every Custom GPT across your organization.
+        </p>
+      </div>
+
+      <!-- Links -->
+      <div>
+        <h4 class="text-sm font-semibold mb-4 text-text">Project</h4>
+        <ul class="space-y-2 text-sm text-text-muted">
+          <li><a href="https://github.com/ori129/agentsorg" class="hover:text-text transition-colors">GitHub</a></li>
+          <li><a href="https://github.com/ori129/agentsorg/blob/main/CONTRIBUTING.md" class="hover:text-text transition-colors">Contributing</a></li>
+          <li><a href="https://github.com/ori129/agentsorg/blob/main/LICENSE" class="hover:text-text transition-colors">License (Apache 2.0)</a></li>
+          <li><a href="https://github.com/ori129/agentsorg/blob/main/SECURITY.md" class="hover:text-text transition-colors">Security</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4 class="text-sm font-semibold mb-4 text-text">Resources</h4>
+        <ul class="space-y-2 text-sm text-text-muted">
+          <li><a href="/blog" class="hover:text-text transition-colors">Blog</a></li>
+          <li><a href="/advisors" class="hover:text-text transition-colors">Advisor Directory</a></li>
+          <li><a href="https://github.com/ori129/agentsorg/discussions" class="hover:text-text transition-colors">Discussions</a></li>
+          <li><a href="https://github.com/ori129/agentsorg/issues" class="hover:text-text transition-colors">Report a Bug</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-text-dim text-xs">
+        &copy; {year} Ori Simantov. All rights reserved.
+      </p>
+      <p class="text-text-dim text-xs">
+        Built with purpose. Licensed under Apache 2.0.
+      </p>
+    </div>
+  </div>
+</footer>

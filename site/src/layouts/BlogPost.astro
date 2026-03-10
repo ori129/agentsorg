@@ -1,0 +1,67 @@
+---
+import Base from './Base.astro';
+
+const { frontmatter } = Astro.props;
+const { title, description, date, author, readingTime, keywords } = frontmatter;
+---
+
+<Base
+  title={`${title} — AgentsOrg Blog`}
+  description={description}
+  type="article"
+  publishedDate={date}
+>
+  <article class="pt-32 pb-24 px-6">
+    <div class="max-w-3xl mx-auto">
+      <!-- Header -->
+      <div class="mb-12">
+        <a href="/blog/ai-transformation-intelligence" class="text-sm text-accent hover:underline mb-6 inline-block">&larr; All Articles</a>
+        <h1 class="text-4xl md:text-5xl font-black tracking-tight mb-6 leading-tight">{title}</h1>
+        <div class="flex flex-wrap items-center gap-4 text-sm text-text-dim">
+          <span>{author || 'AgentsOrg Team'}</span>
+          <span>&middot;</span>
+          <time datetime={date}>{new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</time>
+          {readingTime && (
+            <>
+              <span>&middot;</span>
+              <span>{readingTime} min read</span>
+            </>
+          )}
+        </div>
+        {keywords && (
+          <div class="flex flex-wrap gap-2 mt-4">
+            {keywords.map((k: string) => (
+              <span class="px-2 py-1 rounded bg-surface text-xs text-text-muted border border-border">{k}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <!-- Content -->
+      <div class="prose">
+        <slot />
+      </div>
+
+      <!-- CTA -->
+      <div class="mt-16 p-8 rounded-2xl border border-accent/20 bg-surface text-center">
+        <h3 class="text-xl font-bold mb-3">Try AgentsOrg Today</h3>
+        <p class="text-text-muted mb-6">Deploy the open-source AI Transformation Intelligence platform in under 5 minutes.</p>
+        <a href="https://github.com/ori129/agentsorg" target="_blank" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all">
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </article>
+
+  <!-- Article Schema -->
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": title,
+    "description": description,
+    "datePublished": date,
+    "author": { "@type": "Organization", "name": author || "AgentsOrg Team" },
+    "publisher": { "@type": "Organization", "name": "AgentsOrg", "url": "https://agentsorg.ai" },
+    "keywords": keywords?.join(', ') || ''
+  })} />
+</Base>
