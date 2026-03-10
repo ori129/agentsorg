@@ -1,6 +1,14 @@
 # AgentsOrg
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Deploy](https://img.shields.io/badge/deploy-Docker_Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+[![Last Commit](https://img.shields.io/github/last-commit/ori129/agentsorg)](https://github.com/ori129/agentsorg/commits/main)
+[![Stars](https://img.shields.io/github/stars/ori129/agentsorg?style=social)](https://github.com/ori129/agentsorg/stargazers)
+[![Forks](https://img.shields.io/github/forks/ori129/agentsorg?style=social)](https://github.com/ori129/agentsorg/network/members)
+[![Issues](https://img.shields.io/github/issues/ori129/agentsorg)](https://github.com/ori129/agentsorg/issues)
+[![PRs](https://img.shields.io/github/issues-pr/ori129/agentsorg)](https://github.com/ori129/agentsorg/pulls)
+[![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](backend/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.6-3178C6?logo=typescript&logoColor=white)](frontend/)
 
 Enterprise AI governance platform for organizations running Custom GPTs on OpenAI. Connects to the OpenAI Compliance API to discover, classify, and semantically enrich every GPT in your workspace — then surfaces actionable intelligence through a leader dashboard, an employee portal, and a learning & development module.
 
