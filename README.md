@@ -172,7 +172,6 @@ Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
 │   │   │   ├── demo.py                   # GET/PUT /demo
 │   │   │   ├── learning.py               # Recognition, recommendations, workshops
 │   │   │   ├── pipeline.py               # Run, status, GPTs, history
-│   │   │   └── prompt_lab.py             # Dev tool — test KPI prompts
 │   │   ├── services/
 │   │   │   ├── classifier.py             # OpenAI LLM classifier
 │   │   │   ├── compliance_api.py         # OpenAI Compliance API client
@@ -185,10 +184,7 @@ Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
 │   │   │   ├── mock_fetcher.py
 │   │   │   ├── mock_semantic_enricher.py # Deterministic KPI scores for demo
 │   │   │   ├── pipeline.py               # Orchestrates all stages
-│   │   │   ├── prompt_lab_samples.py     # 20 realistic GPT samples for dev testing
 │   │   │   └── semantic_enricher.py      # 9 LLM calls per GPT
-│   │   └── static/
-│   │       └── prompt_lab.html           # Standalone dev tool UI
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
@@ -298,17 +294,6 @@ Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
 | GET | `/api/v1/demo` | Get demo state |
 | PUT | `/api/v1/demo` | Toggle demo mode / set size |
 | POST | `/api/v1/admin/reset` | Clear GPTs and logs |
-
-### Prompt Lab *(dev tool)*
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/prompt-lab/samples` | List 20 sample GPTs |
-| GET | `/api/v1/prompt-lab/samples/{id}` | Get a single sample |
-| GET | `/api/v1/prompt-lab/kpis` | List available KPI prompts |
-| POST | `/api/v1/prompt-lab/enrich` | Run one KPI on one sample |
-| POST | `/api/v1/prompt-lab/enrich-all` | Run all KPIs on one sample |
-
-The Prompt Lab UI is served at `http://localhost:8000/prompt-lab` — a standalone HTML page for iterating on enrichment prompts without touching the main app.
 
 ---
 
