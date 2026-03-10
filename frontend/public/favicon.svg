@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" fill="none">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .s { stroke: #ffffff; }
+      .f { fill: #ffffff; }
+    }
+    @media (prefers-color-scheme: light) {
+      .s { stroke: #0f172a; }
+      .f { fill: #0f172a; }
+    }
+  </style>
+  <rect x="1.5" y="1.5" width="25" height="25" rx="4" class="s" stroke-width="2"/>
+  <circle cx="10" cy="10" r="4" class="f"/>
+</svg>

@@ -55,16 +55,14 @@ export default function Header({ topView, onSetView, canSeeLeader, onLogout, use
       style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)" }}
     >
       {/* Left: Logo */}
-      <div className="flex items-center gap-3">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white"
-          style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}
-        >
-          GPT
-        </div>
+      <div className="flex items-center gap-2.5">
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--c-text)" }}>
+          <rect x="1.5" y="1.5" width="25" height="25" rx="4" stroke="currentColor" strokeWidth="2"/>
+          <circle cx="10" cy="10" r="4" fill="currentColor"/>
+        </svg>
         <div>
-          <div className="text-sm font-bold" style={{ color: "var(--c-text)" }}>
-            Registry
+          <div className="text-sm font-bold tracking-tight" style={{ color: "var(--c-text)" }}>
+            AgentsOrg.ai
           </div>
           <div className="text-xs" style={{ color: "var(--c-text-4)" }}>
             AI Transformation Intelligence
