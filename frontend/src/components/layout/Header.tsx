@@ -2,6 +2,7 @@ import type { TopView } from "../../App";
 import { usePipelineSummary, usePipelineStatus } from "../../hooks/usePipeline";
 import { useDemoState, useUpdateDemoState } from "../../hooks/useDemo";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useAuth } from "../../contexts/AuthContext";
 
 const SIZE_OPTIONS = [
   { value: "small", label: "Small (50)" },
@@ -24,6 +25,8 @@ export default function Header({ topView, onSetView, canSeeLeader, onLogout, use
   const { data: demoState } = useDemoState();
   const updateDemo = useUpdateDemoState();
   const { theme, toggleTheme } = useTheme();
+  const { systemRole } = useAuth();
+  const isAdmin = systemRole === "system-admin";
   const isRunning = pipelineStatus?.running ?? false;
 
   const handleDemoToggle = () => {
@@ -93,34 +96,36 @@ export default function Header({ topView, onSetView, canSeeLeader, onLogout, use
 
       {/* Right: demo toggle + sync status + user + theme */}
       <div className="flex items-center gap-3">
-        {/* Demo toggle */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleDemoToggle}
-            className="text-xs font-medium px-3 py-1 rounded-full border transition-colors"
-            style={
-              demoState?.enabled
-                ? { background: "#1c1200", borderColor: "#78350f", color: "#f59e0b" }
-                : { background: "var(--c-border)", borderColor: "var(--c-border)", color: "var(--c-text-4)" }
-            }
-          >
-            {demoState?.enabled ? "DEMO ON" : "Demo"}
-          </button>
-          {demoState?.enabled && (
-            <select
-              value={demoState.size}
-              onChange={handleSizeChange}
-              className="text-xs px-2 py-1 rounded border outline-none"
-              style={{ background: "#1c1200", borderColor: "#78350f", color: "#f59e0b" }}
+        {/* Demo toggle — admin only */}
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDemoToggle}
+              className="text-xs font-medium px-3 py-1 rounded-full border transition-colors"
+              style={
+                demoState?.enabled
+                  ? { background: "#1c1200", borderColor: "#78350f", color: "#f59e0b" }
+                  : { background: "var(--c-border)", borderColor: "var(--c-border)", color: "var(--c-text-4)" }
+              }
             >
-              {SIZE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+              {demoState?.enabled ? "DEMO ON" : "Demo"}
+            </button>
+            {demoState?.enabled && (
+              <select
+                value={demoState.size}
+                onChange={handleSizeChange}
+                className="text-xs px-2 py-1 rounded border outline-none"
+                style={{ background: "#1c1200", borderColor: "#78350f", color: "#f59e0b" }}
+              >
+                {SIZE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
 
         {isRunning ? (
           <div className="flex items-center gap-2 text-xs" style={{ color: "#f59e0b" }}>
