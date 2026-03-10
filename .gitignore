@@ -42,3 +42,8 @@ backups/
 # OS
 .DS_Store
 Thumbs.db
+
+# Site repo (separate repo)
+site/
+package-lock.json
+package.json
