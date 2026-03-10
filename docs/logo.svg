@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" fill="none">
+  <!-- Icon: square with dot -->
+  <rect x="2" y="2" width="46" height="46" rx="8" stroke="white" stroke-width="3"/>
+  <circle cx="18" cy="18" r="8" fill="white"/>
+  <!-- Wordmark -->
+  <text x="62" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="700" fill="white" letter-spacing="-0.5">AgentsOrg.ai</text>
+  <!-- Tagline -->
+  <text x="63" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#64748b" letter-spacing="0.2">AI Transformation Intelligence</text>
+</svg>

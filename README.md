@@ -1,4 +1,6 @@
-# AgentsOrg
+<p align="center">
+  <img src="docs/logo.svg" alt="AgentsOrg" width="280" />
+</p>
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Deploy](https://img.shields.io/badge/deploy-Docker_Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
