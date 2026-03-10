@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="AgentsOrg" width="280" />
+  <img src="docs/logo.svg" alt="AgentsOrg" width="72" /><br/>
+  <strong style="font-size:2em">AgentsOrg.ai</strong><br/>
+  <sub>AI Transformation Intelligence</sub>
 </p>
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
