@@ -21,13 +21,19 @@ export default function OnboardingScreen({ onDemo, onProduction }: Props) {
     try {
       await api.updateDemoState({ enabled: true, size: "medium" });
       await api.runPipeline();
+
+      // Wait for the pipeline to actually start (running=true) before polling for completion
+      let started = false;
       pollRef.current = setInterval(async () => {
         try {
           const status = await api.getPipelineStatus();
-          if (!status.running) {
+          if (!started && status.running) {
+            started = true;   // pipeline confirmed started
+          }
+          if (started && !status.running) {
             clearInterval(pollRef.current!);
             setPhase("done");
-            setTimeout(onDemo, 300);
+            setTimeout(onDemo, 500);
           }
         } catch { /* ignore transient errors */ }
       }, 1500);
