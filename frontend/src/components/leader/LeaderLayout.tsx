@@ -37,7 +37,8 @@ export default function LeaderLayout({ initialPage, onSetupNavigated }: LeaderLa
       setPage(initialPage);
       onSetupNavigated?.();
       // Force refetch all pipeline data (important after demo pipeline completes)
-      queryClient.invalidateQueries({ queryKey: ["pipeline"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-gpts"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-summary"] });
     }
   }, [initialPage]);
 
