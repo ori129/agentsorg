@@ -8,10 +8,10 @@ interface CardProps {
 
 export default function Card({ title, description, children }: CardProps) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+    <div className="rounded-lg p-6" style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}>
+      <h2 className="text-lg font-semibold" style={{ color: "var(--c-text)" }}>{title}</h2>
       {description && (
-        <p className="mt-1 text-sm text-gray-500">{description}</p>
+        <p className="mt-1 text-sm" style={{ color: "var(--c-text-3)" }}>{description}</p>
       )}
       <div className="mt-4">{children}</div>
     </div>

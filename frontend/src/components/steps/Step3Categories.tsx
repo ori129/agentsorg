@@ -37,7 +37,7 @@ export default function Step3Categories() {
     setInitialized(true);
   }
 
-  if (configLoading || catLoading) return <div className="text-gray-500">Loading...</div>;
+  if (configLoading || catLoading) return <div className="form-hint">Loading...</div>;
 
   const handleSaveClassification = () => {
     updateConfig.mutate({
@@ -69,12 +69,13 @@ export default function Step3Categories() {
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Enable Classification</span>
+            <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Enable Classification</span>
             <button
               onClick={() => setClassificationEnabled(!classificationEnabled)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                classificationEnabled ? "bg-blue-600" : "bg-gray-200"
+                classificationEnabled ? "bg-blue-600" : ""
               }`}
+              style={!classificationEnabled ? { background: "var(--c-border)" } : {}}
             >
               <span
                 className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
@@ -86,13 +87,8 @@ export default function Step3Categories() {
 
           {classificationEnabled && (
             <>
-              <div
-                className="p-3 rounded-lg text-sm"
-                style={{ background: "var(--c-accent-bg)", border: "1px solid #3b82f630" }}
-              >
-                <div className="font-medium mb-1" style={{ color: "#3b82f6" }}>
-                  Getting your OpenAI API Key
-                </div>
+              <div className="alert-info">
+                <div className="font-medium mb-1">Getting your OpenAI API Key</div>
                 <p style={{ color: "var(--c-text-3)" }}>
                   Required for GPT classification and semantic enrichment.{" "}
                   <a
@@ -107,23 +103,21 @@ export default function Step3Categories() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  OpenAI API Key
-                </label>
+                <label className="form-label">OpenAI API Key</label>
                 <input
                   type="password"
                   value={openaiApiKey}
                   onChange={(e) => setOpenaiApiKey(e.target.value)}
                   placeholder={config?.openai_api_key ? "********" : "sk-..."}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="form-input"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Model</label>
+                <label className="form-label">Model</label>
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="form-input"
                 >
                   {MODELS.map((m) => (
                     <option key={m} value={m}>{m}</option>
@@ -131,13 +125,11 @@ export default function Step3Categories() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Max Categories per GPT
-                </label>
+                <label className="form-label">Max Categories per GPT</label>
                 <select
                   value={maxCategories}
                   onChange={(e) => setMaxCategories(Number(e.target.value))}
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="form-input"
                 >
                   {[1, 2, 3].map((n) => (
                     <option key={n} value={n}>{n}</option>
@@ -159,7 +151,8 @@ export default function Step3Categories() {
               <button
                 onClick={handleTestOpenai}
                 disabled={testOpenai.isPending}
-                className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium rounded-md disabled:opacity-50"
+                style={{ color: "#3b82f6", background: "var(--c-accent-bg)", border: "1px solid #3b82f640" }}
               >
                 {testOpenai.isPending ? "Testing..." : "Test Connection"}
               </button>
@@ -167,67 +160,62 @@ export default function Step3Categories() {
           </div>
 
           {testOpenai.isSuccess && (
-            <div className={`p-3 rounded-md text-sm ${testOpenai.data.success ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
+            <div className={testOpenai.data.success ? "alert-success" : "alert-error"}>
               {testOpenai.data.message}
             </div>
           )}
           {testOpenai.isError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
-              {(testOpenai.error as Error).message}
-            </div>
+            <div className="alert-error">{(testOpenai.error as Error).message}</div>
           )}
           {updateConfig.isSuccess && !testOpenai.isSuccess && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
-              Classification settings saved.
-            </div>
+            <div className="alert-success">Classification settings saved.</div>
           )}
         </div>
       </Card>
 
-      <Card
-        title="Categories"
-        description="Define categories for classifying GPTs."
-      >
+      <Card title="Categories" description="Define categories for classifying GPTs.">
         <div className="space-y-4">
           <div className="flex gap-2">
             <button
               onClick={() => seedCategories.mutate()}
               disabled={seedCategories.isPending}
-              className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs font-medium rounded-md disabled:opacity-50"
+              style={{ color: "#3b82f6", background: "var(--c-accent-bg)", border: "1px solid #3b82f640" }}
             >
               Seed Defaults
             </button>
           </div>
 
-          <ul className="divide-y divide-gray-100">
+          <ul style={{ borderTop: "1px solid var(--c-border)" }}>
             {categories.map((cat) => (
-              <li key={cat.id} className="flex items-center justify-between py-2">
+              <li
+                key={cat.id}
+                className="flex items-center justify-between py-2"
+                style={{ borderBottom: "1px solid var(--c-border)" }}
+              >
                 <div className="flex items-center gap-2">
-                  <span
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span className="text-sm font-medium text-gray-900">{cat.name}</span>
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+                  <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>{cat.name}</span>
                   {cat.description && (
-                    <span className="text-xs text-gray-400">{cat.description}</span>
+                    <span className="text-xs" style={{ color: "var(--c-text-4)" }}>{cat.description}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() =>
-                      updateCategory.mutate({ id: cat.id, enabled: !cat.enabled })
-                    }
-                    className={`text-xs px-2 py-0.5 rounded ${
+                    onClick={() => updateCategory.mutate({ id: cat.id, enabled: !cat.enabled })}
+                    className="text-xs px-2 py-0.5 rounded"
+                    style={
                       cat.enabled
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
+                        ? { background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }
+                        : { background: "var(--c-border)", color: "var(--c-text-4)" }
+                    }
                   >
                     {cat.enabled ? "Enabled" : "Disabled"}
                   </button>
                   <button
                     onClick={() => deleteCategory.mutate(cat.id)}
-                    className="text-xs text-red-500 hover:text-red-700"
+                    className="text-xs"
+                    style={{ color: "#ef4444" }}
                   >
                     Remove
                   </button>
@@ -243,7 +231,7 @@ export default function Step3Categories() {
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 placeholder="Category name"
-                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
             <div className="flex-1">
@@ -252,7 +240,7 @@ export default function Step3Categories() {
                 value={newCategoryDesc}
                 onChange={(e) => setNewCategoryDesc(e.target.value)}
                 placeholder="Description (optional)"
-                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="form-input"
               />
             </div>
             <button

@@ -139,7 +139,7 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
           </div>
 
           {runPipeline.isError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
+            <div className="alert-error">
               {(runPipeline.error as Error).message}
             </div>
           )}
@@ -147,11 +147,11 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
           {/* Progress bar */}
           {isActive && status && (
             <div>
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
+              <div className="flex justify-between text-sm mb-1" style={{ color: "var(--c-text-3)" }}>
                 <span>{status.stage}</span>
                 <span>{Math.round(status.progress)}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full rounded-full h-2" style={{ background: "var(--c-border)" }}>
                 <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${status.progress}%` }}
@@ -162,17 +162,17 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
 
           {/* Done banner */}
           {phase === "done" && summary && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+            <div className="alert-success p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full text-white text-lg">
                     &#10003;
                   </span>
                   <div>
-                    <p className="text-sm font-medium text-green-800">
+                    <p className="text-sm font-medium" style={{ color: "#10b981" }}>
                       Pipeline completed successfully
                     </p>
-                    <p className="text-xs text-green-600">
+                    <p className="text-xs" style={{ color: "#10b981", opacity: 0.8 }}>
                       {summary.total_gpts} GPTs found,{" "}
                       {summary.filtered_gpts} after filtering
                     </p>
@@ -180,7 +180,8 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
                 </div>
                 <button
                   onClick={() => setShowLogs((s) => !s)}
-                  className="text-xs text-green-700 hover:text-green-900 underline"
+                  className="text-xs underline"
+                  style={{ color: "#10b981" }}
                 >
                   {showLogs ? "Hide Logs" : "View Logs"}
                 </button>
@@ -209,7 +210,7 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
       {/* Logs panel */}
       {logs.length > 0 && showLogs && (
         <Card title="Pipeline Logs">
-          <div className="bg-gray-900 rounded-md p-4 max-h-80 overflow-y-auto font-mono text-xs">
+          <div className="rounded-md p-4 max-h-80 overflow-y-auto font-mono text-xs" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
             {logs.map((entry) => (
               <div
                 key={entry.id}
@@ -221,7 +222,7 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
                       : "text-green-400"
                 }`}
               >
-                <span className="text-gray-500">
+                <span style={{ color: "var(--c-text-4)" }}>
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>{" "}
                 <span className="uppercase">[{entry.level}]</span>{" "}

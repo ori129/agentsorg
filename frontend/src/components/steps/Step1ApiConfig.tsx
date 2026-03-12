@@ -19,7 +19,7 @@ export default function Step1ApiConfig() {
     setInitialized(true);
   }
 
-  if (isLoading) return <div className="text-gray-500">Loading...</div>;
+  if (isLoading) return <div className="form-hint">Loading...</div>;
 
   const handleSave = () => {
     updateConfig.mutate({
@@ -40,13 +40,8 @@ export default function Step1ApiConfig() {
       description="Connect to the OpenAI Compliance API to discover Custom GPTs in your workspace."
     >
       <div className="space-y-4">
-        <div
-          className="p-3 rounded-lg text-sm"
-          style={{ background: "var(--c-accent-bg)", border: "1px solid #3b82f630" }}
-        >
-          <div className="font-medium mb-1" style={{ color: "#3b82f6" }}>
-            Getting your Compliance API Key
-          </div>
+        <div className="alert-info">
+          <div className="font-medium mb-1">Getting your Compliance API Key</div>
           <p style={{ color: "var(--c-text-3)" }}>
             Obtain audit and compliance data in your Enterprise workspace.{" "}
             <a
@@ -61,38 +56,32 @@ export default function Step1ApiConfig() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Workspace ID
-          </label>
+          <label className="form-label">Workspace ID</label>
           <input
             type="text"
             value={workspaceId}
             onChange={(e) => setWorkspaceId(e.target.value)}
             placeholder="ws-xxxxxxxx"
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="form-input"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Compliance API Key
-          </label>
+          <label className="form-label">Compliance API Key</label>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder={config?.compliance_api_key ? "********" : "sk-..."}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="form-input"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Base URL
-          </label>
+          <label className="form-label">Base URL</label>
           <input
             type="text"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="form-input"
           />
         </div>
 
@@ -107,26 +96,21 @@ export default function Step1ApiConfig() {
           <button
             onClick={handleTest}
             disabled={testConnection.isPending}
-            className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium rounded-md disabled:opacity-50"
+            style={{ color: "#3b82f6", background: "var(--c-accent-bg)", border: "1px solid #3b82f640" }}
           >
             {testConnection.isPending ? "Testing..." : "Test Connection"}
           </button>
         </div>
 
         {testConnection.isSuccess && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
-            {testConnection.data.message}
-          </div>
+          <div className="alert-success">{testConnection.data.message}</div>
         )}
         {testConnection.isError && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-800">
-            {(testConnection.error as Error).message}
-          </div>
+          <div className="alert-error">{(testConnection.error as Error).message}</div>
         )}
         {updateConfig.isSuccess && !testConnection.isSuccess && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
-            Configuration saved.
-          </div>
+          <div className="alert-success">Configuration saved.</div>
         )}
       </div>
     </Card>

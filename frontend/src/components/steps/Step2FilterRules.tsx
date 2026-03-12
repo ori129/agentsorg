@@ -27,7 +27,7 @@ export default function Step2FilterRules() {
     setInitialized(true);
   }
 
-  if (isLoading) return <div className="text-gray-500">Loading...</div>;
+  if (isLoading) return <div className="form-hint">Loading...</div>;
 
   const handleSave = () => {
     updateConfig.mutate({
@@ -53,14 +53,15 @@ export default function Step2FilterRules() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-sm font-medium text-gray-700">Include All GPTs</span>
-            <p className="text-xs text-gray-500">Skip filtering and include everything</p>
+            <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Include All GPTs</span>
+            <p className="form-hint">Skip filtering and include everything</p>
           </div>
           <button
             onClick={() => setIncludeAll(!includeAll)}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              includeAll ? "bg-blue-600" : "bg-gray-200"
+              includeAll ? "bg-blue-600" : ""
             }`}
+            style={!includeAll ? { background: "var(--c-border)" } : {}}
           >
             <span
               className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
@@ -73,22 +74,21 @@ export default function Step2FilterRules() {
         {!includeAll && (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Visibility Filters
-              </label>
+              <label className="form-label">Visibility Filters</label>
               <div className="grid grid-cols-2 gap-2">
                 {VISIBILITY_OPTIONS.map((opt) => (
                   <label
                     key={opt.key}
-                    className="flex items-center gap-2 p-2 rounded border border-gray-200 cursor-pointer hover:bg-gray-50"
+                    className="flex items-center gap-2 p-2 rounded cursor-pointer"
+                    style={{ border: "1px solid var(--c-border)" }}
                   >
                     <input
                       type="checkbox"
                       checked={visibilityFilters[opt.key] || false}
                       onChange={() => toggleVisibility(opt.key)}
-                      className="rounded border-gray-300 text-blue-600"
+                      className="rounded text-blue-600"
                     />
-                    <span className="text-sm text-gray-700">{opt.label}</span>
+                    <span className="text-sm" style={{ color: "var(--c-text)" }}>{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -96,9 +96,7 @@ export default function Step2FilterRules() {
 
             {visibilityFilters["invite_only"] && (
               <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Minimum Shared Users (Invite Only)
-                </label>
+                <label className="form-label">Minimum Shared Users (Invite Only)</label>
                 <input
                   type="range"
                   min={0}
@@ -107,22 +105,20 @@ export default function Step2FilterRules() {
                   onChange={(e) => setMinSharedUsers(Number(e.target.value))}
                   className="mt-1 w-full"
                 />
-                <span className="text-sm text-gray-500">{minSharedUsers} users</span>
+                <span className="form-hint">{minSharedUsers} users</span>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Excluded Owner Emails
-              </label>
+              <label className="form-label">Excluded Owner Emails</label>
               <input
                 type="text"
                 value={excludedEmails}
                 onChange={(e) => setExcludedEmails(e.target.value)}
                 placeholder="admin@company.com, bot@company.com"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="form-input"
               />
-              <p className="mt-1 text-xs text-gray-500">Comma-separated list of emails to exclude</p>
+              <p className="form-hint">Comma-separated list of emails to exclude</p>
             </div>
           </>
         )}
@@ -136,9 +132,7 @@ export default function Step2FilterRules() {
         </button>
 
         {updateConfig.isSuccess && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-800">
-            Filters saved.
-          </div>
+          <div className="alert-success">Filters saved.</div>
         )}
       </div>
     </Card>
