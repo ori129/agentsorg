@@ -172,7 +172,8 @@ async def _execute_pipeline(db: AsyncSession):
         _current_status["progress"] = min(5.0 + page * 5, 30.0)
 
     try:
-        all_gpts = await client.fetch_all_gpts(config.workspace_id or "", on_page)
+        workspace_id = (config.workspace_id or "") if config else ""
+        all_gpts = await client.fetch_all_gpts(workspace_id, on_page)
     finally:
         await client.close()
 

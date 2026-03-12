@@ -13,8 +13,8 @@ _VISIBILITY_NORMALIZE = {
 }
 
 
-def filter_gpts(gpts: list[dict], config: Configuration) -> list[dict]:
-    if config.include_all:
+def filter_gpts(gpts: list[dict], config: Configuration | None) -> list[dict]:
+    if config is None or config.include_all:
         logger.info("include_all=True, returning all GPTs unfiltered")
         return gpts
 
