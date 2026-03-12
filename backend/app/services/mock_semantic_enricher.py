@@ -63,7 +63,8 @@ def _is_abandoned(gpt: dict, seed: int) -> bool:
 
 def _tier(gpt: dict) -> int:
     """
-    Seed-based distribution (mock templates are short, so instr_len is unreliable):
+    Use the template's _tier tag when set (production templates are pre-labelled).
+    Fall back to seed-based distribution for abandoned/untagged GPTs.
       ~60% tier 1 — abandoned/experimental
       ~25% tier 2 — functional
       ~15% tier 3 — production
@@ -73,6 +74,12 @@ def _tier(gpt: dict) -> int:
     if _is_abandoned(gpt, seed):
         return 1
 
+    # Respect explicit tier from template
+    explicit = gpt.get("_tier")
+    if explicit in (1, 2, 3):
+        return explicit
+
+    # Seed-based fallback
     r = seed % 100
     if r < 15:
         return 3
@@ -176,8 +183,6 @@ def _enrich_single(gpt: dict) -> dict:
     instr = (gpt.get("instructions") or "").lower()
 
     # ── Sophistication ──────────────────────────────────────────────────────
-    # Tier-based distribution (mock data has short templates so instr_len is not a reliable signal)
-    # Target: ~60% Experimental (1-2), ~25% Functional (3), ~15% Production (4-5)
     if tier == 1:
         soph = 1 if seed % 3 != 0 else 2
         soph_rationale = (
@@ -188,20 +193,19 @@ def _enrich_single(gpt: dict) -> dict:
     elif tier == 2:
         soph = 2 if seed % 4 == 0 else 3
         soph_rationale = (
-            "Some structure but lacks output format specification and examples."
+            "Has role and purpose but lacks explicit output format or behavioral constraints."
             if soph == 2
-            else "Clear purpose and basic structure; missing output format or edge case handling."
+            else "Clear role with behavioral guidelines and basic format direction."
         )
     else:
         soph = 4 if seed % 3 != 0 else 5
         soph_rationale = (
-            "Well-structured with role definition, format guidance, and constraints."
+            "Well-structured with detailed role, numbered instructions, output format, and constraints."
             if soph == 4
-            else "Production-grade: detailed role, constraints, format examples, and error handling."
+            else "Production-grade: comprehensive role, step-by-step instructions, explicit I/O format, guardrails, and edge-case handling."
         )
 
     # ── Prompting Quality ───────────────────────────────────────────────────
-    # Tier-based (mirrors sophistication distribution)
     if tier == 1:
         pq = 1 if seed % 3 != 0 else 2
         pq_rationale = (
@@ -213,17 +217,17 @@ def _enrich_single(gpt: dict) -> dict:
     elif tier == 2:
         pq = 2 if seed % 4 == 0 else 3
         pq_rationale = (
-            "Has context and role but no output format specification or behavioral constraints."
+            "Has role and context but no output format specification or behavioral constraints."
             if pq == 2
-            else "Has role definition and some format guidance; lacks examples or explicit constraint rules."
+            else "Has role definition and format guidance; lacks examples or explicit constraint rules."
         )
         pq_flags = ["no_output_format", "no_examples"] if pq == 2 else ["no_examples"]
     else:
         pq = 4 if seed % 3 != 0 else 5
         pq_rationale = (
-            "Strong structure with role, format, and constraints; few-shot examples would elevate further."
+            "Strong structure with role, numbered steps, output format, and constraints; few-shot examples would elevate further."
             if pq == 4
-            else "Expert-level: chain-of-thought, explicit I/O spec, constraint rules, and examples present."
+            else "Expert-level: detailed role, chain-of-thought steps, explicit I/O spec, guardrails, and edge-case handling."
         )
         pq_flags = [] if pq == 5 else ["no_examples"]
 
