@@ -18,20 +18,26 @@ export default function Stepper({ steps, currentStep }: StepperProps) {
                     ? "bg-blue-600 text-white"
                     : isDone
                       ? "bg-green-500 text-white"
-                      : "bg-gray-200 text-gray-600"
+                      : ""
                 }`}
+                style={!isActive && !isDone ? { background: "var(--c-border)", color: "var(--c-text-3)" } : {}}
               >
                 {isDone ? "\u2713" : i + 1}
               </div>
               <span
-                className={`text-sm ${isActive ? "font-semibold text-gray-900" : "text-gray-500"}`}
+                className="text-sm"
+                style={{
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive ? "var(--c-text)" : "var(--c-text-3)",
+                }}
               >
                 {label}
               </span>
             </div>
             {i < steps.length - 1 && (
               <div
-                className={`flex-1 h-px mx-4 ${isDone ? "bg-green-400" : "bg-gray-200"}`}
+                className="flex-1 h-px mx-4"
+                style={{ background: isDone ? "#22c55e" : "var(--c-border)" }}
               />
             )}
           </div>

@@ -16,7 +16,8 @@ export default function NavButtons({
       <button
         onClick={onBack}
         disabled={currentStep === 0}
-        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-4 py-2 text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ color: "var(--c-text-2)", background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
       >
         Back
       </button>
