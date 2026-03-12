@@ -18,6 +18,7 @@ function AppInner() {
   const [topView, setTopView] = useState<TopView>("leader");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [goToSetup, setGoToSetup] = useState(false);
+  const [comingFromDemo, setComingFromDemo] = useState(false);
 
   const { data: demoState } = useDemoState();
   const updateDemo = useUpdateDemoState();
@@ -55,6 +56,7 @@ function AppInner() {
       <OnboardingScreen
         onDemo={() => {
           setShowOnboarding(false);
+          setComingFromDemo(true);
           clearJustRegistered();
         }}
         onProduction={() => {
@@ -89,7 +91,12 @@ function AppInner() {
         <DemoBanner onSwitchToProduction={handleSwitchToProduction} />
       )}
 
-      {topView === "leader" && canSeeLeader && <LeaderLayout initialPage={goToSetup ? "enrichment" : undefined} onSetupNavigated={() => setGoToSetup(false)} />}
+      {topView === "leader" && canSeeLeader && (
+        <LeaderLayout
+          initialPage={goToSetup ? "enrichment" : comingFromDemo ? "overview" : undefined}
+          onSetupNavigated={() => { setGoToSetup(false); setComingFromDemo(false); }}
+        />
+      )}
 
       {(topView === "employee" || !canSeeLeader) && <Portal />}
     </div>

@@ -16,6 +16,7 @@ import MaturityPage from "./sub/MaturityPage";
 import OutputTypesPage from "./sub/OutputTypesPage";
 import { usePipelineGPTs } from "../../hooks/usePipeline";
 import { useAuth } from "../../contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface LeaderLayoutProps {
   initialPage?: LeaderPage;
@@ -25,15 +26,18 @@ interface LeaderLayoutProps {
 export default function LeaderLayout({ initialPage, onSetupNavigated }: LeaderLayoutProps) {
   const { systemRole } = useAuth();
   const isAdmin = systemRole === "system-admin";
+  const queryClient = useQueryClient();
   const { data: gpts = [], isSuccess } = usePipelineGPTs();
   const [page, setPage] = useState<LeaderPage>("overview");
   const didRedirect = useRef(false);
 
-  // Honor explicit initialPage from parent (e.g. "Switch to Production" flow)
+  // Honor explicit initialPage from parent — also invalidate cache so fresh data loads
   useEffect(() => {
     if (initialPage) {
       setPage(initialPage);
       onSetupNavigated?.();
+      // Force refetch all pipeline data (important after demo pipeline completes)
+      queryClient.invalidateQueries({ queryKey: ["pipeline"] });
     }
   }, [initialPage]);
 
