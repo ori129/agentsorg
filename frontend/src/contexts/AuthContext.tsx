@@ -12,6 +12,9 @@ interface AuthContextValue {
   isLoggedIn: boolean;
   currentUser: WorkspaceUser | null;
   systemRole: SystemRole | null;
+  /** True immediately after register() — used to trigger onboarding flow */
+  justRegistered: boolean;
+  clearJustRegistered: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -22,12 +25,15 @@ const AuthContext = createContext<AuthContextValue>({
   isLoggedIn: false,
   currentUser: null,
   systemRole: null,
+  justRegistered: false,
+  clearJustRegistered: () => {},
 });
 
 const STORAGE_KEY = "auth_email";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<"loading" | "register" | "login" | WorkspaceUser>("loading");
+  const [justRegistered, setJustRegistered] = useState(false);
 
   const boot = useCallback(async () => {
     try {
@@ -67,8 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (email: string) => {
     const user = await api.register(email);
     localStorage.setItem(STORAGE_KEY, email);
+    setJustRegistered(true);
     setState(user);
   };
+
+  const clearJustRegistered = () => setJustRegistered(false);
 
   const logout = () => {
     localStorage.removeItem(STORAGE_KEY);
@@ -80,7 +89,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const systemRole = currentUser?.system_role as SystemRole | null;
 
   return (
-    <AuthContext.Provider value={{ state, login, register, logout, isLoggedIn, currentUser, systemRole }}>
+    <AuthContext.Provider value={{ state, login, register, logout, isLoggedIn, currentUser, systemRole, justRegistered, clearJustRegistered }}>
       {children}
     </AuthContext.Provider>
   );

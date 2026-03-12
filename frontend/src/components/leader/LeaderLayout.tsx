@@ -17,15 +17,28 @@ import OutputTypesPage from "./sub/OutputTypesPage";
 import { usePipelineGPTs } from "../../hooks/usePipeline";
 import { useAuth } from "../../contexts/AuthContext";
 
-export default function LeaderLayout() {
+interface LeaderLayoutProps {
+  initialPage?: LeaderPage;
+  onSetupNavigated?: () => void;
+}
+
+export default function LeaderLayout({ initialPage, onSetupNavigated }: LeaderLayoutProps) {
   const { systemRole } = useAuth();
   const isAdmin = systemRole === "system-admin";
   const { data: gpts = [], isSuccess } = usePipelineGPTs();
   const [page, setPage] = useState<LeaderPage>("overview");
   const didRedirect = useRef(false);
 
+  // Honor explicit initialPage from parent (e.g. "Switch to Production" flow)
   useEffect(() => {
-    if (isSuccess && !didRedirect.current) {
+    if (initialPage) {
+      setPage(initialPage);
+      onSetupNavigated?.();
+    }
+  }, [initialPage]);
+
+  useEffect(() => {
+    if (isSuccess && !didRedirect.current && !initialPage) {
       didRedirect.current = true;
       if (gpts.length === 0 && isAdmin) {
         setPage("enrichment");
