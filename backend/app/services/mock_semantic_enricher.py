@@ -183,74 +183,48 @@ def _enrich_single(gpt: dict) -> dict:
     instr = (gpt.get("instructions") or "").lower()
 
     # ── Sophistication ──────────────────────────────────────────────────────
-    # Strictly anchored to instruction length (mirrors real LLM prompt rules)
-    if instr_len < 150:
-        soph = 1
+    # Tier-based distribution (mock data has short templates so instr_len is not a reliable signal)
+    # Target: ~60% Experimental (1-2), ~25% Functional (3), ~15% Production (4-5)
+    if tier == 1:
+        soph = 1 if seed % 3 != 0 else 2
         soph_rationale = (
             "Minimal system prompt — 1-2 sentences with no structure or constraints."
+            if soph == 1
+            else "Short paragraph with some context but no output format or behavioral constraints."
         )
-    elif instr_len < 500:
-        soph = 2
-        soph_rationale = "Short paragraph with some context but no output format or behavioral constraints."
-    elif instr_len < 1200:
-        if tool_count >= 1:
-            soph = 3
-            soph_rationale = "Clear purpose with tool usage; missing explicit output format or examples."
-        else:
-            soph = 2 if seed % 3 == 0 else 3
-            soph_rationale = (
-                "Some structure but lacks output format specification and examples."
-                if soph == 2
-                else "Clear purpose and basic structure; missing output format or edge case handling."
-            )
-    elif instr_len < 2500:
-        soph = 3 if seed % 3 == 0 else 4
+    elif tier == 2:
+        soph = 2 if seed % 4 == 0 else 3
         soph_rationale = (
-            "Multi-paragraph prompt with clear role; missing explicit format spec or examples."
-            if soph == 3
-            else "Well-structured with role definition, format guidance, and constraints."
+            "Some structure but lacks output format specification and examples."
+            if soph == 2
+            else "Clear purpose and basic structure; missing output format or edge case handling."
         )
     else:
         soph = 4 if seed % 3 != 0 else 5
         soph_rationale = (
-            "Well-structured with role, format, and constraints; could benefit from few-shot examples."
+            "Well-structured with role definition, format guidance, and constraints."
             if soph == 4
             else "Production-grade: detailed role, constraints, format examples, and error handling."
         )
 
     # ── Prompting Quality ───────────────────────────────────────────────────
-    # Also strictly anchored to length + technique signals
-    if instr_len < 150:
-        pq = 1
+    # Tier-based (mirrors sophistication distribution)
+    if tier == 1:
+        pq = 1 if seed % 3 != 0 else 2
         pq_rationale = (
             "Single sentence or placeholder — no prompting technique applied."
+            if pq == 1
+            else "Basic role assignment; no format spec or constraints defined."
         )
-        pq_flags = ["no_output_format", "no_constraints", "no_persona"]
-    elif instr_len < 500:
-        pq = 2
-        pq_rationale = "Basic role assignment with minimal instructions; no format spec or constraints defined."
-        pq_flags = ["no_output_format", "no_constraints", "no_examples"]
-    elif instr_len < 1200:
-        has_format_signal = any(
-            kw in instr
-            for kw in ["format", "output", "respond with", "return", "structure"]
-        )
-        if has_format_signal:
-            pq = 3
-            pq_rationale = "Has role definition and some format guidance; lacks examples or explicit constraint rules."
-            pq_flags = ["no_examples"]
-        else:
-            pq = 2
-            pq_rationale = "Has context and role but no output format specification or behavioral constraints."
-            pq_flags = ["no_output_format", "no_examples"]
-    elif instr_len < 2500:
-        pq = 3 if seed % 2 == 0 else 4
+        pq_flags = ["no_output_format", "no_constraints", "no_persona"] if pq == 1 else ["no_output_format", "no_constraints", "no_examples"]
+    elif tier == 2:
+        pq = 2 if seed % 4 == 0 else 3
         pq_rationale = (
-            "Multi-paragraph with role and constraints; missing explicit output format or examples."
-            if pq == 3
-            else "Multiple techniques applied: role, format spec, and constraints present."
+            "Has context and role but no output format specification or behavioral constraints."
+            if pq == 2
+            else "Has role definition and some format guidance; lacks examples or explicit constraint rules."
         )
-        pq_flags = ["no_examples"] if pq == 3 else []
+        pq_flags = ["no_output_format", "no_examples"] if pq == 2 else ["no_examples"]
     else:
         pq = 4 if seed % 3 != 0 else 5
         pq_rationale = (

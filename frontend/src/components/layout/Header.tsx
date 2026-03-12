@@ -96,36 +96,6 @@ export default function Header({ topView, onSetView, canSeeLeader, onLogout, use
 
       {/* Right: demo toggle + sync status + user + theme */}
       <div className="flex items-center gap-3">
-        {/* Demo toggle — admin only */}
-        {isAdmin && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDemoToggle}
-              className="text-xs font-medium px-3 py-1 rounded-full border transition-colors"
-              style={
-                demoState?.enabled
-                  ? { background: "#1c1200", borderColor: "#78350f", color: "#f59e0b" }
-                  : { background: "var(--c-border)", borderColor: "var(--c-border)", color: "var(--c-text-4)" }
-              }
-            >
-              {demoState?.enabled ? "DEMO ON" : "Demo"}
-            </button>
-            {demoState?.enabled && (
-              <select
-                value={demoState.size}
-                onChange={handleSizeChange}
-                className="text-xs px-2 py-1 rounded border outline-none"
-                style={{ background: "#1c1200", borderColor: "#78350f", color: "#f59e0b" }}
-              >
-                {SIZE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
 
         {isRunning ? (
           <div className="flex items-center gap-2 text-xs" style={{ color: "#f59e0b" }}>
