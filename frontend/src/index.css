@@ -5,12 +5,12 @@
 :root {
   --c-bg:          #080c14;
   --c-surface:     #0d1420;
-  --c-border:      #1a2235;
-  --c-text:        #e2e8f0;
-  --c-text-2:      #9ca3af;
-  --c-text-3:      #6b7280;
-  --c-text-4:      #4b5563;
-  --c-text-5:      #374151;
+  --c-border:      #1e2a3d;
+  --c-text:        #f0f4f8;
+  --c-text-2:      #b8c5d0;
+  --c-text-3:      #8a9bac;
+  --c-text-4:      #647585;
+  --c-text-5:      #4a5a68;
   --c-accent-deep: #0a1628;
   --c-accent-bg:   #1e3a5f;
   --c-shadow:      rgba(0,0,0,0.4);
