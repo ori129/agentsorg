@@ -63,29 +63,22 @@ def _is_abandoned(gpt: dict, seed: int) -> bool:
 
 def _tier(gpt: dict) -> int:
     """
-    Tier based on CONTENT, not just hash:
-      1 = abandoned/experimental
-      2 = functional but basic
-      3 = production-quality
+    Seed-based distribution (mock templates are short, so instr_len is unreliable):
+      ~60% tier 1 — abandoned/experimental
+      ~25% tier 2 — functional
+      ~15% tier 3 — production
     """
     seed = _seed(gpt)
-    instr_len = _instruction_len(gpt)
-    tool_count = _tool_count(gpt)
 
     if _is_abandoned(gpt, seed):
         return 1
-    if instr_len >= 1500 and tool_count >= 1:
+
+    r = seed % 100
+    if r < 15:
         return 3
-    if instr_len >= 3000:
-        return 3
-    if instr_len >= 800 or tool_count >= 1:
-        # Functional — but some are still basically experimental
-        return 2 if (seed % 100) < 40 else 2  # all functional go to tier 2 here
-    # Medium length with no tools
-    if instr_len >= 400:
+    if r < 40:
         return 2
-    # Short, no tools, not obviously abandoned by name
-    return 1 if (seed % 100) < 60 else 2
+    return 1
 
 
 # Business process mapping by category/name keywords

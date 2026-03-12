@@ -20,6 +20,7 @@ export default function OnboardingScreen({ onDemo, onProduction }: Props) {
     setPhase("loading");
     try {
       await api.updateDemoState({ enabled: true, size: "medium" });
+      await api.seedCategories();
       await api.runPipeline();
 
       // Wait for the pipeline to actually start (running=true) before polling for completion
