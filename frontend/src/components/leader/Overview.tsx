@@ -542,7 +542,7 @@ export default function Overview({ gpts, onSetPage }: OverviewProps) {
           )}
         </Card>
 
-        <Card title="Output Classification" onExpand={() => onSetPage("overview:output-types")}>
+        <Card title="Output Types" onExpand={() => onSetPage("overview:output-types")}>
           <div className="space-y-2 text-xs">
             {d.outputTypes.map((o) => (
               <div

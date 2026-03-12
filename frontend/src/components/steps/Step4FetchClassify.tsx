@@ -110,8 +110,8 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
   return (
     <div className="space-y-6">
       <Card
-        title="Fetch & Classify"
-        description="Run the pipeline to discover and classify GPTs from your workspace."
+        title="Run Pipeline"
+        description="Fetch, classify, and semantically enrich every GPT in your workspace."
       >
         <div className="space-y-4">
           <div className="flex items-center gap-3">

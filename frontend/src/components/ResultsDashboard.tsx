@@ -17,16 +17,17 @@ export default function ResultsDashboard({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Results Dashboard
+          <h2 className="text-2xl font-bold" style={{ color: "var(--c-text)" }}>
+            Pipeline Results
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Overview of discovered and classified GPTs
+          <p className="text-sm mt-1" style={{ color: "var(--c-text-3)" }}>
+            Discovered, classified, and enriched GPTs
           </p>
         </div>
         <button
           onClick={onBackToSetup}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md"
+          style={{ color: "var(--c-text-2)", background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
         >
           <span>&larr;</span> Back to Setup
         </button>
@@ -36,7 +37,7 @@ export default function ResultsDashboard({
         <div className="flex items-center justify-center py-16">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm text-gray-500 mt-3">Loading results...</p>
+            <p className="text-sm mt-3" style={{ color: "var(--c-text-3)" }}>Loading results...</p>
           </div>
         </div>
       ) : summary && gpts.length > 0 ? (

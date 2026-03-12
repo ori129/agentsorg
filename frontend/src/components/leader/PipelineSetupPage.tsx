@@ -7,7 +7,7 @@ import Step3Categories from "../steps/Step3Categories";
 import Step4FetchClassify from "../steps/Step4FetchClassify";
 import ResultsDashboard from "../ResultsDashboard";
 
-const STEPS = ["API Configuration", "Filtering Rules", "Categories", "Fetch & Classify"];
+const STEPS = ["API Configuration", "Filtering Rules", "Categories", "Run Pipeline"];
 
 const COMING_SOON = [
   {

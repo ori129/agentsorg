@@ -90,7 +90,7 @@ export default function Step3Categories() {
               <div className="alert-info">
                 <div className="font-medium mb-1">Getting your OpenAI API Key</div>
                 <p style={{ color: "var(--c-text-3)" }}>
-                  Required for GPT classification and semantic enrichment.{" "}
+                  Required for semantic enrichment — the 9-KPI analysis run on each GPT.{" "}
                   <a
                     href={HELP_LINKS.apiKey.url}
                     target="_blank"
