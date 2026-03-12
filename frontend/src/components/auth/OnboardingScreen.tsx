@@ -10,8 +10,6 @@ type Phase = "choice" | "loading" | "done";
 
 export default function OnboardingScreen({ onDemo, onProduction }: Props) {
   const [phase, setPhase] = useState<Phase>("choice");
-  const [progress, setProgress] = useState(0);
-  const [stage, setStage] = useState("Starting...");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -20,20 +18,16 @@ export default function OnboardingScreen({ onDemo, onProduction }: Props) {
 
   const handleTryDemo = async () => {
     setPhase("loading");
-    setProgress(0);
-    setStage("Initialising demo...");
     try {
       await api.updateDemoState({ enabled: true, size: "medium" });
       await api.runPipeline();
       pollRef.current = setInterval(async () => {
         try {
           const status = await api.getPipelineStatus();
-          setProgress(Math.round(status.progress));
-          setStage(status.stage ?? "Running...");
           if (!status.running) {
             clearInterval(pollRef.current!);
             setPhase("done");
-            setTimeout(onDemo, 800);
+            setTimeout(onDemo, 300);
           }
         } catch { /* ignore transient errors */ }
       }, 1500);
@@ -45,51 +39,10 @@ export default function OnboardingScreen({ onDemo, onProduction }: Props) {
   if (phase === "loading" || phase === "done") {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--c-bg)" }}>
-        <div className="w-full max-w-md text-center">
-          <div className="flex items-center justify-center gap-2.5 mb-10">
-            <svg width="32" height="32" viewBox="0 0 28 28" fill="none" style={{ color: "var(--c-text)" }}>
-              <rect x="1.5" y="1.5" width="25" height="25" rx="4" stroke="currentColor" strokeWidth="2"/>
-              <circle cx="10" cy="10" r="4" fill="currentColor"/>
-            </svg>
-            <span className="text-xl font-bold tracking-tight" style={{ color: "var(--c-text)" }}>AgentsOrg.ai</span>
-          </div>
-
-          {phase === "done" ? (
-            <div className="mb-8">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)" }}>
-                <svg className="w-7 h-7" fill="none" stroke="#10b981" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
-              </div>
-              <p className="text-lg font-semibold" style={{ color: "var(--c-text)" }}>Loading your dashboard...</p>
-            </div>
-          ) : (
-            <div className="mb-8">
-              <p className="text-lg font-semibold mb-1" style={{ color: "var(--c-text)" }}>Building your demo workspace</p>
-              <p className="text-sm" style={{ color: "var(--c-text-3)" }}>Generating 500 realistic GPTs across 10 departments</p>
-            </div>
-          )}
-
-          <div className="rounded-2xl p-6" style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}>
-            <div className="flex justify-between text-xs mb-2" style={{ color: "var(--c-text-3)" }}>
-              <span>{stage}</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--c-border)" }}>
-              <div
-                className="h-2 rounded-full transition-all duration-500"
-                style={{
-                  width: `${phase === "done" ? 100 : progress}%`,
-                  background: phase === "done" ? "#10b981" : "#3b82f6",
-                }}
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-              {["Fetch", "Classify", "Enrich"].map((s, i) => (
-                <div key={s} className="p-2 rounded-lg" style={{ background: "var(--c-bg)", opacity: progress > i * 33 ? 1 : 0.3 }}>
-                  <div className="text-xs font-medium" style={{ color: "var(--c-text)" }}>{s}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="text-center">
+          <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-5" />
+          <p className="text-base font-medium" style={{ color: "var(--c-text)" }}>Preparing your workspace...</p>
+          <p className="text-sm mt-1" style={{ color: "var(--c-text-4)" }}>This takes about 20 seconds</p>
         </div>
       </div>
     );
