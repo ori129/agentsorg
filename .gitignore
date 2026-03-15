@@ -43,6 +43,10 @@ backups/
 .DS_Store
 Thumbs.db
 
+# Local dev notes
+TODOS.md
+frontend/tsconfig.tsbuildinfo
+
 # Site repo (separate repo)
 site/
 package-lock.json
