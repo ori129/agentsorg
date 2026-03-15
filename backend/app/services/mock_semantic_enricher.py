@@ -175,7 +175,6 @@ _NICHE_TECH_KEYWORDS = [
 def _enrich_single(gpt: dict) -> dict:
     seed = _seed(gpt)
     tier = _tier(gpt)
-    instr_len = _instruction_len(gpt)
     tool_count = _tool_count(gpt)
     cat = _category(gpt)
     name = _name_lower(gpt)
@@ -213,7 +212,11 @@ def _enrich_single(gpt: dict) -> dict:
             if pq == 1
             else "Basic role assignment; no format spec or constraints defined."
         )
-        pq_flags = ["no_output_format", "no_constraints", "no_persona"] if pq == 1 else ["no_output_format", "no_constraints", "no_examples"]
+        pq_flags = (
+            ["no_output_format", "no_constraints", "no_persona"]
+            if pq == 1
+            else ["no_output_format", "no_constraints", "no_examples"]
+        )
     elif tier == 2:
         pq = 2 if seed % 4 == 0 else 3
         pq_rationale = (

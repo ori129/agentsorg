@@ -1,42 +1,133 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="AgentsOrg.ai — AI Transformation Intelligence" width="320" />
+  <img src="docs/logo.svg" alt="AgentsOrg.ai" width="320" />
 </p>
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Deploy](https://img.shields.io/badge/deploy-Docker_Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
-[![Last Commit](https://img.shields.io/github/last-commit/ori129/agentsorg)](https://github.com/ori129/agentsorg/commits/main)
-[![Stars](https://img.shields.io/github/stars/ori129/agentsorg?style=social)](https://github.com/ori129/agentsorg/stargazers)
-[![Forks](https://img.shields.io/github/forks/ori129/agentsorg?style=social)](https://github.com/ori129/agentsorg/network/members)
-[![Issues](https://img.shields.io/github/issues/ori129/agentsorg)](https://github.com/ori129/agentsorg/issues)
-[![PRs](https://img.shields.io/github/issues-pr/ori129/agentsorg)](https://github.com/ori129/agentsorg/pulls)
-[![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)](backend/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.6-3178C6?logo=typescript&logoColor=white)](frontend/)
+<p align="center">
+  <strong>Open-source AI governance platform for ChatGPT Enterprise</strong><br/>
+  Discover every GPT in your workspace. Score them. Flag risks. Develop your people.
+</p>
 
-Enterprise AI governance platform for organizations running Custom GPTs on OpenAI. Connects to the OpenAI Compliance API to discover, classify, and semantically enrich every GPT in your workspace — then surfaces actionable intelligence through a leader dashboard, an employee portal, and a learning & development module.
-
-## Views
-
-### Leader Dashboard
-The primary governance interface. Sidebar navigation across:
-
-- **Overview** — KPI strip, creation velocity, portfolio health at a glance. Five drill-down sub-pages (Builders, Processes, Departments, Maturity, Output Types) with full search, sort, and GPT-level slide-out detail.
-- **Enrichment** — Pipeline status, data source roadmap (GPTs → Conversations → Users → Audit Logs) with per-source unlock breakdown.
-- **Risk Panel** — GPTs flagged as high or critical risk, with per-flag breakdown.
-- **Duplicates** — pgvector-powered semantic clustering to detect redundant builds.
-- **Quality Scores** — Prompting quality distribution across the portfolio.
-- **Recognition** — Composite builder scores (quality 35 % · adoption 25 % · hygiene 25 % · volume 15 %).
-- **Learning** — LLM-driven course recommendations per builder, based on actual KPI gaps. Draws from a built-in OpenAI Academy catalog; custom courses can be added via URL.
-- **Workshops** — CRUD for in-person/virtual sessions with participant lists, GPT tagging, and time-based quality impact correlation.
-
-### Employee Portal
-Read-only GPT discovery for non-admin users. Search and browse GPTs available to them without accessing governance data.
-
-### Setup Wizard
-4-step guided setup: API credentials → filter rules → categories → run pipeline.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License" /></a>
+  <a href="docker-compose.yml"><img src="https://img.shields.io/badge/deploy-Docker_Compose-2496ED?logo=docker&logoColor=white" alt="Docker" /></a>
+  <a href="https://github.com/ori129/agentsorg/commits/main"><img src="https://img.shields.io/github/last-commit/ori129/agentsorg" alt="Last Commit" /></a>
+  <a href="https://github.com/ori129/agentsorg/stargazers"><img src="https://img.shields.io/github/stars/ori129/agentsorg?style=social" alt="Stars" /></a>
+  <img src="https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/typescript-5.6-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+</p>
 
 ---
 
-## Architecture
+## What is AgentsOrg.ai?
+
+AgentsOrg.ai connects to the **OpenAI Compliance API** and gives your organization a complete picture of every Custom GPT it has built — scored, risk-flagged, and mapped to business processes.
+
+OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg.ai tells you **how good** your GPTs are — and what to do about it.
+
+> **Self-hosted. Your data never leaves your infrastructure.**
+
+---
+
+## Features
+
+### 🔍 GPT Registry
+Automatically discovers all Custom GPTs across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, and a slide-out detail panel for every GPT.
+
+### 🧠 Semantic Enrichment (9 KPIs per GPT)
+An LLM reads each GPT's system prompt and extracts:
+
+| Signal | What it captures |
+|--------|-----------------|
+| `risk_level` + `risk_flags` | Data exposure, compliance concerns |
+| `sophistication_score` | Depth of prompt and tooling (1–5) |
+| `prompting_quality_score` | Prompt engineering quality (1–5) |
+| `business_process` | Which workflow this GPT automates |
+| `roi_potential_score` | Estimated business value (1–5) |
+| `intended_audience` | Who the GPT is built for |
+| `integration_flags` | External systems connected |
+| `output_type` | Document, Analysis, Code, Conversation, etc. |
+| `adoption_friction_score` | How easy it is for others to adopt (1–5) |
+
+### 📊 Leader Dashboard
+- **Overview** — portfolio KPIs, creation velocity, department breakdown, maturity tiers. Five drill-down pages (Builders, Processes, Departments, Maturity, Output Types).
+- **Risk Panel** — GPTs flagged high or critical, with per-flag breakdown.
+- **Duplicates** — pgvector semantic clustering to detect redundant builds before they proliferate.
+- **Quality Scores** — Prompting quality distribution across the portfolio.
+
+### 🎓 Learning & Development
+- **Recognition** — Composite builder scores: quality 35% · adoption 25% · hygiene 25% · volume 15%.
+- **Learning** — LLM-driven course recommendations per builder, grounded in actual KPI gaps. Built-in OpenAI Academy catalog; custom courses via URL.
+- **Workshops** — CRUD for sessions with participant lists, GPT tagging, and time-based quality impact correlation.
+
+### 👤 Employee Portal
+Read-only GPT discovery for non-admin users — search and browse what's available without accessing governance data.
+
+### 🎯 Demo Mode
+Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs across 10 departments, fully enriched with scores and rationale. One click from the onboarding screen.
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/ss_onboarding.png" alt="Onboarding" /></td>
+    <td><img src="docs/screenshots/ss_overview.png" alt="AI Portfolio Overview" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Onboarding — Try Demo or connect your real workspace</em></td>
+    <td align="center"><em>AI Portfolio Overview — 500 GPTs, KPIs, department breakdown</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ss_risk.png" alt="Risk Panel" /></td>
+    <td><img src="docs/screenshots/ss_quality.png" alt="Quality Scores" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Risk Panel — high/critical GPTs flagged by issue type</em></td>
+    <td align="center"><em>Quality Scores — sophistication, prompting quality, ROI per GPT</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ss_recognition.png" alt="Builder Recognition" /></td>
+    <td><img src="docs/screenshots/ss_employee.png" alt="Employee Portal" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Builder Recognition — composite scores across your team</em></td>
+    <td align="center"><em>Employee Portal — read-only GPT discovery for the whole org</em></td>
+  </tr>
+</table>
+
+---
+
+## Quick Start
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/ori129/agentsorg.git
+cd agentsorg
+
+# 2. Create your .env file
+cp .env.example .env
+
+# 3. Generate a Fernet encryption key and paste it into FERNET_KEY= in .env
+make fernet-key
+
+# 4. Start all services (migrations run automatically on first boot)
+make up
+
+# 5. Open the app  (macOS)
+open http://localhost:3000
+# or just visit http://localhost:3000 in your browser
+```
+
+Register with any email → choose **Try Demo** on the onboarding screen to explore with 500 realistic GPTs instantly, or **Connect to Production** to enter your OpenAI credentials and scan your real workspace.
+
+Run `make help` to see all available commands.
+
+---
+
+## How It Works
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌──────────────┐
@@ -48,212 +139,90 @@ Read-only GPT discovery for non-admin users. Search and browse GPTs available to
                   ┌───────────┼─────────────┐
                   ▼           ▼             ▼
            OpenAI         OpenAI        OpenAI
-          Compliance     GPT API      Embeddings
+          Compliance     Chat API     Embeddings
             API         (classify +    (vectors +
                          enrich)       clustering)
 ```
 
-### Tech Stack
-
-- **Frontend**: React 18, TypeScript, Tailwind CSS, TanStack Query, Vite
-- **Backend**: FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic
-- **Database**: PostgreSQL 16 with pgvector extension
-- **Deployment**: Docker Compose (3 services)
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- Docker Desktop
-
-### Setup
-
-```bash
-# 1. Clone and enter the repo
-git clone https://github.com/ori129/agentsorg.git
-cd agentsorg
-
-# 2. Create your .env file
-cp .env.example .env
-
-# 3. Generate a Fernet key and paste it into FERNET_KEY= in .env
-make fernet-key
-
-# 4. Start all services (migrations run automatically on first boot)
-make up
-
-# 5. Open the app
-open http://localhost:3000
-```
-
-Run `make help` to see all available commands.
-
-> **No API keys needed** — enable Demo mode in the header to run the full pipeline with realistic mock data.
-
----
-
-## Pipeline
-
-The pipeline runs in stages and reports live progress to the frontend:
+### Pipeline Stages
 
 ```
-Fetch (5–30%) → Filter (35%) → Change Detection → Classify (40–65%) → Enrich (65–72%) → Embed (75–85%) → Store (90%) → Done (100%)
+Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) → Embed (75–85%) → Store (90%) → Done (100%)
 ```
 
-**Incremental processing**: The pipeline computes a content hash (SHA-256) of each GPT's classifiable fields (name, description, instructions, tools, categories). On subsequent runs, unchanged GPTs skip classification, enrichment, and embedding — their cached results are carried forward. This avoids unnecessary OpenAI API costs.
+**Incremental processing** — GPTs are content-hashed (SHA-256) on each run. Unchanged GPTs skip classification, enrichment, and embedding, carrying forward their cached results. This avoids redundant OpenAI API costs on subsequent syncs.
 
-| Stage    | Real Mode                     | Demo Mode                    |
+| Stage    | Production                    | Demo                         |
 |----------|-------------------------------|------------------------------|
 | Fetch    | OpenAI Compliance API         | Template-based generator     |
-| Classify | OpenAI GPT model              | Keyword matching             |
+| Classify | OpenAI Chat model             | Keyword matching             |
 | Enrich   | 9× LLM calls per GPT          | Deterministic mock enricher  |
 | Embed    | OpenAI Embeddings API         | Deterministic vectors        |
 
-Everything else (filtering, DB storage, categories, clustering, L&D) runs the same code path in both modes.
+### Maturity Tiers
 
-### Semantic Enrichment — 9 KPIs per GPT
-
-Each enriched GPT receives scores and rationale for:
-
-| KPI | What it captures |
-|-----|-----------------|
-| `business_process` | Which workflow this GPT automates |
-| `risk_level` + `risk_flags` | Data exposure, compliance concerns |
-| `sophistication_score` | Depth of system prompt and tooling (1–5) |
-| `prompting_quality_score` | Prompt engineering quality (1–5) |
-| `roi_potential_score` | Estimated business impact (1–5) |
-| `intended_audience` | Who the GPT is built for |
-| `integration_flags` | External systems connected |
-| `output_type` | Document, Analysis, Code, Conversation, etc. |
-| `adoption_friction_score` | How easy it is for others to use (1–5) |
-
-### Portfolio Maturity Tiers
-
-| Tier | Sophistication score | Description |
-|------|----------------------|-------------|
+| Tier | Sophistication | Description |
+|------|---------------|-------------|
 | Production | ≥ 4 | Full system prompts, integrations, tested |
 | Functional | 3 | Useful, room to grow |
 | Experimental | ≤ 2 | Early-stage or abandoned |
 
-Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 18, TypeScript, Tailwind CSS, TanStack Query, Vite |
+| Backend | FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic v2 |
+| Database | PostgreSQL 16 + pgvector |
+| Auth | Session-based, role-aware (`system-admin`, `ai-leader`, `employee`) |
+| Deployment | Docker Compose (3 services, zero external dependencies) |
 
 ---
 
-## Demo Mode
+## Environment Variables
 
-- Toggle **Demo** in the header (turns amber when active)
-- Choose a preset size: Small (50), Medium (500), Large (2K), Enterprise (5K)
-- Generates realistic GPTs across 10 SaaS departments (Marketing, Sales, CS, Finance, HR, Engineering, Product, Legal, Data, IT/Security)
-- Full semantic enrichment with mock scores and rationale
-- No API keys required
-
----
-
-## Project Structure
-
-```
-├── backend/
-│   ├── alembic/
-│   │   └── versions/                     # 001–009 migrations (auto-applied on startup)
-│   ├── app/
-│   │   ├── config.py                     # Environment settings
-│   │   ├── database.py                   # Async SQLAlchemy engine
-│   │   ├── encryption.py                 # Fernet encrypt/decrypt for API keys
-│   │   ├── main.py                       # FastAPI app entry point
-│   │   ├── models/models.py              # ORM models
-│   │   ├── schemas/schemas.py            # Pydantic request/response models
-│   │   ├── routers/
-│   │   │   ├── admin.py                  # POST /admin/reset
-│   │   │   ├── categories.py             # CRUD /categories
-│   │   │   ├── clustering.py             # Duplicate detection via pgvector
-│   │   │   ├── configuration.py          # GET/PUT /config
-│   │   │   ├── demo.py                   # GET/PUT /demo
-│   │   │   ├── learning.py               # Recognition, recommendations, workshops
-│   │   │   ├── pipeline.py               # Run, status, GPTs, history
-│   │   ├── services/
-│   │   │   ├── classifier.py             # OpenAI LLM classifier
-│   │   │   ├── compliance_api.py         # OpenAI Compliance API client
-│   │   │   ├── demo_state.py             # In-memory demo toggle
-│   │   │   ├── embedder.py               # OpenAI embeddings
-│   │   │   ├── filter_engine.py          # Visibility / email / shared-user filters
-│   │   │   ├── mock_classifier.py
-│   │   │   ├── mock_data.py              # ~90 GPT templates across 10 departments
-│   │   │   ├── mock_embedder.py
-│   │   │   ├── mock_fetcher.py
-│   │   │   ├── mock_semantic_enricher.py # Deterministic KPI scores for demo
-│   │   │   ├── pipeline.py               # Orchestrates all stages
-│   │   │   └── semantic_enricher.py      # 9 LLM calls per GPT
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── api/
-│   │   │   ├── client.ts                 # Fetch wrapper
-│   │   │   └── learning.ts               # Typed wrappers for L&D endpoints
-│   │   ├── App.tsx                       # Root — Leader / Employee / Wizard views
-│   │   ├── components/
-│   │   │   ├── employee/Portal.tsx       # Read-only GPT discovery
-│   │   │   ├── layout/                   # Header, Stepper, NavButtons
-│   │   │   ├── leader/
-│   │   │   │   ├── Duplicates.tsx
-│   │   │   │   ├── Enrichment.tsx
-│   │   │   │   ├── GPTDrawer.tsx         # Slide-out GPT detail panel
-│   │   │   │   ├── LeaderLayout.tsx
-│   │   │   │   ├── Learning.tsx
-│   │   │   │   ├── Overview.tsx
-│   │   │   │   ├── QualityScores.tsx
-│   │   │   │   ├── Recognition.tsx
-│   │   │   │   ├── RiskPanel.tsx
-│   │   │   │   ├── Sidebar.tsx
-│   │   │   │   ├── Workshops.tsx
-│   │   │   │   └── sub/                  # Drill-down full-page views
-│   │   │   │       ├── BuildersPage.tsx
-│   │   │   │       ├── DepartmentsPage.tsx
-│   │   │   │       ├── MaturityPage.tsx
-│   │   │   │       ├── OutputTypesPage.tsx
-│   │   │   │       └── ProcessesPage.tsx
-│   │   │   ├── steps/                    # Wizard Step 1–4
-│   │   │   └── ui/                       # ResultsView, shared UI
-│   │   ├── contexts/ThemeContext.tsx
-│   │   ├── hooks/                        # React Query hooks
-│   │   └── types/index.ts                # TypeScript interfaces
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   └── package.json
-├── scripts/
-│   ├── db_queries.sql                    # Useful SQL queries
-│   └── reset_registry.py                 # CLI tool to clear GPT data
-├── docs/
-│   └── erd.mmd                           # Entity-relationship diagram (Mermaid)
-├── docker-compose.yml
-└── .env.example
-```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FERNET_KEY` | Encryption key for API credentials stored in DB | **required** — run `make fernet-key` |
+| `POSTGRES_USER` | Database user | `agentsorg` |
+| `POSTGRES_PASSWORD` | Database password | `changeme` |
+| `POSTGRES_DB` | Database name | `agentsorg` |
+| `DATABASE_URL` | Full async connection string | composed from above |
+| `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
 
 ---
 
-## API Endpoints
+## API Reference
 
-### Configuration
+<details>
+<summary><strong>Configuration</strong></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/config` | Get configuration |
 | PUT | `/api/v1/config` | Update configuration |
 | POST | `/api/v1/config/test-connection` | Test Compliance API connection |
 | POST | `/api/v1/config/test-openai-connection` | Test OpenAI API connection |
+</details>
 
-### Pipeline
+<details>
+<summary><strong>Pipeline</strong></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/pipeline/run` | Start pipeline |
-| GET | `/api/v1/pipeline/status` | Live progress |
+| GET | `/api/v1/pipeline/status` | Live progress + stage |
 | GET | `/api/v1/pipeline/summary` | Results summary |
 | GET | `/api/v1/pipeline/gpts` | List all GPTs |
 | GET | `/api/v1/pipeline/history` | Sync history |
 | GET | `/api/v1/pipeline/logs/{id}` | Logs for a sync run |
+</details>
 
-### Categories
+<details>
+<summary><strong>Categories</strong></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/categories` | List categories |
@@ -261,15 +230,21 @@ Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
 | PUT | `/api/v1/categories/{id}` | Update category |
 | DELETE | `/api/v1/categories/{id}` | Delete category |
 | POST | `/api/v1/categories/seed` | Seed default categories |
+</details>
 
-### Clustering
+<details>
+<summary><strong>Clustering</strong></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/clustering/run` | Run duplicate detection |
-| GET | `/api/v1/clustering/status` | Clustering status |
+| GET | `/api/v1/clustering/status` | Clustering job status |
 | GET | `/api/v1/clustering/results` | Cluster groups |
+</details>
 
-### Learning & Development
+<details>
+<summary><strong>Learning & Development</strong></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/learning/recognition` | Builder recognition scores |
@@ -287,33 +262,74 @@ Demo mode distributes ~60 % Experimental / ~25 % Functional / ~15 % Production.
 | POST | `/api/v1/learning/workshops/{id}/tag-gpt` | Tag a GPT to workshop |
 | DELETE | `/api/v1/learning/workshops/{id}/tag-gpt/{gpt_id}` | Untag a GPT |
 | GET | `/api/v1/learning/workshops/{id}/impact` | Time-based quality impact |
+</details>
 
-### Demo & Admin
+<details>
+<summary><strong>Users & Admin</strong></summary>
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/v1/users` | List workspace users |
+| POST | `/api/v1/users/import` | Import users from Compliance API |
+| PATCH | `/api/v1/users/{id}/role` | Update user system role |
 | GET | `/api/v1/demo` | Get demo state |
 | PUT | `/api/v1/demo` | Toggle demo mode / set size |
-| POST | `/api/v1/admin/reset` | Clear GPTs and logs |
+| POST | `/api/v1/admin/reset` | Full reset — clears GPTs, logs, categories, workshops |
+</details>
 
 ---
 
-## Environment Variables
+## Project Structure
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `FERNET_KEY` | Encryption key for API keys stored in DB | **required** — run `make fernet-key` |
-| `POSTGRES_USER` | Database user | `gpt_registry` |
-| `POSTGRES_PASSWORD` | Database password | `changeme` |
-| `POSTGRES_DB` | Database name | `gpt_registry` |
-| `DATABASE_URL` | Full async connection string | composed from above |
-| `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
+```
+├── backend/
+│   ├── alembic/versions/          # DB migrations (auto-applied on startup)
+│   ├── app/
+│   │   ├── main.py                # FastAPI app entry point
+│   │   ├── models/models.py       # ORM models
+│   │   ├── schemas/schemas.py     # Pydantic request/response models
+│   │   ├── routers/               # One file per domain (pipeline, learning, users…)
+│   │   └── services/
+│   │       ├── pipeline.py        # Orchestrates all pipeline stages
+│   │       ├── semantic_enricher.py   # 9 LLM calls per GPT
+│   │       ├── compliance_api.py  # OpenAI Compliance API client
+│   │       ├── embedder.py        # OpenAI embeddings
+│   │       ├── classifier.py      # OpenAI LLM classifier
+│   │       ├── filter_engine.py   # Visibility / email / shared-user filters
+│   │       └── mock_*/            # Demo mode equivalents (no API calls)
+├── frontend/
+│   └── src/
+│       ├── App.tsx                # Root — Leader / Employee views + onboarding
+│       ├── components/
+│       │   ├── auth/              # Register, Login, Onboarding screens
+│       │   ├── leader/            # Dashboard views (Overview, Risk, L&D…)
+│       │   ├── employee/          # Read-only GPT portal
+│       │   ├── steps/             # Pipeline setup wizard (Steps 1–4)
+│       │   └── layout/            # Header, Sidebar, DemoBanner
+│       ├── hooks/                 # React Query hooks
+│       └── types/index.ts         # TypeScript interfaces
+├── docs/
+│   ├── erd.mmd                    # Entity-relationship diagram (Mermaid)
+│   └── screenshots/               # README screenshots (demo data)
+├── docker-compose.yml
+├── Makefile
+└── .env.example
+```
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+Contributions are welcome. Please open an issue first to discuss what you'd like to change.
+
+1. Fork the repo and create a branch: `git checkout -b feat/your-feature`
+2. Make your changes and ensure the app builds: `make up`
+3. Open a pull request with a clear description
+
+Run `make help` to see all available dev commands.
+
+---
 
 ## License
 
-This project is licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) for details.
+Licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) for details.

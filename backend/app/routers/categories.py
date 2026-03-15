@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import require_system_admin
 from app.database import get_db
 from app.models.models import Category
 from app.schemas.schemas import CategoryCreate, CategoryRead, CategoryUpdate
@@ -81,7 +82,12 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/categories", response_model=CategoryRead, status_code=201)
-async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_db)):
+async def create_category(
+    data: CategoryCreate,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     cat = Category(**data.model_dump())
     db.add(cat)
     await db.commit()
@@ -91,8 +97,12 @@ async def create_category(data: CategoryCreate, db: AsyncSession = Depends(get_d
 
 @router.put("/categories/{category_id}", response_model=CategoryRead)
 async def update_category(
-    category_id: int, data: CategoryUpdate, db: AsyncSession = Depends(get_db)
+    category_id: int,
+    data: CategoryUpdate,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
 ):
+    await require_system_admin(authorization, db)
     result = await db.execute(select(Category).where(Category.id == category_id))
     cat = result.scalar_one_or_none()
     if not cat:
@@ -105,7 +115,12 @@ async def update_category(
 
 
 @router.delete("/categories/{category_id}", status_code=204)
-async def delete_category(category_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_category(
+    category_id: int,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     result = await db.execute(select(Category).where(Category.id == category_id))
     cat = result.scalar_one_or_none()
     if not cat:
@@ -115,7 +130,11 @@ async def delete_category(category_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/categories/seed", response_model=list[CategoryRead])
-async def seed_categories(db: AsyncSession = Depends(get_db)):
+async def seed_categories(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     for i, cat_data in enumerate(DEFAULT_CATEGORIES):
         existing = await db.execute(
             select(Category).where(Category.name == cat_data["name"])

@@ -1,18 +1,38 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import require_system_admin
 from app.database import get_db
-from app.models.models import GPT, PipelineLogEntry
+from app.models.models import (
+    GPT,
+    Category,
+    PipelineLogEntry,
+    SyncLog,
+    Workshop,
+    WorkshopGPTTag,
+    WorkshopParticipant,
+)
+from app.services.demo_state import set_demo_state
 
 router = APIRouter(tags=["admin"])
 
 
 @router.post("/admin/reset")
-async def reset_registry(db: AsyncSession = Depends(get_db)):
+async def reset_registry(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
+    # Delete in dependency order to avoid FK violations
+    await db.execute(delete(WorkshopGPTTag))
+    await db.execute(delete(WorkshopParticipant))
+    await db.execute(delete(Workshop))
     await db.execute(delete(GPT))
     await db.execute(delete(PipelineLogEntry))
+    await db.execute(delete(SyncLog))
+    await db.execute(delete(Category))
     await db.commit()
-    return {
-        "message": "Registry reset. GPTs and pipeline logs cleared. Sync history and categories preserved."
-    }
+    # Reset in-memory demo flag so auto-restore doesn't re-enable it
+    set_demo_state(False, "medium")
+    return {"message": "Full reset complete."}

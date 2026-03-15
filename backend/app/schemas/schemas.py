@@ -259,6 +259,7 @@ class WorkspaceUserRead(BaseModel):
     status: str
     system_role: str
     imported_at: datetime
+    password_temp: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -275,11 +276,42 @@ class AuthStatus(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: str
+    password: str
 
 
 class LoginRequest(BaseModel):
     email: str
+    password: str | None = None
+
+
+class CheckEmailResponse(BaseModel):
+    requires_password: bool
+
+
+class LoginResponse(BaseModel):
+    user: WorkspaceUserRead
+    token: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str | None = None
+    new_password: str
+
+
+class ResetPasswordResponse(BaseModel):
+    temp_password: str
 
 
 class SystemRoleUpdate(BaseModel):
     system_role: str  # system-admin | ai-leader | employee
+
+
+class InviteUserRequest(BaseModel):
+    email: str
+    name: str | None = None
+    system_role: str = "employee"
+
+
+class InviteUserResponse(BaseModel):
+    user: WorkspaceUserRead
+    temp_password: str | None = None

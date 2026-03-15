@@ -21,9 +21,10 @@ import { useQueryClient } from "@tanstack/react-query";
 interface LeaderLayoutProps {
   initialPage?: LeaderPage;
   onSetupNavigated?: () => void;
+  onSwitchToProduction?: () => void;
 }
 
-export default function LeaderLayout({ initialPage, onSetupNavigated }: LeaderLayoutProps) {
+export default function LeaderLayout({ initialPage, onSetupNavigated, onSwitchToProduction }: LeaderLayoutProps) {
   const { systemRole } = useAuth();
   const isAdmin = systemRole === "system-admin";
   const queryClient = useQueryClient();
@@ -72,7 +73,7 @@ export default function LeaderLayout({ initialPage, onSetupNavigated }: LeaderLa
         isAdmin={isAdmin}
       />
       <main className="flex-1 overflow-y-auto" style={{ minWidth: 0 }}>
-        {page === "overview" && <Overview gpts={gpts} onSetPage={setPage} />}
+        {page === "overview" && <Overview gpts={gpts} onSetPage={setPage} onSwitchToProduction={onSwitchToProduction} />}
         {page === "overview:builders" && <BuildersPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:processes" && <ProcessesPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:departments" && <DepartmentsPage gpts={gpts} onBack={() => setPage("overview")} />}

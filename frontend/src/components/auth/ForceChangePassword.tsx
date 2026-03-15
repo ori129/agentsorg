@@ -1,10 +1,15 @@
 import { useState } from "react";
+import { api } from "../../api/client";
 import { useAuth } from "../../contexts/AuthContext";
 
-export default function RegisterScreen() {
-  const { register } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+/**
+ * Full-screen blocking overlay shown when the current user has a temporary
+ * password (password_temp === true). They must set a new permanent password
+ * before they can use the application.
+ */
+export default function ForceChangePassword() {
+  const { refreshUser, logout } = useAuth();
+  const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,23 +18,21 @@ export default function RegisterScreen() {
     e.preventDefault();
     setError("");
 
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !trimmedEmail.includes("@")) {
-      setError("Please enter a valid email address");
-      return;
-    }
-    if (password.length < 8) {
+    if (newPassword.length < 8) {
       setError("Password must be at least 8 characters");
       return;
     }
-    if (password !== confirmPassword) {
+    if (newPassword !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
 
     setLoading(true);
     try {
-      await register(trimmedEmail, password);
+      // old_password is undefined — backend skips the check when password_temp=true
+      await api.changePassword(undefined, newPassword);
+      // Refresh the user object so password_temp becomes false and gate lifts
+      await refreshUser();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -39,11 +42,11 @@ export default function RegisterScreen() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
+      className="fixed inset-0 flex items-center justify-center px-4 z-50"
       style={{ background: "var(--c-bg)" }}
     >
       <div className="w-full max-w-md">
-        {/* Logo + brand */}
+        {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <svg
             width="32"
@@ -72,7 +75,6 @@ export default function RegisterScreen() {
           </span>
         </div>
 
-        {/* Card */}
         <div
           className="rounded-2xl p-8"
           style={{
@@ -80,40 +82,45 @@ export default function RegisterScreen() {
             border: "1px solid var(--c-border)",
           }}
         >
-          <h1 className="text-xl font-bold mb-1" style={{ color: "var(--c-text)" }}>
-            Create your admin account
+          {/* Warning badge */}
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-4"
+            style={{ background: "#f59e0b20", color: "#f59e0b", border: "1px solid #f59e0b40" }}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 3a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4zm0 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" />
+            </svg>
+            Temporary password — action required
+          </div>
+
+          <h1
+            className="text-xl font-bold mb-1"
+            style={{ color: "var(--c-text)" }}
+          >
+            Set a new password
           </h1>
           <p className="text-sm mb-6" style={{ color: "var(--c-text-3)" }}>
-            You're the first user — this account becomes the System Admin. Once set up,
-            you can connect to the OpenAI Compliance API and invite your team.
+            Your account is using a temporary password. Please set a permanent
+            password to continue.
           </p>
 
           <form onSubmit={handleSubmit}>
-            <label className="form-label">Your work email</label>
+            <label className="form-label">New password</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 8 characters"
               autoFocus
               className="form-input mb-4"
             />
 
-            <label className="form-label">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
-              className="form-input mb-4"
-            />
-
-            <label className="form-label">Confirm password</label>
+            <label className="form-label">Confirm new password</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your password"
+              placeholder="Re-enter your new password"
               className="form-input mb-4"
             />
 
@@ -132,17 +139,19 @@ export default function RegisterScreen() {
                 cursor: loading ? "wait" : "pointer",
               }}
             >
-              {loading ? "Creating account..." : "Get Started"}
+              {loading ? "Saving..." : "Set password & continue"}
             </button>
           </form>
-        </div>
 
-        <p
-          className="text-center text-xs mt-6"
-          style={{ color: "var(--c-text-4)" }}
-        >
-          Self-hosted &middot; Your data stays on your infrastructure
-        </p>
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="w-full mt-3 py-2 text-xs"
+            style={{ color: "var(--c-text-4)", cursor: "pointer" }}
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   );
