@@ -1,16 +1,15 @@
 import logging
 import secrets
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
+from app.auth_deps import require_auth, require_system_admin
 from app.auth_utils import hash_password
 from app.database import get_db
 from app.encryption import decrypt
-from app.models.models import Configuration, LoginSession, WorkspaceUser
+from app.models.models import Configuration, WorkspaceUser
 from app.schemas.schemas import (
     InviteUserRequest,
     InviteUserResponse,
@@ -27,35 +26,13 @@ logger = logging.getLogger(__name__)
 VALID_SYSTEM_ROLES = {"system-admin", "ai-leader", "employee"}
 
 
-async def _require_system_admin(
-    authorization: str | None, db: AsyncSession
-) -> WorkspaceUser:
-    """Validate Bearer token and assert caller is system-admin."""
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Authentication required")
-    token = authorization[7:]
-    result = await db.execute(
-        select(LoginSession)
-        .options(selectinload(LoginSession.user))
-        .where(LoginSession.token == token)
-    )
-    session = result.scalar_one_or_none()
-    if not session or session.expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-    if session.user.system_role != "system-admin":
-        raise HTTPException(
-            status_code=403, detail="Only system admins can perform this action"
-        )
-    return session.user
-
-
 @router.post("/users/invite", response_model=InviteUserResponse)
 async def invite_user(
     body: InviteUserRequest,
     authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    caller = await _require_system_admin(authorization, db)
+    caller = await require_system_admin(authorization, db)
 
     email = body.email.strip().lower()
     if not email:
@@ -67,9 +44,13 @@ async def invite_user(
             detail=f"Invalid role. Must be one of: {', '.join(VALID_SYSTEM_ROLES)}",
         )
 
-    existing = await db.execute(select(WorkspaceUser).where(WorkspaceUser.email == email))
+    existing = await db.execute(
+        select(WorkspaceUser).where(WorkspaceUser.email == email)
+    )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="A user with this email already exists")
+        raise HTTPException(
+            status_code=409, detail="A user with this email already exists"
+        )
 
     user_id = f"local-{secrets.token_hex(8)}"
     temp_password: str | None = None
@@ -192,7 +173,11 @@ async def import_users(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/users", response_model=list[WorkspaceUserRead])
-async def list_users(db: AsyncSession = Depends(get_db)):
+async def list_users(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     result = await db.execute(select(WorkspaceUser).order_by(WorkspaceUser.email))
     return result.scalars().all()
 
@@ -201,8 +186,10 @@ async def list_users(db: AsyncSession = Depends(get_db)):
 async def update_user_role(
     user_id: str,
     body: SystemRoleUpdate,
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
+    await require_system_admin(authorization, db)
     if body.system_role not in VALID_SYSTEM_ROLES:
         raise HTTPException(
             status_code=422,
@@ -239,7 +226,7 @@ async def reset_user_password(
     authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    caller = await _require_system_admin(authorization, db)
+    caller = await require_system_admin(authorization, db)
 
     user = await db.get(WorkspaceUser, user_id)
     if not user:

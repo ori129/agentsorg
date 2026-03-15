@@ -113,9 +113,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 @router.post("/auth/check-email", response_model=CheckEmailResponse)
 async def check_email(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(WorkspaceUser).where(
-            WorkspaceUser.email == body.email.strip().lower()
-        )
+        select(WorkspaceUser).where(WorkspaceUser.email == body.email.strip().lower())
     )
     user = result.scalar_one_or_none()
     # Always return 200 — never reveal whether email exists
@@ -126,9 +124,7 @@ async def check_email(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 @router.post("/auth/login", response_model=LoginResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(WorkspaceUser).where(
-            WorkspaceUser.email == body.email.strip().lower()
-        )
+        select(WorkspaceUser).where(WorkspaceUser.email == body.email.strip().lower())
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -192,13 +188,9 @@ async def change_password(
     # Skip old-password check when account is in forced-change mode
     if not user.password_temp:
         if not body.old_password:
-            raise HTTPException(
-                status_code=422, detail="Current password is required"
-            )
+            raise HTTPException(status_code=422, detail="Current password is required")
         if not verify_password(body.old_password, user.password_hash):
-            raise HTTPException(
-                status_code=401, detail="Current password is incorrect"
-            )
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
 
     if len(body.new_password) < 8:
         raise HTTPException(

@@ -212,7 +212,11 @@ def _enrich_single(gpt: dict) -> dict:
             if pq == 1
             else "Basic role assignment; no format spec or constraints defined."
         )
-        pq_flags = ["no_output_format", "no_constraints", "no_persona"] if pq == 1 else ["no_output_format", "no_constraints", "no_examples"]
+        pq_flags = (
+            ["no_output_format", "no_constraints", "no_persona"]
+            if pq == 1
+            else ["no_output_format", "no_constraints", "no_examples"]
+        )
     elif tier == 2:
         pq = 2 if seed % 4 == 0 else 3
         pq_rationale = (

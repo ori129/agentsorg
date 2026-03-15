@@ -1,10 +1,10 @@
 # Individual Contributor License Agreement
 
 Thank you for your interest in contributing to AgentsOrg.ai (the "Project"),
-maintained by Ori Simantov (ori129) and Alon Arbiv (aarbiv) (collectively, the "Project Owners").
+maintained by Ori Simantov (ori129) (the "Project Owner").
 
 This Individual Contributor License Agreement ("Agreement") documents the rights
-you grant to the Project Owners when you submit a Contribution. Please read it
+you grant to the Project Owner when you submit a Contribution. Please read it
 carefully before signing.
 
 ---
@@ -14,10 +14,10 @@ carefully before signing.
 **"You"** means the individual who submits a Contribution to the Project.
 
 **"Contribution"** means any original work of authorship, including modifications
-or additions to existing works, that you intentionally submit to the Project Owners
+or additions to existing works, that you intentionally submit to the Project Owner
 for inclusion in the Project.
 
-**"Submit"** means any form of communication sent to the Project Owners or its
+**"Submit"** means any form of communication sent to the Project Owner or its
 representatives, including but not limited to pull requests, patches, issues, or
 email.
 
@@ -25,21 +25,21 @@ email.
 
 ## 2. Copyright License
 
-Subject to the terms of this Agreement, you hereby grant to the Project Owners and
-to recipients of software distributed by the Project Owners a perpetual, worldwide,
+Subject to the terms of this Agreement, you hereby grant to the Project Owner and
+to recipients of software distributed by the Project Owner a perpetual, worldwide,
 non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce,
 prepare derivative works of, publicly display, publicly perform, sublicense, and
 distribute your Contributions and such derivative works.
 
-You also grant the Project Owners the right to relicense your Contributions under
-any license the Project Owners chooses, including proprietary and commercial licenses.
+You also grant the Project Owner the right to relicense your Contributions under
+any license the Project Owner chooses, including proprietary and commercial licenses.
 
 ---
 
 ## 3. Patent License
 
-Subject to the terms of this Agreement, you hereby grant to the Project Owners and
-to recipients of software distributed by the Project Owners a perpetual, worldwide,
+Subject to the terms of this Agreement, you hereby grant to the Project Owner and
+to recipients of software distributed by the Project Owner a perpetual, worldwide,
 non-exclusive, no-charge, royalty-free, irrevocable patent license to make, have
 made, use, offer to sell, sell, import, and otherwise transfer the Project, where
 such license applies only to those patent claims licensable by you that are
@@ -77,7 +77,7 @@ d. If your employer has rights to intellectual property that you create, you hav
 
 ## 6. No Obligation to Include
 
-This Agreement does not obligate the Project Owners to include your Contribution in
+This Agreement does not obligate the Project Owner to include your Contribution in
 the Project.
 
 ---

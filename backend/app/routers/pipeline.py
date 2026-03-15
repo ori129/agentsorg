@@ -106,6 +106,7 @@ router = APIRouter(tags=["pipeline"])
 @router.post("/pipeline/run")
 async def start_pipeline(db: AsyncSession = Depends(get_db)):
     from app.services.demo_state import is_demo_mode
+
     status = get_pipeline_status()
     if status["running"]:
         raise HTTPException(status_code=409, detail="Pipeline is already running")

@@ -232,9 +232,13 @@ class LoginSession(Base):
 
     token: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(
-        String(255), ForeignKey("workspace_users.id", ondelete="CASCADE"), nullable=False
+        String(255),
+        ForeignKey("workspace_users.id", ondelete="CASCADE"),
+        nullable=False,
     )
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

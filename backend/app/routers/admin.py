@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import require_system_admin
 from app.database import get_db
 from app.models.models import (
     GPT,
@@ -18,7 +19,11 @@ router = APIRouter(tags=["admin"])
 
 
 @router.post("/admin/reset")
-async def reset_registry(db: AsyncSession = Depends(get_db)):
+async def reset_registry(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     # Delete in dependency order to avoid FK violations
     await db.execute(delete(WorkshopGPTTag))
     await db.execute(delete(WorkshopParticipant))

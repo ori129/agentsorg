@@ -4,6 +4,7 @@ Auth endpoint tests — T1 through T20.
 Runs against a SQLite in-memory database by default (no pgvector).
 Set TEST_DATABASE_URL to a real PostgreSQL URL for a full integration run.
 """
+
 from httpx import AsyncClient
 
 
@@ -17,7 +18,9 @@ ADMIN_PASSWORD = "supersecret1"
 EMPLOYEE_EMAIL = "employee@example.com"
 
 
-async def _register(client: AsyncClient, email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD):
+async def _register(
+    client: AsyncClient, email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD
+):
     resp = await client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": password},
@@ -26,7 +29,9 @@ async def _register(client: AsyncClient, email: str = ADMIN_EMAIL, password: str
     return resp.json()
 
 
-async def _login(client: AsyncClient, email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD):
+async def _login(
+    client: AsyncClient, email: str = ADMIN_EMAIL, password: str = ADMIN_PASSWORD
+):
     resp = await client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": password},

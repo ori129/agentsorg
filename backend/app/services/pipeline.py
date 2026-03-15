@@ -42,6 +42,7 @@ def _content_hash(gpt_data: dict) -> str:
     ]
     return hashlib.sha256("|".join(parts).encode()).hexdigest()
 
+
 _lock = asyncio.Lock()
 _current_status: dict = {
     "running": False,
@@ -207,6 +208,7 @@ async def _execute_pipeline(db: AsyncSession):
 
     # Snapshot existing GPTs for change detection
     from sqlalchemy.orm import selectinload
+
     existing_result = await db.execute(
         select(GPT).options(
             selectinload(GPT.primary_category),
@@ -247,8 +249,12 @@ async def _execute_pipeline(db: AsyncSession):
     for idx in unchanged_indices:
         prev = prev_gpts[filtered_gpts[idx]["id"]]
         classifications[idx] = {
-            "primary_category": prev.primary_category.name if prev.primary_category else None,
-            "secondary_category": prev.secondary_category.name if prev.secondary_category else None,
+            "primary_category": prev.primary_category.name
+            if prev.primary_category
+            else None,
+            "secondary_category": prev.secondary_category.name
+            if prev.secondary_category
+            else None,
             "confidence": prev.classification_confidence,
             "summary": prev.llm_summary,
             "use_case_description": prev.use_case_description,
@@ -349,7 +355,9 @@ async def _execute_pipeline(db: AsyncSession):
                 "output_type": prev.output_type,
                 "adoption_friction_score": prev.adoption_friction_score,
                 "adoption_friction_rationale": prev.adoption_friction_rationale,
-                "semantic_enriched_at": prev.semantic_enriched_at.isoformat() if prev.semantic_enriched_at else None,
+                "semantic_enriched_at": prev.semantic_enriched_at.isoformat()
+                if prev.semantic_enriched_at
+                else None,
             }
 
     if classification_enabled and has_openai_key and changed_indices:
@@ -371,7 +379,9 @@ async def _execute_pipeline(db: AsyncSession):
                 enricher = SemanticEnricher(openai_key, config.classification_model)
             changed_gpts_for_enrich = [filtered_gpts[i] for i in changed_indices]
             changed_cls_for_enrich = [classifications[i] for i in changed_indices]
-            changed_enrichments = await enricher.enrich_batch(changed_gpts_for_enrich, changed_cls_for_enrich)
+            changed_enrichments = await enricher.enrich_batch(
+                changed_gpts_for_enrich, changed_cls_for_enrich
+            )
             for ci, enr in enumerate(changed_enrichments):
                 enrichments[changed_indices[ci]] = enr
             enriched_count = sum(1 for e in enrichments if e is not None)

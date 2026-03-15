@@ -551,8 +551,10 @@ async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
         else "Domain context: not yet enriched"
     )
 
+    safe_email = email.replace("\n", " ").replace("\r", " ")
+    safe_name = (scores.name or "unknown").replace("\n", " ").replace("\r", " ")
     profile = f"""
-Builder: {email} (display name: {scores.name or "unknown"})
+Builder: {safe_email} (display name: {safe_name})
 GPTs built: {scores.gpt_count}
 
 Domain context (what this person actually builds):

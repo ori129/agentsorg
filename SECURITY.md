@@ -11,7 +11,6 @@ before it is disclosed publicly.
 
 Email both maintainers directly:
 - Ori Simantov — via [GitHub](https://github.com/ori129)
-- Alon Arbiv — via [GitHub](https://github.com/aarbiv)
 
 Please do not use GitHub Issues or Discussions for security reports.
 
