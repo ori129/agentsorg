@@ -250,10 +250,6 @@ async def test_T18_change_password_temp_skips_old(client: AsyncClient):
 
     # Create an employee user directly in DB via the import mechanism
     # (Simpler: just insert directly through reset-password flow)
-    # First add employee to DB
-    from app.models.models import WorkspaceUser
-    from sqlalchemy import select
-
     # We need a db session — use admin login to reset our own password (hack for test)
     # Actually just set password_temp=True via the reset endpoint
     # Reset admin's own password (as admin)
@@ -293,9 +289,6 @@ async def test_T19_reset_password_requires_admin(client: AsyncClient):
     admin_id = reg_data["user"]["id"]
 
     # Add a second user (employee) directly
-    from app.models.models import WorkspaceUser
-    from app.database import get_db
-
     # We'll use the db_session indirectly — just insert via the ORM through app
     # Actually, easier: just call the endpoint as admin, confirm it works
     reset = await client.post(

@@ -392,7 +392,7 @@ async def _execute_pipeline(db: AsyncSession):
             db,
             sync_log.id,
             "info",
-            f"All GPTs unchanged, reusing cached enrichment data",
+            "All GPTs unchanged, reusing cached enrichment data",
         )
 
     # Step 3.6: Normalize business process names (real mode only — demo strings are already consistent)
@@ -492,7 +492,7 @@ async def _execute_pipeline(db: AsyncSession):
             db,
             sync_log.id,
             "info",
-            f"All GPTs unchanged, reusing cached embeddings",
+            "All GPTs unchanged, reusing cached embeddings",
         )
 
     # Step 5: Store GPTs
