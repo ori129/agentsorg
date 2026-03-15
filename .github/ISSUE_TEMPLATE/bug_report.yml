@@ -3,7 +3,6 @@ description: Something is broken or behaving unexpectedly.
 labels: [bug]
 assignees:
   - ori129
-  - aarbiv
 body:
   - type: markdown
     attributes:

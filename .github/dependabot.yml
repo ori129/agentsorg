@@ -7,7 +7,6 @@ updates:
       day: monday
     assignees:
       - ori129
-      - aarbiv
     labels:
       - dependencies
 
@@ -18,7 +17,6 @@ updates:
       day: monday
     assignees:
       - ori129
-      - aarbiv
     labels:
       - dependencies
 
@@ -29,7 +27,6 @@ updates:
       day: monday
     assignees:
       - ori129
-      - aarbiv
     labels:
       - dependencies
 
@@ -40,6 +37,5 @@ updates:
       day: monday
     assignees:
       - ori129
-      - aarbiv
     labels:
       - dependencies

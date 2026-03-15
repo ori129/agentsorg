@@ -3,7 +3,6 @@ description: Propose a new feature or improvement.
 labels: [enhancement]
 assignees:
   - ori129
-  - aarbiv
 body:
   - type: markdown
     attributes:
