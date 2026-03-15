@@ -304,3 +304,14 @@ class ResetPasswordResponse(BaseModel):
 
 class SystemRoleUpdate(BaseModel):
     system_role: str  # system-admin | ai-leader | employee
+
+
+class InviteUserRequest(BaseModel):
+    email: str
+    name: str | None = None
+    system_role: str = "employee"
+
+
+class InviteUserResponse(BaseModel):
+    user: WorkspaceUserRead
+    temp_password: str | None = None

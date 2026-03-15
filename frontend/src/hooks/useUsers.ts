@@ -28,3 +28,21 @@ export function useUpdateUserRole() {
     },
   });
 }
+
+export function useInviteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      email,
+      name,
+      system_role,
+    }: {
+      email: string;
+      name?: string;
+      system_role: string;
+    }) => api.inviteUser(email, name, system_role),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}

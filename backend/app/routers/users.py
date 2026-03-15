@@ -12,6 +12,8 @@ from app.database import get_db
 from app.encryption import decrypt
 from app.models.models import Configuration, LoginSession, WorkspaceUser
 from app.schemas.schemas import (
+    InviteUserRequest,
+    InviteUserResponse,
     ResetPasswordResponse,
     SystemRoleUpdate,
     UserImportResult,
@@ -45,6 +47,55 @@ async def _require_system_admin(
             status_code=403, detail="Only system admins can perform this action"
         )
     return session.user
+
+
+@router.post("/users/invite", response_model=InviteUserResponse)
+async def invite_user(
+    body: InviteUserRequest,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    caller = await _require_system_admin(authorization, db)
+
+    email = body.email.strip().lower()
+    if not email:
+        raise HTTPException(status_code=422, detail="Email is required")
+
+    if body.system_role not in VALID_SYSTEM_ROLES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid role. Must be one of: {', '.join(VALID_SYSTEM_ROLES)}",
+        )
+
+    existing = await db.execute(select(WorkspaceUser).where(WorkspaceUser.email == email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
+
+    user_id = f"local-{secrets.token_hex(8)}"
+    temp_password: str | None = None
+    password_hash: str | None = None
+    password_temp = False
+
+    if body.system_role in ("system-admin", "ai-leader"):
+        temp_password = secrets.token_urlsafe(12)
+        password_hash = hash_password(temp_password)
+        password_temp = True
+
+    user = WorkspaceUser(
+        id=user_id,
+        email=email,
+        name=body.name,
+        role="standard-user",
+        status="active",
+        system_role=body.system_role,
+        password_hash=password_hash,
+        password_temp=password_temp,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    logger.info(f"User {email} invited as {body.system_role} by {caller.email}")
+    return InviteUserResponse(user=user, temp_password=temp_password)
 
 
 @router.post("/users/import", response_model=UserImportResult)

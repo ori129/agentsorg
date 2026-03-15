@@ -5,6 +5,7 @@ import type {
   Configuration,
   DemoState,
   GPTItem,
+  InviteUserResponse,
   LoginResponse,
   PipelineLogEntry,
   PipelineStatus,
@@ -104,6 +105,12 @@ export const api = {
 
   importUsers: () =>
     request<UserImportResult>("/users/import", { method: "POST" }),
+
+  inviteUser: (email: string, name: string | undefined, system_role: string) =>
+    request<InviteUserResponse>("/users/invite", {
+      method: "POST",
+      body: JSON.stringify({ email, name: name || null, system_role }),
+    }),
 
   // ------------------------------------------------------------------
   // Configuration

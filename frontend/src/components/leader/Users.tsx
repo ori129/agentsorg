@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useUsers, useImportUsers, useUpdateUserRole } from "../../hooks/useUsers";
+import { useUsers, useImportUsers, useUpdateUserRole, useInviteUser } from "../../hooks/useUsers";
 import { useAuth } from "../../contexts/AuthContext";
 import { api } from "../../api/client";
 import type { WorkspaceUser, SystemRole } from "../../types";
@@ -277,6 +277,188 @@ function PromoteToLeaderModal({ user, onClose, onDone }: PromoteModalProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Invite user modal — create a new user without needing the Compliance API
+// ---------------------------------------------------------------------------
+interface InviteUserModalProps {
+  onClose: () => void;
+}
+
+function InviteUserModal({ onClose }: InviteUserModalProps) {
+  const inviteMutation = useInviteUser();
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [systemRole, setSystemRole] = useState<string>("employee");
+  const [copied, setCopied] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    inviteMutation.mutate({ email: email.trim(), name: name.trim() || undefined, system_role: systemRole });
+  };
+
+  const handleCopy = () => {
+    const tp = inviteMutation.data?.temp_password;
+    if (tp) {
+      navigator.clipboard.writeText(tp).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const needsPassword = systemRole === "system-admin" || systemRole === "ai-leader";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-md rounded-2xl p-6"
+        style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}>
+        <h2 className="text-lg font-bold mb-2" style={{ color: "var(--c-text)" }}>
+          Invite user
+        </h2>
+
+        {!inviteMutation.isSuccess ? (
+          <>
+            <p className="text-sm mb-5" style={{ color: "var(--c-text-3)" }}>
+              Add a user directly without importing from the OpenAI Compliance API.
+              {needsPassword && " A temporary password will be generated for privileged roles."}
+            </p>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: "var(--c-text-4)" }}>
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="user@company.com"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{
+                    background: "var(--c-bg)",
+                    border: "1px solid var(--c-border)",
+                    color: "var(--c-text)",
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: "var(--c-text-4)" }}>
+                  Name (optional)
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Full name"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{
+                    background: "var(--c-bg)",
+                    border: "1px solid var(--c-border)",
+                    color: "var(--c-text)",
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: "var(--c-text-4)" }}>
+                  Role
+                </label>
+                <select
+                  value={systemRole}
+                  onChange={(e) => setSystemRole(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{
+                    background: "var(--c-bg)",
+                    border: "1px solid var(--c-border)",
+                    color: "var(--c-text)",
+                  }}
+                >
+                  <option value="employee">Employee (email-only login)</option>
+                  <option value="ai-leader">AI Leader (password required)</option>
+                  <option value="system-admin">System Admin (password required)</option>
+                </select>
+              </div>
+              {inviteMutation.isError && (
+                <div className="text-xs" style={{ color: "#f87171" }}>
+                  {(inviteMutation.error as Error).message}
+                </div>
+              )}
+              <div className="flex gap-3 mt-1">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 py-2 rounded-lg text-sm font-medium"
+                  style={{
+                    background: "var(--c-border)",
+                    color: "var(--c-text-3)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={inviteMutation.isPending}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
+                  style={{
+                    background: inviteMutation.isPending ? "var(--c-border)" : "#3b82f6",
+                    cursor: inviteMutation.isPending ? "wait" : "pointer",
+                  }}
+                >
+                  {inviteMutation.isPending ? "Inviting..." : "Invite"}
+                </button>
+              </div>
+            </form>
+          </>
+        ) : (
+          <>
+            <p className="text-sm mb-4" style={{ color: "var(--c-text-3)" }}>
+              <span style={{ color: "#10b981" }}>
+                {inviteMutation.data.user.name || inviteMutation.data.user.email}
+              </span>{" "}
+              has been added as{" "}
+              <span style={{ color: "var(--c-text)" }}>
+                {SYSTEM_ROLE_LABELS[inviteMutation.data.user.system_role as SystemRole]}
+              </span>.
+            </p>
+            {inviteMutation.data.temp_password && (
+              <>
+                <p className="text-xs mb-2" style={{ color: "var(--c-text-4)" }}>
+                  Share this one-time password with them:
+                </p>
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-sm mb-4"
+                  style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+                >
+                  <span style={{ color: "#10b981", flex: 1 }}>
+                    {inviteMutation.data.temp_password}
+                  </span>
+                  <button
+                    onClick={handleCopy}
+                    className="text-xs px-2 py-1 rounded"
+                    style={{ color: copied ? "#10b981" : "var(--c-text-4)", cursor: "pointer" }}
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-xs mb-5" style={{ color: "var(--c-text-4)" }}>
+                  This password is shown once. The user will be prompted to change it on first login.
+                </p>
+              </>
+            )}
+            <button
+              onClick={onClose}
+              className="w-full py-2 rounded-lg text-sm font-semibold text-white"
+              style={{ background: "#3b82f6", cursor: "pointer" }}
+            >
+              Done
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Users component
 // ---------------------------------------------------------------------------
 
@@ -294,6 +476,7 @@ export default function Users() {
   // Modal state
   const [resetTarget, setResetTarget] = useState<WorkspaceUser | null>(null);
   const [promoteTarget, setPromoteTarget] = useState<WorkspaceUser | null>(null);
+  const [showInvite, setShowInvite] = useState(false);
 
   const activeCount = users.filter((u) => u.status === "active").length;
   const inactiveCount = users.filter((u) => u.status === "inactive").length;
@@ -331,6 +514,7 @@ export default function Users() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Modals */}
+      {showInvite && <InviteUserModal onClose={() => setShowInvite(false)} />}
       {resetTarget && (
         <ResetPasswordModal
           user={resetTarget}
@@ -353,21 +537,37 @@ export default function Users() {
         <h1 className="text-xl font-bold" style={{ color: "var(--c-text)" }}>
           Workspace Users
         </h1>
-        <button
-          onClick={() => importMutation.mutate()}
-          disabled={importMutation.isPending}
-          className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          style={{
-            background: importMutation.isPending ? "var(--c-border)" : "#3b82f6",
-            color: "#fff",
-            cursor: importMutation.isPending ? "wait" : "pointer",
-          }}
-        >
-          {importMutation.isPending ? "Importing..." : "Import Users"}
-        </button>
+        <div className="flex gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => setShowInvite(true)}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: "var(--c-border)",
+                color: "var(--c-text-3)",
+                border: "1px solid var(--c-border)",
+                cursor: "pointer",
+              }}
+            >
+              Invite User
+            </button>
+          )}
+          <button
+            onClick={() => importMutation.mutate()}
+            disabled={importMutation.isPending}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: importMutation.isPending ? "var(--c-border)" : "#3b82f6",
+              color: "#fff",
+              cursor: importMutation.isPending ? "wait" : "pointer",
+            }}
+          >
+            {importMutation.isPending ? "Importing..." : "Import Users"}
+          </button>
+        </div>
       </div>
       <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>
-        Workspace members imported from the OpenAI Compliance API.
+        Workspace members imported from the OpenAI Compliance API, or invited directly.
       </p>
 
       {/* Import result toast */}

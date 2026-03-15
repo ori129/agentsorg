@@ -152,6 +152,11 @@ export interface UserImportResult {
   total: number;
 }
 
+export interface InviteUserResponse {
+  user: WorkspaceUser;
+  temp_password: string | null;
+}
+
 export type SystemRole = "system-admin" | "ai-leader" | "employee";
 
 export interface AuthStatus {
