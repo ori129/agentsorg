@@ -1,13 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { api } from "../api/client";
+import { api, SESSION_KEY } from "../api/client";
 import type { WorkspaceUser, SystemRole } from "../types";
 
 interface AuthContextValue {
   /** null = still loading, "register" = first time, "login" = needs login, user = logged in */
   state: "loading" | "register" | "login" | WorkspaceUser;
-  login: (email: string) => Promise<void>;
-  register: (email: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password?: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
   /** Convenience: true when state is a user object */
   isLoggedIn: boolean;
   currentUser: WorkspaceUser | null;
@@ -15,24 +15,27 @@ interface AuthContextValue {
   /** True immediately after register() — used to trigger onboarding flow */
   justRegistered: boolean;
   clearJustRegistered: () => void;
+  /** Refresh current user from /auth/me (e.g. after change-password) */
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   state: "loading",
   login: async () => {},
   register: async () => {},
-  logout: () => {},
+  logout: async () => {},
   isLoggedIn: false,
   currentUser: null,
   systemRole: null,
   justRegistered: false,
   clearJustRegistered: () => {},
+  refreshUser: async () => {},
 });
 
-const STORAGE_KEY = "auth_email";
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<"loading" | "register" | "login" | WorkspaceUser>("loading");
+  const [state, setState] = useState<"loading" | "register" | "login" | WorkspaceUser>(
+    "loading"
+  );
   const [justRegistered, setJustRegistered] = useState(false);
 
   const boot = useCallback(async () => {
@@ -43,14 +46,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const savedEmail = localStorage.getItem(STORAGE_KEY);
-      if (savedEmail) {
+      const token = localStorage.getItem(SESSION_KEY);
+      if (token) {
         try {
-          const user = await api.login(savedEmail);
+          const user = await api.getMe();
           setState(user);
           return;
         } catch {
-          localStorage.removeItem(STORAGE_KEY);
+          // Token invalid / expired — clear it
+          localStorage.removeItem(SESSION_KEY);
         }
       }
 
@@ -64,32 +68,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     boot();
   }, [boot]);
 
-  const login = async (email: string) => {
-    const user = await api.login(email);
-    localStorage.setItem(STORAGE_KEY, email);
+  const login = async (email: string, password?: string) => {
+    const { user, token } = await api.login(email, password);
+    localStorage.setItem(SESSION_KEY, token);
     setState(user);
   };
 
-  const register = async (email: string) => {
-    const user = await api.register(email);
-    localStorage.setItem(STORAGE_KEY, email);
+  const register = async (email: string, password: string) => {
+    const { user, token } = await api.register(email, password);
+    localStorage.setItem(SESSION_KEY, token);
     setJustRegistered(true);
     setState(user);
   };
 
-  const clearJustRegistered = () => setJustRegistered(false);
-
-  const logout = () => {
-    localStorage.removeItem(STORAGE_KEY);
+  const logout = async () => {
+    try {
+      await api.logoutSession();
+    } catch {
+      // Ignore errors on logout — token may already be invalid
+    }
+    localStorage.removeItem(SESSION_KEY);
     setState("login");
   };
+
+  const refreshUser = async () => {
+    try {
+      const user = await api.getMe();
+      setState(user);
+    } catch {
+      // Session gone — force re-login
+      localStorage.removeItem(SESSION_KEY);
+      setState("login");
+    }
+  };
+
+  const clearJustRegistered = () => setJustRegistered(false);
 
   const isLoggedIn = typeof state === "object";
   const currentUser = isLoggedIn ? (state as WorkspaceUser) : null;
   const systemRole = currentUser?.system_role as SystemRole | null;
 
   return (
-    <AuthContext.Provider value={{ state, login, register, logout, isLoggedIn, currentUser, systemRole, justRegistered, clearJustRegistered }}>
+    <AuthContext.Provider
+      value={{
+        state,
+        login,
+        register,
+        logout,
+        isLoggedIn,
+        currentUser,
+        systemRole,
+        justRegistered,
+        clearJustRegistered,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

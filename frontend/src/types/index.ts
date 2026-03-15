@@ -122,6 +122,7 @@ export interface DemoState {
   enabled: boolean;
   size: "small" | "medium" | "large" | "enterprise";
   gpt_count: number;
+  last_sync_was_demo: boolean;
 }
 
 export interface WorkspaceUser {
@@ -133,6 +134,16 @@ export interface WorkspaceUser {
   status: "active" | "inactive";
   system_role: SystemRole;
   imported_at: string;
+  password_temp: boolean;
+}
+
+export interface LoginResponse {
+  user: WorkspaceUser;
+  token: string;
+}
+
+export interface CheckEmailResponse {
+  requires_password: boolean;
 }
 
 export interface UserImportResult {
