@@ -8,6 +8,20 @@ jobs:
   backend:
     name: Backend — lint & test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: agentsorg
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: agentsorg_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v6
 
@@ -27,8 +41,9 @@ jobs:
         run: ruff format --check backend/
 
       - name: Tests
-        # exit code 5 = no tests collected; treat as pass until test suite is built out
-        run: cd backend && python -m pytest --tb=short -q || [ $? -eq 5 ]
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://agentsorg:changeme@localhost:5432/agentsorg_test
+        run: cd backend && python -m pytest --tb=short -q
 
   frontend:
     name: Frontend — type check
