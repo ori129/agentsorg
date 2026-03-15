@@ -175,7 +175,6 @@ _NICHE_TECH_KEYWORDS = [
 def _enrich_single(gpt: dict) -> dict:
     seed = _seed(gpt)
     tier = _tier(gpt)
-    instr_len = _instruction_len(gpt)
     tool_count = _tool_count(gpt)
     cat = _category(gpt)
     name = _name_lower(gpt)

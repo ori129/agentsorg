@@ -4,7 +4,6 @@ Auth endpoint tests — T1 through T20.
 Runs against a SQLite in-memory database by default (no pgvector).
 Set TEST_DATABASE_URL to a real PostgreSQL URL for a full integration run.
 """
-import pytest
 from httpx import AsyncClient
 
 

@@ -359,9 +359,9 @@ async def search_gpts(
                 text(
                     "SELECT id FROM gpts "
                     "WHERE visibility != 'just_me' AND embedding IS NOT NULL "
-                    f"ORDER BY embedding <=> '{vec_str}'::vector "
+                    "ORDER BY embedding <=> :vec::vector "
                     "LIMIT 20"
-                )
+                ).bindparams(vec=vec_str)
             )
             top_ids = [row[0] for row in vec_result.fetchall()]
             if top_ids:

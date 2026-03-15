@@ -18,7 +18,6 @@ from app.schemas.schemas import (
     LoginRequest,
     LoginResponse,
     RegisterRequest,
-    ResetPasswordResponse,
     WorkspaceUserRead,
 )
 
