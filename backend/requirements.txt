@@ -9,3 +9,4 @@ cryptography==46.0.5
 httpx==0.28.1
 openai>=1.66.0
 python-multipart==0.0.22
+bcrypt==4.3.0
