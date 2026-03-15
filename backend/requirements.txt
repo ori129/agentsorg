@@ -2,7 +2,7 @@ fastapi==0.115.6
 uvicorn[standard]==0.41.0
 sqlalchemy[asyncio]==2.0.48
 asyncpg==0.31.0
-alembic==1.14.1
+alembic==1.18.4
 pydantic-settings==2.7.1
 pgvector==0.4.2
 cryptography==46.0.5
