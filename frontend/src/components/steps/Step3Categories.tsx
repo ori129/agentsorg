@@ -61,18 +61,54 @@ export default function Step3Categories() {
     );
   };
 
+  const KPI_ITEMS = [
+    { label: "Risk level", icon: "🛡️" },
+    { label: "Sophistication score", icon: "⭐" },
+    { label: "Business process", icon: "🔄" },
+    { label: "Prompting quality", icon: "✍️" },
+    { label: "ROI signal", icon: "💰" },
+    { label: "Audience", icon: "👥" },
+    { label: "Integrations", icon: "🔌" },
+    { label: "Output type", icon: "📄" },
+    { label: "Adoption friction", icon: "🚧" },
+  ];
+
   return (
     <div className="space-y-6">
       <Card
-        title="Classification Settings"
-        description="Enable AI-powered classification of GPTs into categories."
+        title="Deep Analysis"
+        description="Each GPT's system prompt is read by an LLM to extract intelligence about what it does, how well it's built, and whether it poses any risk."
       >
         <div className="space-y-4">
+
+          {/* What you unlock */}
+          <div className="rounded-lg p-4" style={{ background: "var(--c-accent-bg)", border: "1px solid #3b82f620" }}>
+            <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "#3b82f6" }}>
+              What this step unlocks
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {KPI_ITEMS.map((k) => (
+                <div key={k.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--c-text-3)" }}>
+                  <span>{k.icon}</span>
+                  <span>{k.label}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs mt-3" style={{ color: "var(--c-text-4)" }}>
+              These signals power the Risk Panel, Quality Scores, Maturity breakdown, and L&D recommendations. Requires ~9 API calls per GPT.
+            </p>
+          </div>
+
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Enable Classification</span>
+            <div>
+              <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Enable deep analysis</span>
+              <p className="text-xs mt-0.5" style={{ color: "var(--c-text-4)" }}>
+                {classificationEnabled ? "On — each GPT will be analyzed during the pipeline run." : "Off — GPTs will be fetched and categorized, but not analyzed. You can enable this later."}
+              </p>
+            </div>
             <button
               onClick={() => setClassificationEnabled(!classificationEnabled)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-4 ${
                 classificationEnabled ? "bg-blue-600" : ""
               }`}
               style={!classificationEnabled ? { background: "var(--c-border)" } : {}}
@@ -90,7 +126,7 @@ export default function Step3Categories() {
               <div className="alert-info">
                 <div className="font-medium mb-1">Getting your OpenAI API Key</div>
                 <p style={{ color: "var(--c-text-3)" }}>
-                  Required for semantic enrichment — the 9-KPI analysis run on each GPT.{" "}
+                  A standard OpenAI API key is required — this is separate from the Compliance API key.{" "}
                   <a
                     href={HELP_LINKS.apiKey.url}
                     target="_blank"
@@ -173,17 +209,23 @@ export default function Step3Categories() {
         </div>
       </Card>
 
-      <Card title="Categories" description="Define categories for classifying GPTs.">
+      <Card
+        title="Department Categories"
+        description="Categories group GPTs by department or function. During the pipeline, each GPT is assigned to the most relevant category — powering the Departments chart, Builders view, and Process breakdown in your dashboard."
+      >
         <div className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => seedCategories.mutate()}
               disabled={seedCategories.isPending}
               className="px-3 py-1.5 text-xs font-medium rounded-md disabled:opacity-50"
               style={{ color: "#3b82f6", background: "var(--c-accent-bg)", border: "1px solid #3b82f640" }}
             >
-              Seed Defaults
+              {seedCategories.isPending ? "Adding..." : "Seed Defaults"}
             </button>
+            <span className="text-xs" style={{ color: "var(--c-text-4)" }}>
+              Adds 10 pre-built categories covering common enterprise departments
+            </span>
           </div>
 
           <ul style={{ borderTop: "1px solid var(--c-border)" }}>

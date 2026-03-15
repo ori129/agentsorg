@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { ClusterGroup, GPTItem } from "../../types";
 import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
 import type { LeaderPage } from "./Sidebar";
+import { useDemoState } from "../../hooks/useDemo";
 
 interface OverviewProps {
   gpts: GPTItem[];
   onSetPage: (p: LeaderPage) => void;
+  onSwitchToProduction?: () => void;
 }
 
 // ── Data derivation ───────────────────────────────────────────────────────────
@@ -271,9 +273,12 @@ function ViewAllLink({ label, onClick }: { label: string; onClick: () => void })
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export default function Overview({ gpts, onSetPage }: OverviewProps) {
+export default function Overview({ gpts, onSetPage, onSwitchToProduction }: OverviewProps) {
   const d = useOverviewData(gpts);
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+  const { data: demoState } = useDemoState();
+  const isDemoActive = demoState?.enabled ?? false;
+
   const { data: clusters = [] } = useQuery<ClusterGroup[]>({
     queryKey: ["clustering-results"],
     queryFn: () => fetch("/api/v1/clustering/results").then((r) => r.json()),
@@ -307,6 +312,33 @@ export default function Overview({ gpts, onSetPage }: OverviewProps) {
           </div>
         </div>
       </div>
+
+      {/* Demo mode callout */}
+      {isDemoActive && (
+        <div
+          className="flex items-center justify-between rounded-xl px-5 py-4 mb-6"
+          style={{ background: "#1c1200", border: "1px solid #78350f" }}
+        >
+          <div>
+            <div className="text-sm font-semibold mb-0.5" style={{ color: "#fbbf24" }}>
+              You're exploring with demo data
+            </div>
+            <div className="text-xs" style={{ color: "#d97706" }}>
+              Connect your OpenAI Compliance API key to see your organization's real GPTs.
+            </div>
+          </div>
+          <button
+            onClick={onSwitchToProduction}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:opacity-90 flex-shrink-0 ml-6"
+            style={{ background: "#f59e0b", color: "#1c1200" }}
+          >
+            Connect to Production
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* KPI strip */}
       <div className="grid grid-cols-5 gap-3 mb-6">

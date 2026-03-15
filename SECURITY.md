@@ -10,8 +10,8 @@ before it is disclosed publicly.
 ### How to report
 
 Email both maintainers directly:
-- Ori Simantov — ori129@gmail.com
-- Alon Arbiv — (add email)
+- Ori Simantov — via [GitHub](https://github.com/ori129)
+- Alon Arbiv — via [GitHub](https://github.com/aarbiv)
 
 Please do not use GitHub Issues or Discussions for security reports.
 

@@ -104,10 +104,23 @@ router = APIRouter(tags=["pipeline"])
 
 
 @router.post("/pipeline/run")
-async def start_pipeline():
+async def start_pipeline(db: AsyncSession = Depends(get_db)):
+    from app.services.demo_state import is_demo_mode
     status = get_pipeline_status()
     if status["running"]:
         raise HTTPException(status_code=409, detail="Pipeline is already running")
+    if not is_demo_mode():
+        config = await db.get(Configuration, 1)
+        if not config or not config.workspace_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Workspace ID not configured. Go to Step 1 (API Configuration) and enter your OpenAI Workspace ID before running the pipeline.",
+            )
+        if not config.compliance_api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="No Compliance API key configured. Go to Step 1 (API Configuration) and add your OpenAI Compliance API key before running the pipeline.",
+            )
     # Start pipeline as a concurrent task (not BackgroundTasks which runs after response)
     asyncio.create_task(run_pipeline())
     # Wait for the pipeline to initialize and create sync_log

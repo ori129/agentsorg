@@ -17,7 +17,10 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
     setError(null);
     try {
       const runRes = await fetch(`${API}/run`, { method: "POST" });
-      if (!runRes.ok) throw new Error("Failed to start clustering");
+      if (!runRes.ok) {
+        const body = await runRes.json().catch(() => ({}));
+        throw new Error(body.detail || "Failed to start duplicate detection. Make sure the pipeline has run and GPTs are loaded.");
+      }
 
       // Poll for results
       let attempts = 0;
@@ -34,7 +37,7 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
           setTimeout(poll, 1500);
         } else {
           setStatus("idle");
-          setError("Clustering timed out or failed");
+          setError("Duplicate detection timed out. This can happen with large datasets — try again, or run the pipeline first to ensure GPTs are loaded.");
         }
       };
       setTimeout(poll, 1000);
