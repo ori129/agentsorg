@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useUsers, useImportUsers, useUpdateUserRole } from "../../hooks/useUsers";
 import { useAuth } from "../../contexts/AuthContext";
+import { api } from "../../api/client";
 import type { WorkspaceUser, SystemRole } from "../../types";
 
 type StatusFilter = "all" | "active" | "inactive" | "admins";
@@ -39,15 +40,260 @@ const SYSTEM_ROLE_COLORS: Record<SystemRole, string> = {
   "employee": "var(--c-text-4)",
 };
 
+// ---------------------------------------------------------------------------
+// Reset-password modal — shown after clicking "Reset Password" on a user row
+// ---------------------------------------------------------------------------
+interface ResetPasswordModalProps {
+  user: WorkspaceUser;
+  onClose: () => void;
+}
+
+function ResetPasswordModal({ user, onClose }: ResetPasswordModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const handleReset = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const result = await api.resetUserPassword(user.id);
+      setTempPassword(result.temp_password);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (tempPassword) {
+      navigator.clipboard.writeText(tempPassword).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-md rounded-2xl p-6"
+        style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}>
+        <h2 className="text-lg font-bold mb-2" style={{ color: "var(--c-text)" }}>
+          Reset password
+        </h2>
+        <p className="text-sm mb-5" style={{ color: "var(--c-text-3)" }}>
+          This will generate a temporary password for{" "}
+          <span style={{ color: "var(--c-text)" }}>{user.email}</span>. They will
+          be forced to set a new password on next login.
+        </p>
+
+        {!tempPassword ? (
+          <>
+            {error && (
+              <div className="text-xs mb-4" style={{ color: "#f87171" }}>{error}</div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 py-2 rounded-lg text-sm font-medium"
+                style={{
+                  background: "var(--c-border)",
+                  color: "var(--c-text-3)",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={loading}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{
+                  background: loading ? "var(--c-border)" : "#ef4444",
+                  cursor: loading ? "wait" : "pointer",
+                }}
+              >
+                {loading ? "Resetting..." : "Generate temp password"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-4">
+              <p className="text-xs mb-2" style={{ color: "var(--c-text-4)" }}>
+                Share this one-time password with {user.name || user.email}:
+              </p>
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-sm"
+                style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+              >
+                <span style={{ color: "#10b981", flex: 1 }}>{tempPassword}</span>
+                <button
+                  onClick={handleCopy}
+                  className="text-xs px-2 py-1 rounded"
+                  style={{ color: copied ? "#10b981" : "var(--c-text-4)", cursor: "pointer" }}
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+            <p className="text-xs mb-5" style={{ color: "var(--c-text-4)" }}>
+              This password is shown once. The user will be prompted to change it on their
+              first login.
+            </p>
+            <button
+              onClick={onClose}
+              className="w-full py-2 rounded-lg text-sm font-semibold text-white"
+              style={{ background: "#3b82f6", cursor: "pointer" }}
+            >
+              Done
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Promote-to-AI-Leader modal — auto-generates temp password before role change
+// ---------------------------------------------------------------------------
+interface PromoteModalProps {
+  user: WorkspaceUser;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+function PromoteToLeaderModal({ user, onClose, onDone }: PromoteModalProps) {
+  const updateRoleMutation = useUpdateUserRole();
+  const [loading, setLoading] = useState(false);
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const handlePromote = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const result = await api.resetUserPassword(user.id);
+      setTempPassword(result.temp_password);
+      await updateRoleMutation.mutateAsync({ userId: user.id, systemRole: "ai-leader" });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (tempPassword) {
+      navigator.clipboard.writeText(tempPassword).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: "rgba(0,0,0,0.6)" }}>
+      <div className="w-full max-w-md rounded-2xl p-6"
+        style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}>
+        <h2 className="text-lg font-bold mb-2" style={{ color: "var(--c-text)" }}>
+          Promote to AI Leader
+        </h2>
+
+        {!tempPassword ? (
+          <>
+            <p className="text-sm mb-5" style={{ color: "var(--c-text-3)" }}>
+              You are promoting{" "}
+              <span style={{ color: "var(--c-text)" }}>{user.name || user.email}</span>{" "}
+              to AI Leader. A temporary password will be generated so they can log in.
+              You will need to share it with them.
+            </p>
+            {error && (
+              <div className="text-xs mb-4" style={{ color: "#f87171" }}>{error}</div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 py-2 rounded-lg text-sm font-medium"
+                style={{
+                  background: "var(--c-border)",
+                  color: "var(--c-text-3)",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePromote}
+                disabled={loading}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{
+                  background: loading ? "var(--c-border)" : "#3b82f6",
+                  cursor: loading ? "wait" : "pointer",
+                }}
+              >
+                {loading ? "Generating..." : "Generate & Promote"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm mb-4" style={{ color: "var(--c-text-3)" }}>
+              <span style={{ color: "#10b981" }}>{user.name || user.email}</span> has been
+              promoted. Share this one-time password with them:
+            </p>
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg font-mono text-sm mb-4"
+              style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+            >
+              <span style={{ color: "#10b981", flex: 1 }}>{tempPassword}</span>
+              <button
+                onClick={handleCopy}
+                className="text-xs px-2 py-1 rounded"
+                style={{ color: copied ? "#10b981" : "var(--c-text-4)", cursor: "pointer" }}
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <p className="text-xs mb-5" style={{ color: "var(--c-text-4)" }}>
+              This password is shown once. The user will be prompted to change it on first login.
+            </p>
+            <button
+              onClick={onDone}
+              className="w-full py-2 rounded-lg text-sm font-semibold text-white"
+              style={{ background: "#3b82f6", cursor: "pointer" }}
+            >
+              Done
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Users component
+// ---------------------------------------------------------------------------
+
 export default function Users() {
-  const { data: users = [], isLoading } = useUsers();
+  const { data: users = [], isLoading, refetch } = useUsers();
   const importMutation = useImportUsers();
   const updateRoleMutation = useUpdateUserRole();
   const { systemRole: myRole } = useAuth();
   const isAdmin = myRole === "system-admin";
+
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [sortBy, setSortBy] = useState<SortField>("name");
   const [search, setSearch] = useState("");
+
+  // Modal state
+  const [resetTarget, setResetTarget] = useState<WorkspaceUser | null>(null);
+  const [promoteTarget, setPromoteTarget] = useState<WorkspaceUser | null>(null);
 
   const activeCount = users.filter((u) => u.status === "active").length;
   const inactiveCount = users.filter((u) => u.status === "inactive").length;
@@ -73,8 +319,35 @@ export default function Users() {
       return av.localeCompare(bv);
     });
 
+  const handleRoleChange = (user: WorkspaceUser, newRole: string) => {
+    if (newRole === "ai-leader" && user.system_role !== "ai-leader") {
+      // Intercept: show promote modal which handles temp password generation
+      setPromoteTarget(user);
+      return;
+    }
+    updateRoleMutation.mutate({ userId: user.id, systemRole: newRole });
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {/* Modals */}
+      {resetTarget && (
+        <ResetPasswordModal
+          user={resetTarget}
+          onClose={() => setResetTarget(null)}
+        />
+      )}
+      {promoteTarget && (
+        <PromoteToLeaderModal
+          user={promoteTarget}
+          onClose={() => setPromoteTarget(null)}
+          onDone={() => {
+            setPromoteTarget(null);
+            refetch();
+          }}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-xl font-bold" style={{ color: "var(--c-text)" }}>
@@ -103,9 +376,8 @@ export default function Users() {
           className="flex items-center gap-3 px-4 py-3 rounded-lg mb-5 text-sm"
           style={{ background: "#052e16", border: "1px solid #14532d", color: "#4ade80" }}
         >
-          Imported {importMutation.data.imported} new,
-          updated {importMutation.data.updated} existing
-          ({importMutation.data.total} total users).
+          Imported {importMutation.data.imported} new, updated{" "}
+          {importMutation.data.updated} existing ({importMutation.data.total} total users).
         </div>
       )}
       {importMutation.isError && (
@@ -159,10 +431,13 @@ export default function Users() {
       <div className="flex gap-3 mb-4">
         {(["all", "active", "inactive", "admins"] as const).map((f) => {
           const count =
-            f === "all" ? users.length
-            : f === "active" ? activeCount
-            : f === "inactive" ? inactiveCount
-            : adminCount;
+            f === "all"
+              ? users.length
+              : f === "active"
+              ? activeCount
+              : f === "inactive"
+              ? inactiveCount
+              : adminCount;
           return (
             <button
               key={f}
@@ -170,11 +445,22 @@ export default function Users() {
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
               style={
                 filter === f
-                  ? { background: "var(--c-accent-bg)", color: "#3b82f6", border: "1px solid #3b82f6" }
-                  : { background: "var(--c-border)", color: "var(--c-text-3)", border: "1px solid var(--c-border)" }
+                  ? {
+                      background: "var(--c-accent-bg)",
+                      color: "#3b82f6",
+                      border: "1px solid #3b82f6",
+                    }
+                  : {
+                      background: "var(--c-border)",
+                      color: "var(--c-text-3)",
+                      border: "1px solid var(--c-border)",
+                    }
               }
             >
-              {f === "admins" ? "System Admins" : f.charAt(0).toUpperCase() + f.slice(1)} ({count})
+              {f === "admins"
+                ? "System Admins"
+                : f.charAt(0).toUpperCase() + f.slice(1)}{" "}
+              ({count})
             </button>
           );
         })}
@@ -207,11 +493,27 @@ export default function Users() {
           No users imported yet. Click "Import Users" to fetch from the Compliance API.
         </div>
       ) : (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--c-border)" }}>
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ border: "1px solid var(--c-border)" }}
+        >
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)" }}>
-                {["Name", "Email", "Workspace Role", "System Role", "Status", "Member Since"].map((h) => (
+              <tr
+                style={{
+                  background: "var(--c-surface)",
+                  borderBottom: "1px solid var(--c-border)",
+                }}
+              >
+                {[
+                  "Name",
+                  "Email",
+                  "Workspace Role",
+                  "System Role",
+                  "Status",
+                  "Member Since",
+                  ...(isAdmin ? ["Actions"] : []),
+                ].map((h) => (
                   <th
                     key={h}
                     className="text-left px-4 py-3 text-xs font-medium"
@@ -253,15 +555,25 @@ export default function Users() {
                       <select
                         value={u.system_role}
                         disabled={u.system_role === "system-admin" && adminCount <= 1}
-                        title={u.system_role === "system-admin" && adminCount <= 1 ? "Promote another user first" : undefined}
-                        onChange={(e) =>
-                          updateRoleMutation.mutate({ userId: u.id, systemRole: e.target.value })
+                        title={
+                          u.system_role === "system-admin" && adminCount <= 1
+                            ? "Promote another user first"
+                            : undefined
                         }
+                        onChange={(e) => handleRoleChange(u, e.target.value)}
                         className="text-xs px-2 py-1 rounded outline-none"
                         style={{
-                          background: `${SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ?? "var(--c-text-4)"}15`,
-                          color: SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ?? "var(--c-text-4)",
-                          border: `1px solid ${SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ?? "var(--c-text-4)"}40`,
+                          background: `${
+                            SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ??
+                            "var(--c-text-4)"
+                          }15`,
+                          color:
+                            SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ??
+                            "var(--c-text-4)",
+                          border: `1px solid ${
+                            SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ??
+                            "var(--c-text-4)"
+                          }40`,
                         }}
                       >
                         <option value="system-admin">System Admin</option>
@@ -272,8 +584,13 @@ export default function Users() {
                       <span
                         className="text-xs font-medium px-2 py-0.5 rounded"
                         style={{
-                          background: `${SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ?? "var(--c-text-4)"}20`,
-                          color: SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ?? "var(--c-text-4)",
+                          background: `${
+                            SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ??
+                            "var(--c-text-4)"
+                          }20`,
+                          color:
+                            SYSTEM_ROLE_COLORS[u.system_role as SystemRole] ??
+                            "var(--c-text-4)",
                         }}
                       >
                         {SYSTEM_ROLE_LABELS[u.system_role as SystemRole] ?? u.system_role}
@@ -295,6 +612,22 @@ export default function Users() {
                   <td className="px-4 py-3" style={{ color: "var(--c-text-4)" }}>
                     {formatDate(u.created_at)}
                   </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => setResetTarget(u)}
+                        className="text-xs px-2 py-1 rounded"
+                        style={{
+                          background: "#ef444415",
+                          color: "#ef4444",
+                          border: "1px solid #ef444430",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Reset password
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
