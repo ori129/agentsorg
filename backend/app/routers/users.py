@@ -1,13 +1,22 @@
 import logging
+import secrets
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.auth_utils import hash_password
 from app.database import get_db
 from app.encryption import decrypt
-from app.models.models import Configuration, WorkspaceUser
-from app.schemas.schemas import SystemRoleUpdate, UserImportResult, WorkspaceUserRead
+from app.models.models import Configuration, LoginSession, WorkspaceUser
+from app.schemas.schemas import (
+    ResetPasswordResponse,
+    SystemRoleUpdate,
+    UserImportResult,
+    WorkspaceUserRead,
+)
 from app.services.demo_state import is_demo_mode
 
 router = APIRouter(tags=["users"])
@@ -16,11 +25,36 @@ logger = logging.getLogger(__name__)
 VALID_SYSTEM_ROLES = {"system-admin", "ai-leader", "employee"}
 
 
+async def _require_system_admin(
+    authorization: str | None, db: AsyncSession
+) -> WorkspaceUser:
+    """Validate Bearer token and assert caller is system-admin."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    token = authorization[7:]
+    result = await db.execute(
+        select(LoginSession)
+        .options(selectinload(LoginSession.user))
+        .where(LoginSession.token == token)
+    )
+    session = result.scalar_one_or_none()
+    if not session or session.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    if session.user.system_role != "system-admin":
+        raise HTTPException(
+            status_code=403, detail="Only system admins can perform this action"
+        )
+    return session.user
+
+
 @router.post("/users/import", response_model=UserImportResult)
 async def import_users(db: AsyncSession = Depends(get_db)):
     config = await db.get(Configuration, 1)
     if not config or not config.workspace_id:
-        raise ValueError("Configuration not set — configure workspace ID first")
+        raise HTTPException(
+            status_code=400,
+            detail="Workspace ID not configured. Go to Pipeline Setup → API Configuration and enter your Workspace ID first.",
+        )
 
     if is_demo_mode():
         from app.services.mock_fetcher import MockComplianceAPIClient
@@ -29,9 +63,12 @@ async def import_users(db: AsyncSession = Depends(get_db)):
     else:
         from app.services.compliance_api import ComplianceAPIClient
 
-        api_key = (
-            decrypt(config.compliance_api_key) if config.compliance_api_key else ""
-        )
+        if not config.compliance_api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="No Compliance API key configured. Go to Pipeline Setup → API Configuration and add your OpenAI Compliance API key first.",
+            )
+        api_key = decrypt(config.compliance_api_key)
         client = ComplianceAPIClient(api_key=api_key, base_url=config.base_url)
 
     try:
@@ -143,3 +180,23 @@ async def update_user_role(
     await db.refresh(user)
     logger.info(f"Updated system_role for {user.email} to {body.system_role}")
     return user
+
+
+@router.post("/users/{user_id}/reset-password", response_model=ResetPasswordResponse)
+async def reset_user_password(
+    user_id: str,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    caller = await _require_system_admin(authorization, db)
+
+    user = await db.get(WorkspaceUser, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    temp_password = secrets.token_urlsafe(12)
+    user.password_hash = hash_password(temp_password)
+    user.password_temp = True
+    await db.commit()
+    logger.info(f"Password reset for {user.email} by {caller.email}")
+    return ResetPasswordResponse(temp_password=temp_password)
