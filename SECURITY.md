@@ -9,8 +9,8 @@ before it is disclosed publicly.
 
 ### How to report
 
-Email both maintainers directly:
-- Ori Simantov — via [GitHub](https://github.com/ori129)
+DM maintainers directly:
+- Ori Simantov — via Linkedin - https://www.linkedin.com/in/ori-simantov-5545a9119
 
 Please do not use GitHub Issues or Discussions for security reports.
 
