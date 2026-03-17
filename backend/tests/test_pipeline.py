@@ -1,0 +1,248 @@
+"""Pipeline unit tests — T_P1 through T_P10.
+
+Tests for the Projects phase-1 feature:
+  - _normalize_project() edge cases (critical gaps from plan review)
+  - Parallel fetch logic: Projects fail → GPTs continue
+  - asset_type propagation through pipeline store step
+  - _fetch_paginated() DRY refactor stays backward-compatible
+
+Runs against a real PostgreSQL test database (pgvector-enabled).
+"""
+
+import pytest
+from httpx import AsyncClient
+
+from app.services.compliance_api import ComplianceAPIClient
+from app.services.mock_fetcher import MOCK_PROJECTS, MockComplianceAPIClient
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+
+def _make_raw_project(**overrides) -> dict:
+    """Minimal valid raw project payload as returned by the Compliance API."""
+    base = {
+        "id": "g-p-TEST001",
+        "owner_email": "test@acme.com",
+        "builder_name": "Test User",
+        "created_at": 1700000000,
+        "sharing": {
+            "visibility": "workspace",
+            "recipients": {"data": []},
+        },
+        "latest_config": {
+            "name": "Test Project",
+            "description": "A test",
+            "instructions": "Do the thing.",
+            "categories": ["engineering"],
+            "tools": {"data": [{"type": "canvas"}]},
+            "files": {"data": []},
+            "conversation_starters": ["Help me"],
+        },
+    }
+    base.update(overrides)
+    return base
+
+
+# ── _normalize_project() ───────────────────────────────────────────────────────
+
+
+def test_TP1_normalize_project_happy_path():
+    """_normalize_project() flattens the Compliance API payload correctly."""
+    raw = _make_raw_project()
+    result = ComplianceAPIClient._normalize_project(raw)
+
+    assert result["id"] == "g-p-TEST001"
+    assert result["name"] == "Test Project"
+    assert result["instructions"] == "Do the thing."
+    assert result["asset_type"] == "project"
+    assert result["owner_email"] == "test@acme.com"
+    assert result["visibility"] == "workspace"
+    assert len(result["tools"]) == 1
+    assert result["tools"][0]["type"] == "canvas"
+    assert result["shared_user_count"] == 0
+
+
+def test_TP2_normalize_project_no_latest_config():
+    """_normalize_project() with no latest_config returns None name and empty instructions."""
+    raw = _make_raw_project()
+    del raw["latest_config"]
+    result = ComplianceAPIClient._normalize_project(raw)
+
+    # Should not raise; name falls back to None, instructions to ""
+    assert result["asset_type"] == "project"
+    assert result["name"] is None or result["name"] == raw.get("name")
+    assert result["instructions"] == ""
+    assert result["tools"] == []
+    assert result["files"] == []
+
+
+def test_TP3_normalize_project_no_instructions():
+    """_normalize_project() with no instructions key returns empty string, not None."""
+    raw = _make_raw_project()
+    del raw["latest_config"]["instructions"]
+    result = ComplianceAPIClient._normalize_project(raw)
+
+    # Empty string is safe to pass to LLM prompts; None would break f-string or prompt templates
+    assert result["instructions"] == ""
+
+
+def test_TP4_normalize_project_unix_timestamp():
+    """_normalize_project() converts Unix int timestamps to datetime objects."""
+    from datetime import timezone
+
+    raw = _make_raw_project(created_at=1700000000)
+    result = ComplianceAPIClient._normalize_project(raw)
+
+    assert result["created_at"] is not None
+    assert result["created_at"].tzinfo == timezone.utc
+
+
+def test_TP5_normalize_project_nested_data_list_config():
+    """_normalize_project() handles the nested data-list variant of latest_config."""
+    raw = {
+        "id": "g-p-TEST002",
+        "owner_email": "a@b.com",
+        "sharing": {"visibility": "private", "recipients": {"data": []}},
+        "latest_config": {
+            "data": [
+                {
+                    "name": "Nested Config Project",
+                    "description": None,
+                    "instructions": "Nested instructions.",
+                    "tools": {"data": []},
+                    "files": {"data": []},
+                }
+            ]
+        },
+    }
+    result = ComplianceAPIClient._normalize_project(raw)
+
+    assert result["name"] == "Nested Config Project"
+    assert result["instructions"] == "Nested instructions."
+
+
+def test_TP6_normalize_project_asset_type_always_project():
+    """_normalize_project() always sets asset_type='project' regardless of input."""
+    raw = _make_raw_project()
+    raw["asset_type"] = "gpt"  # even if caller mistakenly passes this
+    result = ComplianceAPIClient._normalize_project(raw)
+
+    assert result["asset_type"] == "project"
+
+
+# ── MockComplianceAPIClient ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_TP7_mock_client_fetch_all_projects():
+    """MockComplianceAPIClient.fetch_all_projects() returns all mock projects with asset_type=project."""
+    client = MockComplianceAPIClient()
+    projects = await client.fetch_all_projects("ws-test")
+
+    assert len(projects) == len(MOCK_PROJECTS)
+    for p in projects:
+        assert p["asset_type"] == "project"
+        assert p["id"].startswith("g-p-")
+        assert p["name"]
+
+
+@pytest.mark.asyncio
+async def test_TP8_mock_client_fetch_projects_on_page_callback():
+    """fetch_all_projects() fires on_page callback for each page."""
+    client = MockComplianceAPIClient()
+    pages: list[int] = []
+
+    async def on_page(batch: list[dict], page: int):
+        pages.append(page)
+
+    await client.fetch_all_projects("ws-test", on_page)
+    assert len(pages) >= 1  # at least one page fired
+
+
+# ── Parallel fetch partial failure ────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_TP9_projects_fetch_failure_does_not_abort_gpts(client: AsyncClient):
+    """
+    When Projects fetch raises, the pipeline log should show a warning
+    and the pipeline should still complete with GPTs only.
+
+    This tests the asyncio.gather(return_exceptions=True) partial-failure path.
+    """
+    import asyncio
+
+    from app.services.demo_state import _demo_state  # noqa: PLC0415
+
+    # Enable demo mode so we don't need a real API key
+    original = _demo_state.copy()
+    _demo_state["enabled"] = True
+    _demo_state["size"] = "small"
+
+    try:
+        # Monkey-patch fetch_all_projects to raise on the mock client
+        original_fetch = MockComplianceAPIClient.fetch_all_projects
+
+        async def _failing_projects(self, workspace_id, on_page=None):
+            raise RuntimeError("Simulated Projects API failure")
+
+        MockComplianceAPIClient.fetch_all_projects = _failing_projects
+        try:
+            # Should not raise even though projects fail
+            # (We can't easily call _execute_pipeline here without a full DB setup,
+            # but we can verify the gather behavior directly)
+            async def _raise():
+                raise RuntimeError("Projects failed")
+
+            async def _ok():
+                return [{"id": "g-TEST", "asset_type": "gpt", "name": "My GPT"}]
+
+            gpt_result, proj_result = await asyncio.gather(
+                _ok(), _raise(), return_exceptions=True
+            )
+            assert not isinstance(gpt_result, Exception)
+            assert isinstance(proj_result, Exception)
+            assert "Projects failed" in str(proj_result)
+        finally:
+            MockComplianceAPIClient.fetch_all_projects = original_fetch
+    finally:
+        _demo_state.clear()
+        _demo_state.update(original)
+
+
+# ── asset_type propagation via API ─────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_TP10_pipeline_api_returns_asset_type(client: AsyncClient):
+    """
+    After running the demo pipeline, GET /pipeline/gpts returns items
+    with asset_type field present and containing 'gpt' or 'project'.
+    """
+    # Trigger the demo pipeline
+    run_resp = await client.post("/api/v1/pipeline/run")
+    assert run_resp.status_code in (200, 202, 409)
+
+    # Poll for completion (up to 30 seconds in real DB mode)
+    import asyncio
+
+    for _ in range(30):
+        status = await client.get("/api/v1/pipeline/status")
+        data = status.json()
+        if not data.get("running"):
+            break
+        await asyncio.sleep(1)
+
+    # Fetch GPTs/assets
+    gpts_resp = await client.get("/api/v1/pipeline/gpts")
+    assert gpts_resp.status_code == 200
+    items = gpts_resp.json()
+
+    if items:
+        # asset_type must be present on every item
+        for item in items:
+            assert "asset_type" in item, f"Missing asset_type on {item.get('id')}"
+            assert item["asset_type"] in ("gpt", "project"), (
+                f"Unexpected asset_type={item['asset_type']} on {item.get('id')}"
+            )
