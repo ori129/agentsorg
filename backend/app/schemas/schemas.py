@@ -131,6 +131,7 @@ class GPTRead(BaseModel):
     llm_summary: str | None
     use_case_description: str | None = None
     instructions: str | None = None
+    asset_type: str = "gpt"
     # Semantic enrichment fields
     business_process: str | None = None
     risk_flags: list | None = None

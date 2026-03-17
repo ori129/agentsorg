@@ -127,6 +127,12 @@ class GPT(Base):
         DateTime(timezone=True)
     )
 
+    asset_type: Mapped[str] = mapped_column(String(32), default="gpt", nullable=False)
+    conversation_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_conversation_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+
     content_hash: Mapped[str | None] = mapped_column(String(64))
     sync_log_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("sync_logs.id"))
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
