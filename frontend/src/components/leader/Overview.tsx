@@ -21,6 +21,8 @@ function useOverviewData(gpts: GPTItem[]) {
 
     // ── KPI strip ──
     const totalGpts = gpts.length;
+    const gptCount = gpts.filter((g) => g.asset_type === "gpt" || !g.asset_type).length;
+    const projectCount = gpts.filter((g) => g.asset_type === "project").length;
     const uniqueBuilders = new Set(gpts.map((g) => g.owner_email).filter(Boolean)).size;
     const avgSoph =
       enriched.length > 0
@@ -178,7 +180,8 @@ function useOverviewData(gpts: GPTItem[]) {
 
     return {
       hasData, hasEnrichment,
-      totalGpts, uniqueBuilders, avgSoph, riskCount,
+      totalGpts, gptCount, projectCount,
+      uniqueBuilders, avgSoph, riskCount,
       velocity, byDept, processDistribution, noProcessCount, totalEnriched, topRisks,
       maturity, outputTypes, topBuilders, totalBuilders, allBuilders, qualityByDept, lowestQualityDept,
     };
@@ -308,7 +311,12 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
         <div>
           <h1 className="text-xl font-bold" style={{ color: "var(--c-text)" }}>AI Portfolio Overview</h1>
           <div className="text-sm mt-0.5" style={{ color: "var(--c-text-4)" }}>
-            {d.totalGpts} GPTs across organization
+            {d.totalGpts} AI assets across organization
+            {d.projectCount > 0 && (
+              <span style={{ color: "var(--c-text-5)" }}>
+                {" "}({d.gptCount} GPTs · {d.projectCount} Projects)
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -342,8 +350,52 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
 
       {/* KPI strip */}
       <div className="grid grid-cols-5 gap-3 mb-6">
-        <KpiCard label="Total GPTs" value={d.totalGpts.toLocaleString()} sub="in registry" color="#3b82f6"
-          onClick={() => open("All GPTs", gpts)} />
+        <div
+          className="rounded-xl p-4 flex flex-col gap-1 transition-colors"
+          style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)", cursor: "pointer" }}
+          onClick={() => open("All AI Assets", gpts)}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--c-accent-bg)")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.borderColor = "var(--c-border)")}
+        >
+          <div className="text-xs" style={{ color: "var(--c-text-4)" }}>Total Assets</div>
+          <div className="text-2xl font-bold" style={{ color: "#3b82f6" }}>{d.totalGpts.toLocaleString()}</div>
+          {d.projectCount > 0 ? (
+            <div className="flex items-center gap-2 mt-0.5">
+              {/* Mini ring chart */}
+              <svg width="28" height="28" viewBox="0 0 28 28">
+                {(() => {
+                  const total = d.totalGpts || 1;
+                  const gptFrac = d.gptCount / total;
+                  const cx = 14, cy = 14, r = 11, stroke = 5;
+                  const circ = 2 * Math.PI * r;
+                  const gptDash = gptFrac * circ;
+                  return (
+                    <>
+                      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#6366f1" strokeWidth={stroke} />
+                      <circle
+                        cx={cx} cy={cy} r={r} fill="none"
+                        stroke="#3b82f6" strokeWidth={stroke}
+                        strokeDasharray={`${gptDash} ${circ}`}
+                        strokeDashoffset={0}
+                        transform="rotate(-90 14 14)"
+                      />
+                    </>
+                  );
+                })()}
+              </svg>
+              <div className="flex flex-col gap-0.5">
+                <div className="text-xs" style={{ color: "var(--c-text-5)" }}>
+                  <span style={{ color: "#3b82f6" }}>●</span> {d.gptCount} GPTs
+                </div>
+                <div className="text-xs" style={{ color: "var(--c-text-5)" }}>
+                  <span style={{ color: "#6366f1" }}>●</span> {d.projectCount} Projects
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs" style={{ color: "var(--c-text-4)" }}>in registry</div>
+          )}
+        </div>
         <KpiCard label="Active Builders" value={d.uniqueBuilders.toLocaleString()} sub="created ≥1 GPT" color="#6366f1"
           onClick={() => open("All GPTs — by builder", [...gpts].sort((a, b) => ((a.builder_name ?? a.owner_email) ?? "").localeCompare((b.builder_name ?? b.owner_email) ?? "")))} />
         <KpiCard label="Avg Sophistication" value={d.avgSoph} sub="out of 5" color="#f59e0b"

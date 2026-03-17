@@ -76,6 +76,7 @@ export interface GPTItem {
   llm_summary: string | null;
   use_case_description: string | null;
   instructions: string | null;
+  asset_type: "gpt" | "project";
   // Semantic enrichment
   business_process: string | null;
   risk_flags: string[] | null;

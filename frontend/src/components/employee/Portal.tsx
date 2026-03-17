@@ -466,6 +466,7 @@ export default function Portal() {
   const { data: categories = [] } = useCategories();
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [assetFilter, setAssetFilter] = useState<"all" | "gpt" | "project">("all");
   const [sortBy, setSortBy] = useState<SortOption>("shared");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchResults, setSearchResults] = useState<GPTSearchResult[] | null>(null);
@@ -491,10 +492,12 @@ export default function Portal() {
   const publicGpts = useMemo(() => allGpts.filter((g) => g.visibility !== "just-me"), [allGpts]);
   const deptCategories = useMemo(() => categories.filter((c) => c.enabled).sort((a, b) => a.sort_order - b.sort_order), [categories]);
   const isSearchMode = searchResults !== null;
+  const hasProjects = useMemo(() => publicGpts.some((g) => g.asset_type === "project"), [publicGpts]);
 
   const filtered = useMemo(() => {
     const base = searchResults ?? publicGpts;
     return base
+      .filter((g) => assetFilter === "all" || (assetFilter === "project" ? g.asset_type === "project" : g.asset_type === "gpt" || !g.asset_type))
       .filter((g) => deptFilter === "all" || g.primary_category === deptFilter || (g.builder_categories ?? []).includes(deptFilter as string))
       .sort((a, b) => {
         if (isSearchMode) return 0;
@@ -532,6 +535,23 @@ export default function Portal() {
               </span>
             )}
           </div>
+
+          {!isSearchMode && hasProjects && (
+            <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--c-border)" }}>
+              {(["all", "gpt", "project"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setAssetFilter(v)}
+                  className="px-3 py-2 text-xs font-medium"
+                  style={assetFilter === v
+                    ? { background: "var(--c-accent-bg)", color: "#3b82f6" }
+                    : { background: "var(--c-surface)", color: "var(--c-text-4)" }}
+                >
+                  {v === "all" ? "All" : v === "gpt" ? "GPTs" : "Projects"}
+                </button>
+              ))}
+            </div>
+          )}
 
           {!isSearchMode && (
             <>
