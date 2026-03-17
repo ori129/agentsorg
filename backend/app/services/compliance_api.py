@@ -44,12 +44,19 @@ class ComplianceAPIClient:
     async def close(self):
         await self._client.aclose()
 
-    async def fetch_all_gpts(
+    async def _fetch_paginated(
         self,
-        workspace_id: str,
+        endpoint: str,
+        normalize_fn: Callable[[dict], dict],
         on_page: Callable[[list[dict], int], Coroutine[Any, Any, None]] | None = None,
     ) -> list[dict]:
-        all_gpts: list[dict] = []
+        """Fetch all pages from a cursor-paginated endpoint and normalize each item.
+
+        endpoint:     full URL, e.g. .../workspaces/{id}/gpts
+        normalize_fn: called on each raw item to produce a uniform dict
+        on_page:      optional progress callback(batch, page_number)
+        """
+        all_items: list[dict] = []
         after: str | None = None
         page = 0
 
@@ -60,38 +67,47 @@ class ComplianceAPIClient:
             if after:
                 params["after"] = after
 
-            url = f"{self._base_url}/compliance/workspaces/{workspace_id}/gpts"
-            logger.info(f"Requesting: GET {url} params={params}")
-
-            response = await self._request_with_retries(
-                "GET",
-                url,
-                params=params,
-            )
-
+            logger.info(f"Requesting: GET {endpoint} params={params}")
+            response = await self._request_with_retries("GET", endpoint, params=params)
             logger.info(
                 f"Response: status={response.status_code} length={len(response.text)}"
             )
 
             data = response.json()
-            gpts = data.get("data", [])
-            all_gpts.extend(gpts)
+            items = data.get("data", [])
+            all_items.extend(items)
             page += 1
 
             logger.info(
-                f"Page {page}: got {len(gpts)} GPTs, has_more={data.get('has_more')}"
+                f"Page {page}: got {len(items)} items, has_more={data.get('has_more')}"
             )
 
             if on_page:
-                await on_page(gpts, page)
+                await on_page(items, page)
 
-            if not data.get("has_more", False) or not gpts:
+            if not data.get("has_more", False) or not items:
                 break
 
-            after = data.get("last_id") or gpts[-1].get("id")
+            after = data.get("last_id") or items[-1].get("id")
 
-        logger.info(f"Fetch complete: {len(all_gpts)} total raw GPTs")
-        return [self._normalize_gpt(g) for g in all_gpts]
+        logger.info(f"Fetch complete: {len(all_items)} total raw items from {endpoint}")
+        return [normalize_fn(item) for item in all_items]
+
+    async def fetch_all_gpts(
+        self,
+        workspace_id: str,
+        on_page: Callable[[list[dict], int], Coroutine[Any, Any, None]] | None = None,
+    ) -> list[dict]:
+        url = f"{self._base_url}/compliance/workspaces/{workspace_id}/gpts"
+        return await self._fetch_paginated(url, self._normalize_gpt, on_page)
+
+    async def fetch_all_projects(
+        self,
+        workspace_id: str,
+        on_page: Callable[[list[dict], int], Coroutine[Any, Any, None]] | None = None,
+    ) -> list[dict]:
+        url = f"{self._base_url}/compliance/workspaces/{workspace_id}/projects"
+        return await self._fetch_paginated(url, self._normalize_project, on_page)
 
     @staticmethod
     def _normalize_gpt(raw: dict) -> dict:
@@ -133,6 +149,66 @@ class ComplianceAPIClient:
             "files": files,
             "builder_categories": config.get("categories"),
             "conversation_starters": config.get("conversation_starters"),
+        }
+
+    @staticmethod
+    def _normalize_project(raw: dict) -> dict:
+        """Flatten the Projects API response into the same uniform dict as _normalize_gpt.
+
+        Projects share the same latest_config / sharing envelope as GPTs; the
+        main structural difference is that the id prefix is 'g-p-...' and the
+        tool set may include project-only types (deep_research, web_browsing, canvas).
+        """
+        from datetime import datetime, timezone
+
+        sharing = raw.get("sharing") or {}
+        config = raw.get("latest_config") or {}
+        # Projects use flat latest_config (not a nested data list like GPTs)
+        if isinstance(config.get("data"), list):
+            config_list = config.get("data") or []
+            config = config_list[0] if config_list else {}
+
+        recipients_obj = sharing.get("recipients") or {}
+        recipients = (
+            recipients_obj.get("data", []) if isinstance(recipients_obj, dict) else []
+        )
+
+        tools_obj = config.get("tools") or {}
+        tools = (
+            tools_obj.get("data", [])
+            if isinstance(tools_obj, dict)
+            else (tools_obj if isinstance(tools_obj, list) else [])
+        )
+        files_obj = config.get("files") or {}
+        files = (
+            files_obj.get("data", [])
+            if isinstance(files_obj, dict)
+            else (files_obj if isinstance(files_obj, list) else [])
+        )
+
+        created_at_raw = raw.get("created_at")
+        created_at = None
+        if isinstance(created_at_raw, (int, float)):
+            created_at = datetime.fromtimestamp(created_at_raw, tz=timezone.utc)
+        elif isinstance(created_at_raw, str):
+            created_at = created_at_raw
+
+        return {
+            "id": raw.get("id"),
+            "name": config.get("name") or raw.get("name"),
+            "description": config.get("description"),
+            "instructions": config.get("instructions") or "",
+            "owner_email": raw.get("owner_email"),
+            "builder_name": raw.get("builder_name"),
+            "created_at": created_at,
+            "visibility": sharing.get("visibility"),
+            "recipients": recipients,
+            "shared_user_count": len(recipients),
+            "tools": tools,
+            "files": files,
+            "builder_categories": config.get("categories"),
+            "conversation_starters": config.get("conversation_starters"),
+            "asset_type": "project",
         }
 
     async def fetch_all_users(self, workspace_id: str) -> list[dict]:
