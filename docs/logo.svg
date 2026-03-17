@@ -1,9 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="320" height="65" viewBox="0 0 320 65" fill="none">
+  <style>
+    .fg  { fill: white; }
+    .str { stroke: white; }
+    .tag { fill: #64748b; }
+    @media (prefers-color-scheme: light) {
+      .fg  { fill: #0f172a; }
+      .str { stroke: #0f172a; }
+    }
+  </style>
   <!-- Icon -->
-  <rect x="2" y="9" width="46" height="46" rx="8" stroke="white" stroke-width="3"/>
-  <circle cx="18" cy="25" r="8" fill="white"/>
+  <rect x="2" y="9" width="46" height="46" rx="8" class="str" stroke-width="3"/>
+  <circle cx="18" cy="25" r="8" class="fg"/>
   <!-- Wordmark -->
-  <text x="62" y="34" font-family="system-ui,sans-serif" font-size="24" font-weight="700" fill="white">AgentsOrg.ai</text>
+  <text x="62" y="34" font-family="system-ui,sans-serif" font-size="24" font-weight="700" class="fg">AgentsOrg.ai</text>
   <!-- Tagline -->
-  <text x="63" y="51" font-family="system-ui,sans-serif" font-size="11" fill="#64748b">AI Transformation Intelligence</text>
+  <text x="63" y="51" font-family="system-ui,sans-serif" font-size="11" class="tag">AI Transformation Intelligence</text>
 </svg>
