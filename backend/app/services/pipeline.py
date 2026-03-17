@@ -166,31 +166,66 @@ async def _execute_pipeline(db: AsyncSession):
 
     page_count = 0
 
-    async def on_page(gpts: list[dict], page: int):
+    async def on_page(assets: list[dict], page: int):
         nonlocal page_count
         page_count = page
-        await _log(db, sync_log.id, "info", f"Fetched page {page} ({len(gpts)} GPTs)")
+        await _log(
+            db, sync_log.id, "info", f"Fetched page {page} ({len(assets)} assets)"
+        )
         _current_status["progress"] = min(5.0 + page * 5, 30.0)
 
+    workspace_id = (config.workspace_id or "") if config else ""
     try:
-        workspace_id = (config.workspace_id or "") if config else ""
-        all_gpts = await client.fetch_all_gpts(workspace_id, on_page)
+        # Fetch GPTs and Projects in parallel; continue if Projects fail (non-fatal)
+        async def _fetch_projects_safe() -> list[dict]:
+            if hasattr(client, "fetch_all_projects"):
+                return await client.fetch_all_projects(workspace_id)
+            return []
+
+        gpt_results, project_results = await asyncio.gather(
+            client.fetch_all_gpts(workspace_id, on_page),
+            _fetch_projects_safe(),
+            return_exceptions=True,
+        )
+
+        if isinstance(gpt_results, Exception):
+            raise gpt_results  # GPTs are required — propagate
+
+        all_gpts: list[dict] = gpt_results
+        if isinstance(project_results, Exception):
+            await _log(
+                db,
+                sync_log.id,
+                "warn",
+                f"Projects fetch failed (non-fatal, continuing with GPTs only): {project_results}",
+            )
+        else:
+            all_gpts = all_gpts + list(project_results)
     finally:
         await client.close()
 
+    gpt_count = sum(1 for a in all_gpts if a.get("asset_type", "gpt") == "gpt")
+    project_count = sum(1 for a in all_gpts if a.get("asset_type") == "project")
+
     sync_log.total_gpts_found = len(all_gpts)
     await db.commit()
-    await _log(db, sync_log.id, "info", f"Total GPTs found: {len(all_gpts)}")
+    await _log(
+        db,
+        sync_log.id,
+        "info",
+        f"Total assets found: {len(all_gpts)} ({gpt_count} GPTs, {project_count} Projects)",
+    )
 
-    # Log first GPT for debugging
+    # Log first asset for debugging
     if all_gpts:
         first = all_gpts[0]
         await _log(
             db,
             sync_log.id,
             "info",
-            f"Sample GPT: name={first.get('name')}, visibility={first.get('visibility')}, "
-            f"owner={first.get('owner_email')}, shared_users={first.get('shared_user_count')}",
+            f"Sample asset: name={first.get('name')}, type={first.get('asset_type', 'gpt')}, "
+            f"visibility={first.get('visibility')}, owner={first.get('owner_email')}, "
+            f"shared_users={first.get('shared_user_count')}",
         )
 
     # Step 2: Filter
@@ -557,6 +592,7 @@ async def _execute_pipeline(db: AsyncSession):
             files=gpt_data.get("files"),
             builder_categories=gpt_data.get("builder_categories"),
             conversation_starters=gpt_data.get("conversation_starters"),
+            asset_type=gpt_data.get("asset_type", "gpt"),
             primary_category_id=primary_cat_id,
             secondary_category_id=secondary_cat_id,
             classification_confidence=cls.get("confidence") if cls else None,
