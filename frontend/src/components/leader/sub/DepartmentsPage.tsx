@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { GPTItem } from "../../../types";
 import GPTDrawer, { type DrawerFilter } from "../GPTDrawer";
+import { TypeFilterChips, filterByType, type TypeFilter } from "../../ui/AssetTypeBadge";
 
 interface DepartmentsPageProps {
   gpts: GPTItem[];
@@ -9,20 +10,23 @@ interface DepartmentsPageProps {
 
 export default function DepartmentsPage({ gpts, onBack }: DepartmentsPageProps) {
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+
+  const filteredGpts = useMemo(() => filterByType(gpts, typeFilter), [gpts, typeFilter]);
 
   const departments = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const g of gpts) {
+    for (const g of filteredGpts) {
       const dept = g.primary_category || (g.builder_categories?.[0] as string) || "General";
       counts[dept] = (counts[dept] ?? 0) + 1;
     }
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([dept, count]) => ({ dept, count }));
-  }, [gpts]);
+  }, [filteredGpts]);
 
-  const total = gpts.length || 1;
+  const total = filteredGpts.length || 1;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -55,7 +59,13 @@ export default function DepartmentsPage({ gpts, onBack }: DepartmentsPageProps) 
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <TypeFilterChips
+          value={typeFilter}
+          onChange={setTypeFilter}
+          gptCount={gpts.filter((g) => g.asset_type !== "project").length}
+          projectCount={gpts.filter((g) => g.asset_type === "project").length}
+        />
         <input
           type="text"
           placeholder="Search departments…"
@@ -85,7 +95,7 @@ export default function DepartmentsPage({ gpts, onBack }: DepartmentsPageProps) 
         >
           <div>Department</div>
           <div>Distribution</div>
-          <div className="text-right">GPTs</div>
+          <div className="text-right">Assets</div>
           <div className="text-right">%</div>
         </div>
 
@@ -100,7 +110,7 @@ export default function DepartmentsPage({ gpts, onBack }: DepartmentsPageProps) 
               onClick={() =>
                 setDrawer({
                   label: d.dept,
-                  gpts: gpts.filter(
+                  gpts: filteredGpts.filter(
                     (g) =>
                       (g.primary_category || (g.builder_categories?.[0] as string) || "General") ===
                       d.dept

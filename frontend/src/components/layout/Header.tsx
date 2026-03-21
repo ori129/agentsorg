@@ -111,7 +111,7 @@ export default function Header({ topView, onSetView, canSeeLeader, onLogout, use
               className="inline-block w-2 h-2 rounded-full"
               style={{ background: "#10b981", boxShadow: "0 0 6px #10b981" }}
             />
-            {syncLabel} · {gptCount} GPTs
+            {syncLabel} · {gptCount} AI assets
           </div>
         ) : null}
 

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { GPTItem } from "../../types";
 import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
+import AssetTypeBadge, { TypeFilterChips, filterByType, type TypeFilter } from "../ui/AssetTypeBadge";
 
 interface RiskPanelProps { gpts: GPTItem[] }
 
@@ -17,32 +18,42 @@ const FLAG_LABELS: Record<string, string> = {
 
 type RiskFilter = "all" | "critical" | "high" | "medium" | "low";
 
+const PAGE = 50;
+
 export default function RiskPanel({ gpts }: RiskPanelProps) {
   const [filter, setFilter] = useState<RiskFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortBy, setSortBy] = useState<"risk" | "name">("risk");
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const displayGpts = gpts.filter((g) => g.semantic_enriched_at && g.risk_level);
+  const gptCount = displayGpts.filter((g) => g.asset_type !== "project").length;
+  const projectCount = displayGpts.filter((g) => g.asset_type === "project").length;
 
-  const filtered = displayGpts
-    .filter((g) => filter === "all" || g.risk_level === filter)
-    .sort((a, b) => {
-      if (sortBy === "risk") return (RISK_ORDER[a.risk_level ?? "low"] ?? 3) - (RISK_ORDER[b.risk_level ?? "low"] ?? 3);
-      return a.name.localeCompare(b.name);
-    });
+  const filtered = useMemo(() =>
+    filterByType(displayGpts, typeFilter)
+      .filter((g) => filter === "all" || g.risk_level === filter)
+      .sort((a, b) => {
+        if (sortBy === "risk") return (RISK_ORDER[a.risk_level ?? "low"] ?? 3) - (RISK_ORDER[b.risk_level ?? "low"] ?? 3);
+        return a.name.localeCompare(b.name);
+      }),
+    [displayGpts, filter, typeFilter, sortBy]
+  );
 
-  const countByLevel = (level: string) => displayGpts.filter((g) => g.risk_level === level).length;
+  const countByLevel = (level: string) =>
+    filterByType(displayGpts, typeFilter).filter((g) => g.risk_level === level).length;
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <GPTDrawer filter={drawer} onClose={() => setDrawer(null)} />
 
       <h1 className="text-xl font-bold mb-2" style={{ color: "var(--c-text)" }}>Risk Panel</h1>
-      <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>GPTs with sensitive data access or compliance exposure. Click any row to inspect.</p>
+      <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>AI assets with sensitive data access or compliance exposure. Click any row to inspect.</p>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         {(["all", "critical", "high", "medium", "low"] as const).map((lvl) => {
-          const count = lvl === "all" ? displayGpts.length : countByLevel(lvl);
+          const count = lvl === "all" ? filterByType(displayGpts, typeFilter).length : countByLevel(lvl);
           return (
             <button key={lvl} onClick={() => setFilter(lvl)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -53,6 +64,8 @@ export default function RiskPanel({ gpts }: RiskPanelProps) {
             </button>
           );
         })}
+        <span style={{ color: "var(--c-border)", fontSize: 18, lineHeight: 1 }}>|</span>
+        <TypeFilterChips value={typeFilter} onChange={setTypeFilter} gptCount={gptCount} projectCount={projectCount} />
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs" style={{ color: "var(--c-text-4)" }}>Sort:</span>
           {(["risk", "name"] as const).map((s) => (
@@ -69,7 +82,8 @@ export default function RiskPanel({ gpts }: RiskPanelProps) {
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)" }}>
-              <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--c-text-4)" }}>GPT Name</th>
+              <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--c-text-4)" }}>Asset Name</th>
+              <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--c-text-4)" }}>Type</th>
               <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--c-text-4)" }}>Risk Level</th>
               <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--c-text-4)" }}>Risk Flags</th>
               <th className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--c-text-4)" }}>Owner</th>
@@ -77,13 +91,14 @@ export default function RiskPanel({ gpts }: RiskPanelProps) {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((g, idx) => (
+            {(showAll ? filtered : filtered.slice(0, PAGE)).map((g, idx) => (
               <tr key={g.id}
                 style={{ background: idx % 2 === 0 ? "var(--c-bg)" : "var(--c-surface)", borderBottom: "1px solid var(--c-border)", cursor: "pointer" }}
                 onClick={() => setDrawer({ label: g.name, gpts: [g] })}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? "var(--c-bg)" : "var(--c-surface)")}>
                 <td className="px-4 py-3 font-medium text-sm" style={{ color: "var(--c-text)" }}>{g.name}</td>
+                <td className="px-4 py-3"><AssetTypeBadge type={g.asset_type ?? "gpt"} size="xs" /></td>
                 <td className="px-4 py-3">
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold"
                     style={{ background: RISK_COLORS[g.risk_level ?? "low"] + "22", color: RISK_COLORS[g.risk_level ?? "low"] }}>
@@ -104,10 +119,19 @@ export default function RiskPanel({ gpts }: RiskPanelProps) {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm" style={{ color: "var(--c-text-4)" }}>No GPTs match this filter.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-sm" style={{ color: "var(--c-text-4)" }}>No assets match this filter.</td></tr>
             )}
           </tbody>
         </table>
+        {filtered.length > PAGE && (
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="w-full py-2.5 text-xs"
+            style={{ color: "#3b82f6", borderTop: "1px solid var(--c-border)", background: "var(--c-surface)" }}
+          >
+            {showAll ? "Show less" : `Show all ${filtered.length} assets`}
+          </button>
+        )}
       </div>
     </div>
   );

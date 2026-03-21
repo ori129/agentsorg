@@ -77,7 +77,7 @@ export default function Step3Categories() {
     <div className="space-y-6">
       <Card
         title="Deep Analysis"
-        description="Each GPT's system prompt is read by an LLM to extract intelligence about what it does, how well it's built, and whether it poses any risk."
+        description="Each AI asset's system prompt is read by an LLM to extract intelligence about what it does, how well it's built, and whether it poses any risk."
       >
         <div className="space-y-4">
 
@@ -95,7 +95,7 @@ export default function Step3Categories() {
               ))}
             </div>
             <p className="text-xs mt-3" style={{ color: "var(--c-text-4)" }}>
-              These signals power the Risk Panel, Quality Scores, Maturity breakdown, and L&D recommendations. Requires ~9 API calls per GPT.
+              These signals power the Risk Panel, Quality Scores, Maturity breakdown, and L&D recommendations. Requires ~9 API calls per asset (GPTs and Projects).
             </p>
           </div>
 
@@ -103,7 +103,7 @@ export default function Step3Categories() {
             <div>
               <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Enable deep analysis</span>
               <p className="text-xs mt-0.5" style={{ color: "var(--c-text-4)" }}>
-                {classificationEnabled ? "On — each GPT will be analyzed during the pipeline run." : "Off — GPTs will be fetched and categorized, but not analyzed. You can enable this later."}
+                {classificationEnabled ? "On — each asset will be analyzed during the pipeline run." : "Off — assets will be fetched and categorized, but not analyzed. You can enable this later."}
               </p>
             </div>
             <button
@@ -161,7 +161,7 @@ export default function Step3Categories() {
                 </select>
               </div>
               <div>
-                <label className="form-label">Max Categories per GPT</label>
+                <label className="form-label">Max Categories per Asset</label>
                 <select
                   value={maxCategories}
                   onChange={(e) => setMaxCategories(Number(e.target.value))}
@@ -211,7 +211,7 @@ export default function Step3Categories() {
 
       <Card
         title="Department Categories"
-        description="Categories group GPTs by department or function. During the pipeline, each GPT is assigned to the most relevant category — powering the Departments chart, Builders view, and Process breakdown in your dashboard."
+        description="Categories group AI assets by department or function. During the pipeline, each asset is assigned to the most relevant category — powering the Departments chart, Builders view, and Process breakdown in your dashboard."
       >
         <div className="space-y-4">
           <div className="flex items-center gap-3">

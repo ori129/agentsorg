@@ -89,7 +89,7 @@ export default function OnboardingScreen({ onDemo, onProduction }: Props) {
             </div>
             <div className="text-base font-semibold mb-1" style={{ color: "var(--c-text)" }}>Try Demo</div>
             <div className="text-xs leading-relaxed" style={{ color: "var(--c-text-3)" }}>
-              Explore with 500 realistic GPTs across 10 departments. No API key needed. Switch to production when ready.
+              Explore with 500 realistic AI assets across 10 departments. No API key needed. Switch to production when ready.
             </div>
             <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium" style={{ color: "#3b82f6" }}>
               Launch demo
@@ -108,7 +108,7 @@ export default function OnboardingScreen({ onDemo, onProduction }: Props) {
             </div>
             <div className="text-base font-semibold mb-1" style={{ color: "var(--c-text)" }}>Connect to Production</div>
             <div className="text-xs leading-relaxed" style={{ color: "var(--c-text-3)" }}>
-              Connect your OpenAI Compliance API key and scan your real workspace GPTs.
+              Connect your OpenAI Compliance API key and scan your real workspace AI assets.
             </div>
             <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium" style={{ color: "#10b981" }}>
               Start setup

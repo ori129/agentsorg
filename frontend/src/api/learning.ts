@@ -71,6 +71,7 @@ export interface Workshop extends WorkshopPayload {
   id: number;
   created_at: string;
   participant_count: number;
+  participant_emails: string[];
   tagged_gpt_count: number;
 }
 
@@ -84,10 +85,23 @@ export interface WorkshopImpactAuto {
   avg_sophistication_after: number | null;
 }
 
+export interface TaggedAssetDetail {
+  gpt_id: string;
+  name: string;
+  asset_type: string;
+  owner_email: string | null;
+  quality_score: number | null;
+  sophistication_score: number | null;
+  roi_potential_score: number | null;
+  risk_level: string | null;
+  primary_category: string | null;
+}
+
 export interface WorkshopImpact {
   workshop_id: number;
   auto_stats: WorkshopImpactAuto[];
   tagged_gpts: string[];
+  tagged_asset_details: TaggedAssetDetail[];
   summary_delta_quality: number | null;
   summary_delta_sophistication: number | null;
 }

@@ -47,7 +47,7 @@ export default function ResultsView({ summary, gpts }: ResultsViewProps) {
             <div className="text-3xl font-bold text-blue-700">
               {summary.total_gpts}
             </div>
-            <div className="text-xs text-blue-500 mt-1">GPTs Discovered</div>
+            <div className="text-xs text-blue-500 mt-1">AI Assets Discovered</div>
           </div>
           <div className="bg-green-50 rounded-lg p-4 text-center">
             <div className="text-3xl font-bold text-green-700">
@@ -148,7 +148,7 @@ export default function ResultsView({ summary, gpts }: ResultsViewProps) {
       )}
 
       {/* GPT Table */}
-      <Card title={`All GPTs (${gpts.length})`}>
+      <Card title={`All AI Assets (${gpts.length})`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

@@ -3,9 +3,12 @@ import type { GPTItem, GPTSearchResult } from "../../types";
 import { usePipelineGPTs } from "../../hooks/usePipeline";
 import { useCategories } from "../../hooks/useCategories";
 import GPTDrawer, { type DrawerFilter } from "../leader/GPTDrawer";
+import AssetTypeBadge from "../ui/AssetTypeBadge";
 
 type SortOption = "shared" | "newest" | "alpha";
 type ViewMode = "grid" | "orgchart" | "tree";
+
+const PAGE = 48;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,10 +44,15 @@ function GPTCard({ gpt, onClick }: { gpt: GPTItem; onClick: () => void }) {
       {/* Header */}
       <div className="px-4 pt-4 pb-3" style={{ borderBottom: "1px solid var(--c-border)" }}>
         <div className="flex items-start justify-between gap-2 mb-1.5">
-          <h3 className="font-semibold text-sm leading-tight" style={{ color: "var(--c-text)" }}>{gpt.name}</h3>
-          {gpt.shared_user_count > 0 && (
-            <span className="text-xs shrink-0" style={{ color: "var(--c-text-4)" }}>👤 {gpt.shared_user_count}</span>
-          )}
+          <h3 className="font-semibold text-sm leading-tight flex-1" style={{ color: "var(--c-text)" }}>{gpt.name}</h3>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <AssetTypeBadge type={gpt.asset_type ?? "gpt"} size="xs" />
+            {gpt.visibility === "workspace-with-link" || gpt.visibility === "everyone-in-workspace" ? (
+              <span className="text-xs" style={{ color: "var(--c-text-4)" }}>🔗 Open</span>
+            ) : gpt.shared_user_count > 0 ? (
+              <span className="text-xs" style={{ color: "var(--c-text-4)" }}>👤 {gpt.shared_user_count}</span>
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {gpt.primary_category && (
@@ -102,16 +110,18 @@ function GPTCard({ gpt, onClick }: { gpt: GPTItem; onClick: () => void }) {
         <span className="text-xs" style={{ color: "var(--c-text-5)" }}>
           {gpt.owner_email ? `by ${gpt.owner_email.split("@")[0]}` : ""}
         </span>
-        <a
-          href={`https://chatgpt.com/g/${gpt.id}`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs px-3 py-1.5 rounded-lg font-medium"
-          style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          Open →
-        </a>
+        {gpt.asset_type !== "project" && (
+          <a
+            href={`https://chatgpt.com/g/${gpt.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs px-3 py-1.5 rounded-lg font-medium"
+            style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Open →
+          </a>
+        )}
       </div>
     </div>
   );
@@ -187,9 +197,11 @@ function RecommendationCard({ gpt, onClick }: { gpt: GPTSearchResult; onClick: (
           {gpt.business_process && (
             <span style={{ color: "var(--c-text-4)" }}>Process: <span style={{ color: "var(--c-text-3)" }}>{gpt.business_process}</span></span>
           )}
-          {gpt.shared_user_count > 0 && (
-            <span style={{ color: "var(--c-text-4)" }}>Used by: <span style={{ color: "var(--c-text-3)" }}>{gpt.shared_user_count} people</span></span>
-          )}
+          {gpt.visibility === "workspace-with-link" || gpt.visibility === "everyone-in-workspace" ? (
+            <span style={{ color: "var(--c-text-4)" }}>Access: <span style={{ color: "var(--c-text-3)" }}>Open link</span></span>
+          ) : gpt.shared_user_count > 0 ? (
+            <span style={{ color: "var(--c-text-4)" }}>Shared with: <span style={{ color: "var(--c-text-3)" }}>{gpt.shared_user_count} people</span></span>
+          ) : null}
         </div>
 
         {integrations.length > 0 && (
@@ -220,16 +232,18 @@ function RecommendationCard({ gpt, onClick }: { gpt: GPTSearchResult; onClick: (
         <span className="text-xs" style={{ color: "var(--c-text-5)" }}>
           {gpt.owner_email ? `by ${gpt.owner_email.split("@")[0]}` : ""}
         </span>
-        <a
-          href={`https://chatgpt.com/g/${gpt.id}`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs px-4 py-1.5 rounded-lg font-medium"
-          style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          Open in ChatGPT →
-        </a>
+        {gpt.asset_type !== "project" && (
+          <a
+            href={`https://chatgpt.com/g/${gpt.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs px-4 py-1.5 rounded-lg font-medium"
+            style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Open in ChatGPT →
+          </a>
+        )}
       </div>
     </div>
   );
@@ -265,7 +279,7 @@ function OrgChartView({ gpts, onSelect }: { gpts: GPTItem[]; onSelect: (g: GPTIt
                 <h2 className="font-semibold text-sm" style={{ color: "var(--c-text)" }}>{dept}</h2>
               </div>
               <div className="flex items-center gap-3 text-xs" style={{ color: "var(--c-text-4)" }}>
-                <span>{deptGpts.length} GPT{deptGpts.length !== 1 ? "s" : ""}</span>
+                <span>{deptGpts.length} asset{deptGpts.length !== 1 ? "s" : ""}</span>
                 {avgSoph && <span>Avg sophistication: {avgSoph}/5</span>}
                 {totalUsers > 0 && <span>👤 {totalUsers} users</span>}
               </div>
@@ -312,7 +326,9 @@ function OrgChartView({ gpts, onSelect }: { gpts: GPTItem[]; onSelect: (g: GPTIt
                       {(g.integration_flags ?? []).slice(0, 2).map((i) => (
                         <span key={i as string} className="px-1.5 py-0.5 rounded" style={{ background: "var(--c-accent-deep)", color: "#3b82f6" }}>{i as string}</span>
                       ))}
-                      {g.shared_user_count > 0 && <span>👤 {g.shared_user_count}</span>}
+                      {g.visibility === "workspace-with-link" || g.visibility === "everyone-in-workspace"
+                        ? <span>🔗 Open</span>
+                        : g.shared_user_count > 0 ? <span>👤 {g.shared_user_count}</span> : null}
                       {g.sophistication_score != null && (
                         <div className="flex gap-0.5">
                           {Array.from({ length: 5 }).map((_, i) => (
@@ -367,7 +383,7 @@ function TreeView({ gpts, onSelect }: { gpts: GPTItem[]; onSelect: (g: GPTItem) 
         <span className="font-semibold text-sm" style={{ color: "var(--c-text)", fontFamily: "inherit" }}>
           AI Portfolio
         </span>
-        <span style={{ color: "var(--c-text-5)" }}>— {gpts.length} GPTs</span>
+        <span style={{ color: "var(--c-text-5)" }}>— {gpts.length} assets</span>
       </div>
 
       <div className="space-y-0.5">
@@ -423,9 +439,11 @@ function TreeView({ gpts, onSelect }: { gpts: GPTItem[]; onSelect: (g: GPTItem) 
                             {friction && (
                               <span style={{ color: friction.color }}>{friction.label}</span>
                             )}
-                            {g.shared_user_count > 0 && (
-                              <span style={{ color: "var(--c-text-5)" }}>👤 {g.shared_user_count}</span>
-                            )}
+                            {g.visibility === "workspace-with-link" || g.visibility === "everyone-in-workspace"
+                              ? <span style={{ color: "var(--c-text-5)" }}>🔗 Open</span>
+                              : g.shared_user_count > 0
+                                ? <span style={{ color: "var(--c-text-5)" }}>👤 {g.shared_user_count}</span>
+                                : null}
                             {(g.integration_flags ?? []).slice(0, 2).map((i) => (
                               <span key={i as string} className="px-1.5 py-0.5 rounded" style={{ background: "var(--c-accent-deep)", color: "#3b82f6" }}>
                                 {i as string}
@@ -436,16 +454,18 @@ function TreeView({ gpts, onSelect }: { gpts: GPTItem[]; onSelect: (g: GPTItem) 
                             <div className="mt-0.5 truncate" style={{ color: "var(--c-text-5)" }}>{desc}</div>
                           )}
                         </div>
-                        <a
-                          href={`https://chatgpt.com/g/${g.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs px-2 py-1 rounded shrink-0 opacity-0 group-hover:opacity-100"
-                          style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Open →
-                        </a>
+                        {g.asset_type !== "project" && (
+                          <a
+                            href={`https://chatgpt.com/g/${g.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs px-2 py-1 rounded shrink-0 opacity-0 group-hover:opacity-100"
+                            style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Open →
+                          </a>
+                        )}
                       </div>
                     );
                   })}
@@ -472,6 +492,7 @@ export default function Portal() {
   const [searchResults, setSearchResults] = useState<GPTSearchResult[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -495,6 +516,7 @@ export default function Portal() {
   const hasProjects = useMemo(() => publicGpts.some((g) => g.asset_type === "project"), [publicGpts]);
 
   const filtered = useMemo(() => {
+    setShowAll(false);
     const base = searchResults ?? publicGpts;
     return base
       .filter((g) => assetFilter === "all" || (assetFilter === "project" ? g.asset_type === "project" : g.asset_type === "gpt" || !g.asset_type))
@@ -505,7 +527,7 @@ export default function Portal() {
         if (sortBy === "newest") return (b.created_at ?? "").localeCompare(a.created_at ?? "");
         return a.name.localeCompare(b.name);
       });
-  }, [searchResults, publicGpts, deptFilter, sortBy, isSearchMode]);
+  }, [searchResults, publicGpts, deptFilter, sortBy, isSearchMode, assetFilter]);
 
   const openDrawer = (g: GPTItem) => setDrawer({ label: g.name, gpts: [g] });
 
@@ -516,7 +538,7 @@ export default function Portal() {
       {/* Header */}
       <div className="px-8 py-6" style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)" }}>
         <h1 className="text-xl font-bold mb-1" style={{ color: "var(--c-text)" }}>AI Tools for Employees</h1>
-        <p className="text-sm mb-5" style={{ color: "var(--c-text-4)" }}>Describe what you need — we'll find the right GPT for your role</p>
+        <p className="text-sm mb-5" style={{ color: "var(--c-text-4)" }}>Describe what you need — we'll find the right AI asset for your role</p>
 
         <div className="flex gap-3 items-center">
           <div className="relative flex-1 max-w-2xl">
@@ -561,7 +583,7 @@ export default function Portal() {
                 className="px-3 py-2.5 rounded-lg text-sm outline-none"
                 style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)", color: "var(--c-text-3)" }}
               >
-                <option value="shared">Most Used</option>
+                <option value="shared">Most Shared</option>
                 <option value="newest">Newest</option>
                 <option value="alpha">A–Z</option>
               </select>
@@ -622,7 +644,7 @@ export default function Portal() {
             <div className="text-sm text-center mt-20" style={{ color: "var(--c-text-4)" }}>Loading…</div>
           ) : filtered.length === 0 ? (
             <div className="text-sm text-center mt-20" style={{ color: "var(--c-text-4)" }}>
-              {allGpts.length === 0 ? "No GPTs found. Run the pipeline first." : "No GPTs match your search."}
+              {allGpts.length === 0 ? "No AI assets found. Run the pipeline first." : "No assets match your search."}
             </div>
           ) : (
             <>
@@ -630,7 +652,7 @@ export default function Portal() {
                 <div className="text-xs" style={{ color: "var(--c-text-4)" }}>
                   {isSearchMode
                     ? `${filtered.length} result${filtered.length !== 1 ? "s" : ""} for "${search}" — click any card for details`
-                    : `${filtered.length} GPTs — click any card for details`}
+                    : `${filtered.length} assets — click any card for details`}
                 </div>
                 {searchLoading && (
                   <span className="text-xs animate-pulse" style={{ color: "#3b82f6" }}>Finding best matches…</span>
@@ -648,11 +670,22 @@ export default function Portal() {
               ) : viewMode === "tree" ? (
                 <TreeView gpts={filtered} onSelect={openDrawer} />
               ) : (
-                <div className="grid grid-cols-3 gap-4">
-                  {filtered.map((g) => (
-                    <GPTCard key={g.id} gpt={g} onClick={() => openDrawer(g)} />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-3 gap-4">
+                    {(showAll ? filtered : filtered.slice(0, PAGE)).map((g) => (
+                      <GPTCard key={g.id} gpt={g} onClick={() => openDrawer(g)} />
+                    ))}
+                  </div>
+                  {filtered.length > PAGE && (
+                    <button
+                      onClick={() => setShowAll((v) => !v)}
+                      className="w-full mt-4 py-2.5 text-xs rounded-xl"
+                      style={{ color: "#3b82f6", border: "1px solid var(--c-border)", background: "var(--c-surface)" }}
+                    >
+                      {showAll ? "Show less" : `Show all ${filtered.length} assets`}
+                    </button>
+                  )}
+                </>
               )}
             </>
           )}

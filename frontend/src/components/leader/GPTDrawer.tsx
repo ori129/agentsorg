@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { GPTItem } from "../../types";
+import AssetTypeBadge, { TypeFilterChips, filterByType, type TypeFilter } from "../ui/AssetTypeBadge";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -79,9 +80,12 @@ function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
         >
           ← Back to list
         </button>
-        <h2 className="font-bold text-base leading-tight mb-1" style={{ color: "var(--c-text)" }}>
-          {gpt.name}
-        </h2>
+        <div className="flex items-start gap-2 mb-1">
+          <h2 className="font-bold text-base leading-tight flex-1" style={{ color: "var(--c-text)" }}>
+            {gpt.name}
+          </h2>
+          <AssetTypeBadge type={gpt.asset_type ?? "gpt"} />
+        </div>
         <div className="flex flex-wrap gap-2 text-xs">
           {gpt.primary_category && (
             <span className="px-2 py-0.5 rounded-full" style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}>
@@ -319,6 +323,7 @@ function GPTListItem({ gpt, onClick }: { gpt: GPTItem; onClick: () => void }) {
         )}
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
+        <AssetTypeBadge type={gpt.asset_type ?? "gpt"} size="xs" />
         {gpt.primary_category && (
           <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--c-accent-bg)", color: "#3b82f6" }}>
             {gpt.primary_category}
@@ -355,14 +360,20 @@ function GPTListPanel({
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
   const [page, setPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
-  // Reset pagination when search/sort changes
-  useEffect(() => { setPage(1); }, [search, sort]);
+  const gptCount = filter.gpts.filter((g) => g.asset_type !== "project").length;
+  const projectCount = filter.gpts.filter((g) => g.asset_type === "project").length;
+
+  // Reset pagination + type filter when filter changes
+  useEffect(() => { setPage(1); setTypeFilter("all"); }, [filter.gpts]);
+  useEffect(() => { setPage(1); }, [search, sort, typeFilter]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const byType = filterByType(filter.gpts, typeFilter);
     const base = q
-      ? filter.gpts.filter(
+      ? byType.filter(
           (g) =>
             g.name?.toLowerCase().includes(q) ||
             g.owner_email?.toLowerCase().includes(q) ||
@@ -370,9 +381,9 @@ function GPTListPanel({
             g.business_process?.toLowerCase().includes(q) ||
             g.primary_category?.toLowerCase().includes(q)
         )
-      : filter.gpts;
+      : byType;
     return sortGpts(base, sort);
-  }, [filter.gpts, search, sort]);
+  }, [filter.gpts, search, sort, typeFilter]);
 
   const visible = filtered.slice(0, page * PAGE_SIZE);
   const hasMore = visible.length < filtered.length;
@@ -388,8 +399,8 @@ function GPTListPanel({
             </div>
             <div className="text-xs mt-0.5" style={{ color: "var(--c-text-4)" }}>
               {search
-                ? `${filtered.length.toLocaleString()} of ${filter.gpts.length.toLocaleString()} GPTs`
-                : `${filter.gpts.length.toLocaleString()} GPT${filter.gpts.length !== 1 ? "s" : ""}`}
+                ? `${filtered.length.toLocaleString()} of ${filter.gpts.length.toLocaleString()} assets`
+                : `${filter.gpts.length.toLocaleString()} asset${filter.gpts.length !== 1 ? "s" : ""}`}
             </div>
           </div>
           <button
@@ -416,22 +427,30 @@ function GPTListPanel({
         />
 
         {/* Sort */}
-        <div className="flex gap-1 mt-2">
-          {SORT_OPTIONS.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setSort(opt.key)}
-              className="text-xs px-2 py-1 rounded"
-              style={{
-                background: sort === opt.key ? "var(--c-accent-bg)" : "transparent",
-                color: sort === opt.key ? "#3b82f6" : "var(--c-text-4)",
-                border: sort === opt.key ? "1px solid #3b82f640" : "1px solid transparent",
-                cursor: "pointer",
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex gap-1">
+            {SORT_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setSort(opt.key)}
+                className="text-xs px-2 py-1 rounded"
+                style={{
+                  background: sort === opt.key ? "var(--c-accent-bg)" : "transparent",
+                  color: sort === opt.key ? "#3b82f6" : "var(--c-text-4)",
+                  border: sort === opt.key ? "1px solid #3b82f640" : "1px solid transparent",
+                  cursor: "pointer",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <TypeFilterChips
+            value={typeFilter}
+            onChange={setTypeFilter}
+            gptCount={gptCount}
+            projectCount={projectCount}
+          />
         </div>
       </div>
 
@@ -439,7 +458,7 @@ function GPTListPanel({
       <div className="flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="text-sm text-center mt-20" style={{ color: "var(--c-text-4)" }}>
-            {search ? `No GPTs matching "${search}"` : "No GPTs in this group."}
+            {search ? `No assets matching "${search}"` : "No assets in this group."}
           </div>
         ) : (
           <>

@@ -135,20 +135,24 @@ function useOverviewData(gpts: GPTItem[]) {
     })();
 
     // ── Top builders ──
-    const builderMap: Record<string, { count: number; scores: number[] }> = {};
+    const builderMap: Record<string, { count: number; gptCount: number; projectCount: number; scores: number[] }> = {};
     if (hasData) {
       for (const g of gpts) {
         const name = g.builder_name || g.owner_email || "Unknown";
-        if (!builderMap[name]) builderMap[name] = { count: 0, scores: [] };
+        if (!builderMap[name]) builderMap[name] = { count: 0, gptCount: 0, projectCount: 0, scores: [] };
         builderMap[name].count++;
+        if (g.asset_type === "project") builderMap[name].projectCount++;
+        else builderMap[name].gptCount++;
         if (g.prompting_quality_score != null) builderMap[name].scores.push(g.prompting_quality_score);
       }
     }
-    const allBuilders: { name: string; gpts: number; avgQuality: number }[] = Object.entries(builderMap)
+    const allBuilders: { name: string; gpts: number; gptCount: number; projectCount: number; avgQuality: number }[] = Object.entries(builderMap)
       .sort((a, b) => b[1].count - a[1].count)
-      .map(([name, { count, scores }]) => ({
+      .map(([name, { count, gptCount, projectCount, scores }]) => ({
         name,
         gpts: count,
+        gptCount,
+        projectCount,
         avgQuality: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
       }));
     const topBuilders = allBuilders.slice(0, 5);
@@ -332,7 +336,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
               You're exploring with demo data
             </div>
             <div className="text-xs" style={{ color: "#d97706" }}>
-              Connect your OpenAI Compliance API key to see your organization's real GPTs.
+              Connect your OpenAI Compliance API key to see your organization's real AI assets.
             </div>
           </div>
           <button
@@ -396,14 +400,14 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
             <div className="text-xs" style={{ color: "var(--c-text-4)" }}>in registry</div>
           )}
         </div>
-        <KpiCard label="Active Builders" value={d.uniqueBuilders.toLocaleString()} sub="created ≥1 GPT" color="#6366f1"
-          onClick={() => open("All GPTs — by builder", [...gpts].sort((a, b) => ((a.builder_name ?? a.owner_email) ?? "").localeCompare((b.builder_name ?? b.owner_email) ?? "")))} />
+        <KpiCard label="Active Builders" value={d.uniqueBuilders.toLocaleString()} sub="created ≥1 asset" color="#6366f1"
+          onClick={() => open("All assets — by builder", [...gpts].sort((a, b) => ((a.builder_name ?? a.owner_email) ?? "").localeCompare((b.builder_name ?? b.owner_email) ?? "")))} />
         <KpiCard label="Avg Sophistication" value={d.avgSoph} sub="out of 5" color="#f59e0b"
           onClick={() => open("By Sophistication", [...gpts].sort((a, b) => (b.sophistication_score ?? 0) - (a.sophistication_score ?? 0)))} />
         <KpiCard label="Risk Flags" value={d.riskCount.toLocaleString()} sub="high or critical" color="#ef4444"
-          onClick={() => open("High & Critical Risk GPTs", riskGpts)} />
+          onClick={() => open("High & Critical Risk Assets", riskGpts)} />
         <KpiCard label="Business Processes" value={d.processDistribution.length.toLocaleString()} sub="unique workflows" color="#10b981"
-          onClick={() => open("GPTs with identified business process", gpts.filter((g) => g.business_process))} />
+          onClick={() => open("Assets with identified business process", gpts.filter((g) => g.business_process))} />
       </div>
 
       {/* Row 1: velocity + by dept */}
@@ -447,7 +451,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
           </div>
         </Card>
 
-        <Card title="GPTs by Department" onExpand={() => onSetPage("overview:departments")}>
+        <Card title="Assets by Department" onExpand={() => onSetPage("overview:departments")}>
           <div className="space-y-2">
             {d.byDept.map((dep) => (
               <div
@@ -510,7 +514,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: "var(--c-text-5)" }} />
-                  {d.noProcessCount.toLocaleString()} GPTs ({noProcessPct}%) have no identifiable business process — likely experimental
+                  {d.noProcessCount.toLocaleString()} assets ({noProcessPct}%) have no identifiable business process — likely experimental
                 </div>
               )}
             </>
@@ -520,7 +524,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
         <Card title="Top Risk Items">
           <div className="space-y-2">
             {d.topRisks.length === 0 ? (
-              <div className="text-xs" style={{ color: "var(--c-text-4)" }}>No high/critical risk GPTs found.</div>
+              <div className="text-xs" style={{ color: "var(--c-text-4)" }}>No high/critical risk assets found.</div>
             ) : d.topRisks.map((r) => (
               <div
                 key={r.name}
@@ -543,8 +547,8 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
           </div>
           {riskGpts.length > 5 && (
             <ViewAllLink
-              label={`View all ${riskGpts.length.toLocaleString()} risk GPTs`}
-              onClick={() => open("High & Critical Risk GPTs", riskGpts)}
+              label={`View all ${riskGpts.length.toLocaleString()} risk assets`}
+              onClick={() => open("High & Critical Risk Assets", riskGpts)}
             />
           )}
         </Card>
@@ -610,7 +614,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
                   <span className="truncate" style={{ color: "var(--c-text-2)", maxWidth: 130 }}>
                     {c.gpt_names[0] ?? c.theme}
                   </span>
-                  <span style={{ color: "#f59e0b", flexShrink: 0 }}>{c.gpt_ids.length} GPTs</span>
+                  <span style={{ color: "#f59e0b", flexShrink: 0 }}>{c.gpt_ids.length} assets</span>
                 </div>
               ))}
               {clusters.length > 5 && (
@@ -657,7 +661,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
                 key={b.name}
                 className="flex items-center justify-between text-xs py-1 rounded px-1 -mx-1 transition-colors"
                 style={{ borderBottom: "1px solid var(--c-border)", cursor: "pointer" }}
-                onClick={() => open(`GPTs by ${b.name}`, gpts.filter((g) => (g.builder_name ?? g.owner_email) === b.name))}
+                onClick={() => open(`Assets by ${b.name}`, gpts.filter((g) => (g.builder_name ?? g.owner_email) === b.name))}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
@@ -666,7 +670,15 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
                   <span className="truncate" style={{ color: "var(--c-text-2)", maxWidth: 140 }}>{b.name}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span style={{ color: "var(--c-text-4)" }}>{b.gpts.toLocaleString()} GPTs</span>
+                  <span style={{ color: "var(--c-text-4)" }}>
+                    {b.gptCount > 0 && (
+                      <span>{b.gptCount} <span style={{ color: "#8b5cf6", fontWeight: 700, fontSize: 10 }}>GPT{b.gptCount !== 1 ? "s" : ""}</span></span>
+                    )}
+                    {b.gptCount > 0 && b.projectCount > 0 && <span style={{ color: "var(--c-text-5)" }}> · </span>}
+                    {b.projectCount > 0 && (
+                      <span>{b.projectCount} <span style={{ color: "#3b82f6", fontWeight: 700, fontSize: 10 }}>Project{b.projectCount !== 1 ? "s" : ""}</span></span>
+                    )}
+                  </span>
                   {b.avgQuality > 0 && <ScoreDots score={Math.round(b.avgQuality)} />}
                 </div>
               </div>
@@ -681,7 +693,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
                 key={dep.dept}
                 className="text-xs rounded px-1 -mx-1 pb-1 transition-colors"
                 style={{ cursor: "pointer" }}
-                onClick={() => open(`${dep.dept} GPTs`, gpts.filter((g) => (g.primary_category || (g.builder_categories?.[0] as string) || "General") === dep.dept))}
+                onClick={() => open(`${dep.dept} assets`, gpts.filter((g) => (g.primary_category || (g.builder_categories?.[0] as string) || "General") === dep.dept))}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
