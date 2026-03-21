@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useWorkshops, useWorkshopImpact, useWorkshopMutations } from "../../hooks/useLearning";
 import { usePipelineGPTs } from "../../hooks/usePipeline";
-import type { Workshop, WorkshopPayload } from "../../api/learning";
+import type { Workshop, WorkshopPayload, TaggedAssetDetail } from "../../api/learning";
 
 type PanelTab = "participants" | "gpt-tags" | "impact";
 
@@ -181,77 +181,147 @@ function ImpactPanel({ workshopId }: { workshopId: number }) {
     (s) => s.avg_quality_before != null || s.avg_quality_after != null
   );
 
+  const RISK_COLORS: Record<string, string> = {
+    critical: "#8b5cf6", high: "#ef4444", medium: "#f59e0b", low: "#10b981",
+  };
+
+  function ScoreDots({ score }: { score: number | null }) {
+    if (score === null) return <span style={{ color: "var(--c-text-5)" }}>—</span>;
+    return (
+      <span className="inline-flex gap-0.5 items-center">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <span key={i} className="inline-block w-1.5 h-1.5 rounded-full"
+            style={{ background: i < score ? (score >= 4 ? "#10b981" : score >= 3 ? "#f59e0b" : "#ef4444") : "var(--c-border)" }} />
+        ))}
+        <span className="ml-1 text-xs" style={{ color: "var(--c-text-5)" }}>{score}/5</span>
+      </span>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-      {/* Summary chips */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--c-text-3)" }}>
-          <span>Avg quality delta:</span>
-          <DeltaChip value={impact.summary_delta_quality} suffix="/10" />
-        </div>
-        <div className="flex items-center gap-2 text-sm" style={{ color: "var(--c-text-3)" }}>
-          <span>Avg sophistication delta:</span>
-          <DeltaChip value={impact.summary_delta_sophistication} suffix="/10" />
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
 
-      {!hasData && (
-        <div
-          className="rounded-lg px-4 py-3 text-sm"
-          style={{ background: "var(--c-accent-deep)", color: "var(--c-text-5)" }}
-        >
-          Not enough data — participants need GPTs both before and after the workshop date for auto-correlation to work.
-        </div>
-      )}
-
-      {hasData && (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs uppercase" style={{ color: "var(--c-text-5)" }}>
-              <th className="pb-2 text-left font-medium">Participant</th>
-              <th className="pb-2 text-right font-medium">GPTs before</th>
-              <th className="pb-2 text-right font-medium">GPTs after</th>
-              <th className="pb-2 text-right font-medium">Quality before→after</th>
-              <th className="pb-2 text-right font-medium">Soph before→after</th>
-            </tr>
-          </thead>
-          <tbody>
-            {impact.auto_stats.map((s) => (
-              <tr key={s.participant_email} className="border-t" style={{ borderColor: "var(--c-border)" }}>
-                <td className="py-2.5" style={{ color: "var(--c-text-3)" }}>
-                  {s.participant_email}
-                </td>
-                <td className="py-2.5 text-right" style={{ color: "var(--c-text-5)" }}>
-                  {s.gpts_before}
-                </td>
-                <td className="py-2.5 text-right" style={{ color: "var(--c-text-5)" }}>
-                  {s.gpts_after}
-                </td>
-                <td className="py-2.5 text-right">
-                  {s.avg_quality_before != null && s.avg_quality_after != null ? (
-                    <span style={{ color: "var(--c-text-3)" }}>
-                      {s.avg_quality_before} → {s.avg_quality_after}{" "}
-                      <DeltaChip value={s.avg_quality_after - s.avg_quality_before} />
-                    </span>
-                  ) : (
-                    <span style={{ color: "var(--c-text-5)" }}>—</span>
-                  )}
-                </td>
-                <td className="py-2.5 text-right">
-                  {s.avg_sophistication_before != null && s.avg_sophistication_after != null ? (
-                    <span style={{ color: "var(--c-text-3)" }}>
-                      {s.avg_sophistication_before} → {s.avg_sophistication_after}{" "}
-                      <DeltaChip value={s.avg_sophistication_after - s.avg_sophistication_before} />
-                    </span>
-                  ) : (
-                    <span style={{ color: "var(--c-text-5)" }}>—</span>
-                  )}
-                </td>
+      {/* Tagged Asset Quality */}
+      {impact.tagged_asset_details.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--c-text-5)" }}>
+            Tagged Asset Quality
+          </div>
+          <p className="text-xs" style={{ color: "var(--c-text-5)" }}>
+            Quality metrics for assets attributed to this workshop.
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs uppercase" style={{ color: "var(--c-text-5)" }}>
+                <th className="pb-2 text-left font-medium">Asset</th>
+                <th className="pb-2 text-left font-medium">Category</th>
+                <th className="pb-2 text-center font-medium">Quality</th>
+                <th className="pb-2 text-center font-medium">Sophistication</th>
+                <th className="pb-2 text-center font-medium">ROI</th>
+                <th className="pb-2 text-left font-medium">Risk</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {impact.tagged_asset_details.map((a: TaggedAssetDetail) => (
+                <tr key={a.gpt_id} className="border-t" style={{ borderColor: "var(--c-border)" }}>
+                  <td className="py-2.5">
+                    <div className="font-medium text-xs" style={{ color: "var(--c-text-1)" }}>{a.name}</div>
+                    <div className="text-xs" style={{ color: "var(--c-text-5)" }}>{a.owner_email ?? "—"}</div>
+                  </td>
+                  <td className="py-2.5 text-xs" style={{ color: "var(--c-text-5)" }}>{a.primary_category ?? "—"}</td>
+                  <td className="py-2.5 text-center"><ScoreDots score={a.quality_score} /></td>
+                  <td className="py-2.5 text-center"><ScoreDots score={a.sophistication_score} /></td>
+                  <td className="py-2.5 text-center"><ScoreDots score={a.roi_potential_score} /></td>
+                  <td className="py-2.5">
+                    {a.risk_level ? (
+                      <span className="px-1.5 py-0.5 rounded-full text-xs font-bold"
+                        style={{ background: (RISK_COLORS[a.risk_level] ?? "#6b7280") + "22", color: RISK_COLORS[a.risk_level] ?? "#6b7280" }}>
+                        {a.risk_level}
+                      </span>
+                    ) : <span style={{ color: "var(--c-text-5)" }}>—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
+
+      {/* Participant Progress */}
+      <div className="flex flex-col gap-2">
+        <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--c-text-5)" }}>
+          Participant Progress
+        </div>
+        {/* Summary chips */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--c-text-3)" }}>
+            <span>Avg quality delta:</span>
+            <DeltaChip value={impact.summary_delta_quality} suffix="/10" />
+          </div>
+          <div className="flex items-center gap-2 text-sm" style={{ color: "var(--c-text-3)" }}>
+            <span>Avg sophistication delta:</span>
+            <DeltaChip value={impact.summary_delta_sophistication} suffix="/10" />
+          </div>
+        </div>
+
+        {!hasData && (
+          <div
+            className="rounded-lg px-4 py-3 text-sm"
+            style={{ background: "var(--c-accent-deep)", color: "var(--c-text-5)" }}
+          >
+            Not enough data — participants need AI assets both before and after the workshop date for auto-correlation to work.
+          </div>
+        )}
+
+        {hasData && (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs uppercase" style={{ color: "var(--c-text-5)" }}>
+                <th className="pb-2 text-left font-medium">Participant</th>
+                <th className="pb-2 text-right font-medium">Assets before</th>
+                <th className="pb-2 text-right font-medium">Assets after</th>
+                <th className="pb-2 text-right font-medium">Quality before→after</th>
+                <th className="pb-2 text-right font-medium">Soph before→after</th>
+              </tr>
+            </thead>
+            <tbody>
+              {impact.auto_stats.map((s) => (
+                <tr key={s.participant_email} className="border-t" style={{ borderColor: "var(--c-border)" }}>
+                  <td className="py-2.5" style={{ color: "var(--c-text-3)" }}>
+                    {s.participant_email}
+                  </td>
+                  <td className="py-2.5 text-right" style={{ color: "var(--c-text-5)" }}>
+                    {s.gpts_before}
+                  </td>
+                  <td className="py-2.5 text-right" style={{ color: "var(--c-text-5)" }}>
+                    {s.gpts_after}
+                  </td>
+                  <td className="py-2.5 text-right">
+                    {s.avg_quality_before != null && s.avg_quality_after != null ? (
+                      <span style={{ color: "var(--c-text-3)" }}>
+                        {s.avg_quality_before} → {s.avg_quality_after}{" "}
+                        <DeltaChip value={s.avg_quality_after - s.avg_quality_before} />
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--c-text-5)" }}>—</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 text-right">
+                    {s.avg_sophistication_before != null && s.avg_sophistication_after != null ? (
+                      <span style={{ color: "var(--c-text-3)" }}>
+                        {s.avg_sophistication_before} → {s.avg_sophistication_after}{" "}
+                        <DeltaChip value={s.avg_sophistication_after - s.avg_sophistication_before} />
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--c-text-5)" }}>—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
@@ -286,7 +356,7 @@ function WorkshopDetailPanel({
 
   const tabs: { id: PanelTab; label: string }[] = [
     { id: "participants", label: "Participants" },
-    { id: "gpt-tags", label: "GPT Tags" },
+    { id: "gpt-tags", label: "Asset Tags" },
     { id: "impact", label: "Impact" },
   ];
 
@@ -334,9 +404,8 @@ function WorkshopDetailPanel({
       <div className="p-5">
         {tab === "participants" && (
           <div className="flex flex-col gap-3">
-            {/* Participants fetched from the workshops list (participant_count only) */}
             <p className="text-xs" style={{ color: "var(--c-text-5)" }}>
-              Add participant emails to track their GPT activity before and after this workshop.
+              Add participant emails to track their AI asset activity before and after this workshop.
             </p>
             <div className="flex gap-2">
               <input
@@ -356,17 +425,37 @@ function WorkshopDetailPanel({
                 + Add
               </button>
             </div>
-            <p className="text-xs" style={{ color: "var(--c-text-5)" }}>
-              {workshop.participant_count} participant{workshop.participant_count !== 1 ? "s" : ""} registered.
-              Refresh the page to see individual emails (managed server-side).
-            </p>
+            {workshop.participant_emails.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--c-text-5)" }}>
+                No participants yet.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {workshop.participant_emails.map((email) => (
+                  <div
+                    key={email}
+                    className="flex items-center justify-between rounded-lg px-3 py-2 text-sm"
+                    style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+                  >
+                    <span style={{ color: "var(--c-text-3)" }}>{email}</span>
+                    <button
+                      onClick={() => mutations.removeParticipant.mutateAsync({ wid, email })}
+                      className="text-xs ml-3"
+                      style={{ color: "#ef4444" }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {tab === "gpt-tags" && (
           <div className="flex flex-col gap-3">
             <p className="text-xs" style={{ color: "var(--c-text-5)" }}>
-              Tag GPTs that were built during or inspired by this workshop.
+              Tag GPTs or Projects that were built during or inspired by this workshop.
             </p>
             <div className="flex gap-2">
               <select
@@ -375,10 +464,10 @@ function WorkshopDetailPanel({
                 className="flex-1 rounded-lg px-3 py-2 text-sm"
                 style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)", color: "var(--c-text-1)" }}
               >
-                <option value="">Select a GPT…</option>
+                <option value="">Select an asset…</option>
                 {gpts.map((g) => (
                   <option key={g.id} value={g.id}>
-                    {g.name}
+                    {g.asset_type === "project" ? "[Project] " : "[GPT] "}{g.name}
                   </option>
                 ))}
               </select>
@@ -392,7 +481,7 @@ function WorkshopDetailPanel({
               </button>
             </div>
             <p className="text-xs" style={{ color: "var(--c-text-5)" }}>
-              {workshop.tagged_gpt_count} GPT{workshop.tagged_gpt_count !== 1 ? "s" : ""} tagged.
+              {workshop.tagged_gpt_count} asset{workshop.tagged_gpt_count !== 1 ? "s" : ""} tagged.
             </p>
           </div>
         )}
@@ -439,7 +528,7 @@ export default function Workshops() {
             Workshops
           </h2>
           <p className="text-sm" style={{ color: "var(--c-text-5)" }}>
-            Track L&D events and measure their impact on GPT quality over time
+            Track L&D events and measure their impact on AI asset quality over time
           </p>
         </div>
         <button
@@ -508,7 +597,7 @@ export default function Workshops() {
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="flex gap-3 text-xs" style={{ color: "var(--c-text-5)" }}>
                     <span>{w.participant_count} participants</span>
-                    <span>{w.tagged_gpt_count} GPTs</span>
+                    <span>{w.tagged_gpt_count} assets</span>
                   </div>
                   <button
                     onClick={(e) => {

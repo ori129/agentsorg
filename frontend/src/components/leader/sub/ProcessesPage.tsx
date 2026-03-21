@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { GPTItem } from "../../../types";
 import GPTDrawer, { type DrawerFilter } from "../GPTDrawer";
+import { TypeFilterChips, filterByType, type TypeFilter } from "../../ui/AssetTypeBadge";
 
 interface ProcessesPageProps {
   gpts: GPTItem[];
@@ -9,12 +10,15 @@ interface ProcessesPageProps {
 
 export default function ProcessesPage({ gpts, onBack }: ProcessesPageProps) {
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+
+  const filteredGpts = useMemo(() => filterByType(gpts, typeFilter), [gpts, typeFilter]);
 
   const processes = useMemo(() => {
     const counts: Record<string, number> = {};
     const display: Record<string, string> = {};
-    for (const g of gpts) {
+    for (const g of filteredGpts) {
       if (g.business_process) {
         const key = g.business_process.trim().toLowerCase();
         counts[key] = (counts[key] ?? 0) + 1;
@@ -24,7 +28,7 @@ export default function ProcessesPage({ gpts, onBack }: ProcessesPageProps) {
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([key, count]) => ({ name: display[key], count }));
-  }, [gpts]);
+  }, [filteredGpts]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -57,7 +61,13 @@ export default function ProcessesPage({ gpts, onBack }: ProcessesPageProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <TypeFilterChips
+          value={typeFilter}
+          onChange={setTypeFilter}
+          gptCount={gpts.filter((g) => g.asset_type !== "project").length}
+          projectCount={gpts.filter((g) => g.asset_type === "project").length}
+        />
         <input
           type="text"
           placeholder="Search processes…"
@@ -88,7 +98,7 @@ export default function ProcessesPage({ gpts, onBack }: ProcessesPageProps) {
           <div>#</div>
           <div>Process</div>
           <div>Distribution</div>
-          <div className="text-right">GPTs</div>
+          <div className="text-right">Assets</div>
         </div>
 
         {filtered.length === 0 ? (
@@ -102,7 +112,7 @@ export default function ProcessesPage({ gpts, onBack }: ProcessesPageProps) {
               onClick={() =>
                 setDrawer({
                   label: p.name,
-                  gpts: gpts.filter((g) => g.business_process === p.name),
+                  gpts: filteredGpts.filter((g) => g.business_process === p.name),
                 })
               }
               className="w-full grid text-xs px-4 py-3 transition-colors"

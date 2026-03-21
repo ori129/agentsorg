@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { GPTItem } from "../../../types";
 import GPTDrawer, { type DrawerFilter } from "../GPTDrawer";
+import { TypeFilterChips, filterByType, type TypeFilter } from "../../ui/AssetTypeBadge";
 
 interface BuildersPageProps {
   gpts: GPTItem[];
@@ -33,23 +34,33 @@ function ScoreDots({ score }: { score: number }) {
   );
 }
 
+const PAGE = 50;
+
 export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
   const [sort, setSort] = useState<SortKey>("count");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const filteredGpts = useMemo(() => filterByType(gpts, typeFilter), [gpts, typeFilter]);
 
   const builders = useMemo(() => {
-    const map: Record<string, { count: number; qualityScores: number[]; sophScores: number[] }> = {};
-    for (const g of gpts) {
+    const map: Record<string, { count: number; gptCount: number; projectCount: number; qualityScores: number[]; sophScores: number[] }> = {};
+    for (const g of filteredGpts) {
       const name = g.builder_name || g.owner_email || "Unknown";
-      if (!map[name]) map[name] = { count: 0, qualityScores: [], sophScores: [] };
+      if (!map[name]) map[name] = { count: 0, gptCount: 0, projectCount: 0, qualityScores: [], sophScores: [] };
       map[name].count++;
+      if (g.asset_type === "project") map[name].projectCount++;
+      else map[name].gptCount++;
       if (g.prompting_quality_score != null) map[name].qualityScores.push(g.prompting_quality_score);
       if (g.sophistication_score != null) map[name].sophScores.push(g.sophistication_score);
     }
-    return Object.entries(map).map(([name, { count, qualityScores, sophScores }]) => ({
+    return Object.entries(map).map(([name, { count, gptCount, projectCount, qualityScores, sophScores }]) => ({
       name,
       count,
+      gptCount,
+      projectCount,
       avgQuality: qualityScores.length
         ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
         : 0,
@@ -57,7 +68,7 @@ export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
         ? sophScores.reduce((a, b) => a + b, 0) / sophScores.length
         : 0,
     }));
-  }, [gpts]);
+  }, [filteredGpts]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -96,7 +107,7 @@ export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <input
           type="text"
           placeholder="Search by name or email…"
@@ -109,6 +120,12 @@ export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
             color: "var(--c-text)",
             width: 280,
           }}
+        />
+        <TypeFilterChips
+          value={typeFilter}
+          onChange={setTypeFilter}
+          gptCount={gpts.filter((g) => g.asset_type !== "project").length}
+          projectCount={gpts.filter((g) => g.asset_type === "project").length}
         />
         <div className="flex gap-1">
           {(["count", "quality", "name"] as SortKey[]).map((key) => (
@@ -145,7 +162,7 @@ export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
         >
           <div>#</div>
           <div>Builder</div>
-          <div className="text-right">GPTs</div>
+          <div className="text-right">Assets</div>
           <div className="text-center">Avg Quality</div>
           <div className="text-center">Avg Sophistication</div>
         </div>
@@ -156,13 +173,13 @@ export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
             {search ? `No builders matching "${search}"` : "No builders found."}
           </div>
         ) : (
-          filtered.map((b, idx) => (
+          (showAll ? filtered : filtered.slice(0, PAGE)).map((b, idx) => (
             <button
               key={b.name}
               onClick={() =>
                 setDrawer({
-                  label: `GPTs by ${b.name}`,
-                  gpts: gpts.filter((g) => (g.builder_name ?? g.owner_email) === b.name),
+                  label: `Assets by ${b.name}`,
+                  gpts: filteredGpts.filter((g) => (g.builder_name ?? g.owner_email) === b.name),
                 })
               }
               className="w-full grid text-xs px-4 py-3 transition-colors"
@@ -180,7 +197,13 @@ export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
                 {b.name}
               </div>
               <div className="text-right" style={{ color: "var(--c-text-3)" }}>
-                {b.count}
+                {b.gptCount > 0 && b.projectCount > 0 ? (
+                  <span>
+                    <span style={{ color: "#8b5cf6", fontWeight: 700 }}>{b.gptCount}</span>
+                    <span style={{ color: "var(--c-text-5)" }}> · </span>
+                    <span style={{ color: "#3b82f6", fontWeight: 700 }}>{b.projectCount}</span>
+                  </span>
+                ) : b.count}
               </div>
               <div className="flex justify-center">
                 {b.avgQuality > 0 ? (
@@ -201,9 +224,18 @@ export default function BuildersPage({ gpts, onBack }: BuildersPageProps) {
         )}
       </div>
 
-      {search && filtered.length !== builders.length && (
+      {filtered.length > PAGE && (
+        <button
+          onClick={() => setShowAll((v) => !v)}
+          className="w-full mt-0 py-2.5 text-xs rounded-b-xl"
+          style={{ color: "#3b82f6", borderTop: "1px solid var(--c-border)", background: "var(--c-surface)" }}
+        >
+          {showAll ? "Show less" : `Show all ${filtered.length} builders`}
+        </button>
+      )}
+      {search && !showAll && filtered.length !== builders.length && (
         <div className="mt-3 text-xs" style={{ color: "var(--c-text-5)" }}>
-          Showing {filtered.length} of {builders.length} builders
+          Showing {Math.min(filtered.length, PAGE)} of {filtered.length} builders matching "{search}"
         </div>
       )}
     </div>

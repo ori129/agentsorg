@@ -32,6 +32,14 @@ export interface SyncLog {
   gpts_classified: number;
   gpts_embedded: number;
   errors: unknown[];
+  tokens_input: number;
+  tokens_output: number;
+  estimated_cost_usd: number | null;
+}
+
+export interface SyncConfig {
+  auto_sync_enabled: boolean;
+  auto_sync_interval_hours: number;
 }
 
 export interface PipelineLogEntry {
@@ -54,6 +62,8 @@ export interface PipelineSummary {
   filtered_gpts: number;
   classified_gpts: number;
   embedded_gpts: number;
+  gpt_count: number;
+  project_count: number;
   categories_used: { name: string; count: number; color: string }[];
   last_sync: SyncLog | null;
 }
@@ -76,6 +86,7 @@ export interface GPTItem {
   llm_summary: string | null;
   use_case_description: string | null;
   instructions: string | null;
+  asset_type: "gpt" | "project";
   // Semantic enrichment
   business_process: string | null;
   risk_flags: string[] | null;

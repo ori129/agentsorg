@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRecognition } from "../../hooks/useLearning";
 import type { BuilderRecognition } from "../../api/learning";
+import type { GPTItem } from "../../types";
 
 type SortKey = "composite_score" | "quality_score" | "adoption_score" | "risk_hygiene_score" | "gpt_count";
 
@@ -52,7 +53,22 @@ function MiniBar({ label, value, color }: { label: string; value: number; color:
   );
 }
 
-function PodiumCard({ builder, rank }: { builder: BuilderRecognition; rank: number }) {
+function TypeSplit({ gptCount, projectCount }: { gptCount: number; projectCount: number }) {
+  if (gptCount === 0 && projectCount === 0) return null;
+  return (
+    <span>
+      {gptCount > 0 && (
+        <span>{gptCount} <span style={{ color: "#8b5cf6", fontWeight: 700, fontSize: 10 }}>GPT{gptCount !== 1 ? "s" : ""}</span></span>
+      )}
+      {gptCount > 0 && projectCount > 0 && <span style={{ color: "var(--c-text-5)" }}> · </span>}
+      {projectCount > 0 && (
+        <span>{projectCount} <span style={{ color: "#3b82f6", fontWeight: 700, fontSize: 10 }}>Project{projectCount !== 1 ? "s" : ""}</span></span>
+      )}
+    </span>
+  );
+}
+
+function PodiumCard({ builder, rank, split }: { builder: BuilderRecognition; rank: number; split?: { gptCount: number; projectCount: number } }) {
   return (
     <div
       className="rounded-xl p-5 flex flex-col gap-3"
@@ -84,7 +100,11 @@ function PodiumCard({ builder, rank }: { builder: BuilderRecognition; rank: numb
         <MiniBar label="Volume" value={builder.volume_score} color="#f59e0b" />
       </div>
       <div className="text-xs" style={{ color: "var(--c-text-5)" }}>
-        {builder.gpt_count} GPT{builder.gpt_count !== 1 ? "s" : ""}
+        {split ? (
+          <TypeSplit gptCount={split.gptCount} projectCount={split.projectCount} />
+        ) : (
+          <span>{builder.gpt_count} asset{builder.gpt_count !== 1 ? "s" : ""}</span>
+        )}
         {builder.avg_quality != null && (
           <> · avg quality {builder.avg_quality}/10</>
         )}
@@ -101,16 +121,31 @@ const SORT_LABELS: Record<SortKey, string> = {
   quality_score: "Quality",
   adoption_score: "Adoption",
   risk_hygiene_score: "Risk hygiene",
-  gpt_count: "GPT count",
+  gpt_count: "Asset count",
 };
 
-export default function Recognition() {
+const PAGE = 50;
+
+export default function Recognition({ gpts }: { gpts: GPTItem[] }) {
   const { data: builders = [], isLoading } = useRecognition();
   const [sortKey, setSortKey] = useState<SortKey>("composite_score");
+  const [showAll, setShowAll] = useState(false);
+
+  const builderTypeSplit = useMemo(() => {
+    const map: Record<string, { gptCount: number; projectCount: number }> = {};
+    for (const g of gpts) {
+      const email = g.owner_email ?? "";
+      if (!map[email]) map[email] = { gptCount: 0, projectCount: 0 };
+      if (g.asset_type === "project") map[email].projectCount++;
+      else map[email].gptCount++;
+    }
+    return map;
+  }, [gpts]);
 
   const sorted = [...builders].sort((a, b) => b[sortKey] - a[sortKey]);
   const top3 = sorted.slice(0, 3);
   const rest = sorted.slice(3);
+  const tableRows = showAll ? sorted : sorted.slice(0, PAGE);
 
   if (isLoading) {
     return (
@@ -144,7 +179,7 @@ export default function Recognition() {
       {top3.length > 0 && (
         <div className="flex gap-4 flex-wrap">
           {top3.map((b, i) => (
-            <PodiumCard key={b.email} builder={b} rank={i} />
+            <PodiumCard key={b.email} builder={b} rank={i} split={builderTypeSplit[b.email]} />
           ))}
         </div>
       )}
@@ -179,7 +214,7 @@ export default function Recognition() {
             ))}
           </div>
 
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
             <thead>
               <tr
                 className="text-xs uppercase"
@@ -188,14 +223,14 @@ export default function Recognition() {
                 <th className="px-4 py-2 text-left font-medium">#</th>
                 <th className="px-4 py-2 text-left font-medium">Builder</th>
                 <th className="px-4 py-2 text-right font-medium">Score</th>
-                <th className="px-4 py-2 text-right font-medium">GPTs</th>
+                <th className="px-4 py-2 text-right font-medium">Assets</th>
                 <th className="px-4 py-2 text-right font-medium">Quality</th>
                 <th className="px-4 py-2 text-right font-medium">Adoption</th>
                 <th className="px-4 py-2 text-right font-medium">Hygiene</th>
               </tr>
             </thead>
             <tbody>
-              {sorted.map((b, i) => (
+              {tableRows.map((b, i) => (
                 <tr
                   key={b.email}
                   className="border-t"
@@ -234,7 +269,9 @@ export default function Recognition() {
                     className="px-4 py-2.5 text-right"
                     style={{ color: "var(--c-text-3)" }}
                   >
-                    {b.gpt_count}
+                    {builderTypeSplit[b.email] ? (
+                      <TypeSplit gptCount={builderTypeSplit[b.email].gptCount} projectCount={builderTypeSplit[b.email].projectCount} />
+                    ) : <span>{b.gpt_count} asset{b.gpt_count !== 1 ? "s" : ""}</span>}
                   </td>
                   <td
                     className="px-4 py-2.5 text-right"
@@ -258,6 +295,15 @@ export default function Recognition() {
               ))}
             </tbody>
           </table>
+          {sorted.length > PAGE && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="w-full py-2.5 text-xs"
+              style={{ color: "#3b82f6", borderTop: "1px solid var(--c-border)", background: "var(--c-surface)" }}
+            >
+              {showAll ? "Show less" : `Show all ${sorted.length} builders`}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -111,7 +111,7 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
     <div className="space-y-6">
       <Card
         title="Run Pipeline"
-        description="Fetch, classify, and semantically enrich every GPT in your workspace."
+        description="Fetch, classify, and semantically enrich every AI asset (Custom GPTs and Projects) in your workspace."
       >
         <div className="space-y-4">
           <div className="flex items-center gap-3">
@@ -133,7 +133,7 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
                 onClick={onViewResults}
                 className="text-sm text-blue-600 hover:text-blue-800 underline"
               >
-                View Previous Results ({gpts.length} GPTs)
+                View Previous Results ({gpts.length} AI assets)
               </button>
             )}
           </div>
@@ -173,8 +173,10 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
                       Pipeline completed successfully
                     </p>
                     <p className="text-xs" style={{ color: "#10b981", opacity: 0.8 }}>
-                      {summary.total_gpts} GPTs found,{" "}
-                      {summary.filtered_gpts} after filtering
+                      {summary.total_gpts} discovered → {summary.filtered_gpts} after filtering
+                      {(summary.gpt_count > 0 || summary.project_count > 0) && (
+                        <span> ({summary.gpt_count} GPT{summary.gpt_count !== 1 ? "s" : ""}{summary.project_count > 0 ? ` · ${summary.project_count} Project${summary.project_count !== 1 ? "s" : ""}` : ""})</span>
+                      )}
                     </p>
                   </div>
                 </div>

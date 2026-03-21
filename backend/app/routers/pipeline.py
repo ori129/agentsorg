@@ -17,6 +17,8 @@ from app.schemas.schemas import (
     PipelineLogEntryRead,
     PipelineStatus,
     PipelineSummary,
+    SyncConfigPatch,
+    SyncConfigRead,
     SyncLogRead,
 )
 from app.services.pipeline import get_pipeline_status, run_pipeline
@@ -159,9 +161,17 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
     )
     last_sync = result.scalar_one_or_none()
 
-    # Count GPTs
+    # Count all assets and split by type
     total_result = await db.execute(select(func.count(GPT.id)))
     total = total_result.scalar() or 0
+    gpt_count_result = await db.execute(
+        select(func.count(GPT.id)).where(GPT.asset_type != "project")
+    )
+    gpt_count = gpt_count_result.scalar() or 0
+    project_count_result = await db.execute(
+        select(func.count(GPT.id)).where(GPT.asset_type == "project")
+    )
+    project_count = project_count_result.scalar() or 0
 
     # Category distribution
     categories_used: list[CategoryCount] = []
@@ -180,6 +190,8 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
         filtered_gpts=total,
         classified_gpts=last_sync.gpts_classified if last_sync else 0,
         embedded_gpts=last_sync.gpts_embedded if last_sync else 0,
+        gpt_count=gpt_count,
+        project_count=project_count,
         categories_used=categories_used,
         last_sync=SyncLogRead.model_validate(last_sync) if last_sync else None,
     )
@@ -232,6 +244,7 @@ async def list_gpts(db: AsyncSession = Depends(get_db)):
                 adoption_friction_score=g.adoption_friction_score,
                 adoption_friction_rationale=g.adoption_friction_rationale,
                 semantic_enriched_at=g.semantic_enriched_at,
+                asset_type=g.asset_type,
             )
         )
     return out
@@ -272,6 +285,7 @@ def _gpt_to_read(g: GPT, cat_lookup: dict) -> GPTRead:
         adoption_friction_score=g.adoption_friction_score,
         adoption_friction_rationale=g.adoption_friction_rationale,
         semantic_enriched_at=g.semantic_enriched_at,
+        asset_type=g.asset_type,
     )
 
 
@@ -489,3 +503,27 @@ async def get_history(db: AsyncSession = Depends(get_db)):
         select(SyncLog).order_by(SyncLog.started_at.desc()).limit(20)
     )
     return result.scalars().all()
+
+
+@router.get("/pipeline/sync-config", response_model=SyncConfigRead)
+async def get_sync_config(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Configuration).where(Configuration.id == 1))
+    config = result.scalar_one_or_none()
+    if not config:
+        return SyncConfigRead(auto_sync_enabled=False, auto_sync_interval_hours=24)
+    return config
+
+
+@router.patch("/pipeline/sync-config", response_model=SyncConfigRead)
+async def patch_sync_config(body: SyncConfigPatch, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Configuration).where(Configuration.id == 1))
+    config = result.scalar_one_or_none()
+    if not config:
+        raise HTTPException(status_code=404, detail="Pipeline not configured yet")
+    if body.auto_sync_enabled is not None:
+        config.auto_sync_enabled = body.auto_sync_enabled
+    if body.auto_sync_interval_hours is not None:
+        config.auto_sync_interval_hours = body.auto_sync_interval_hours
+    await db.commit()
+    await db.refresh(config)
+    return config

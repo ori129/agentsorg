@@ -374,8 +374,8 @@ class SemanticEnricher:
             20
         )  # 1 call/GPT → can be much more aggressive
 
-    async def _call(self, prompt: str) -> tuple[dict, int]:
-        """Single LLM call. Returns (parsed_json, total_tokens)."""
+    async def _call(self, prompt: str) -> tuple[dict, int, int]:
+        """Single LLM call. Returns (parsed_json, prompt_tokens, completion_tokens)."""
         async with self._semaphore:
             response = await self._client.chat.completions.create(
                 model=self._model,
@@ -385,23 +385,28 @@ class SemanticEnricher:
                 max_tokens=600,  # all 9 KPIs need more room than a single KPI
             )
         text = response.choices[0].message.content or "{}"
-        tokens = response.usage.total_tokens if response.usage else 0
-        return json.loads(text), tokens
+        prompt_tokens = response.usage.prompt_tokens if response.usage else 0
+        completion_tokens = response.usage.completion_tokens if response.usage else 0
+        return json.loads(text), prompt_tokens, completion_tokens
 
-    async def enrich_gpt(self, gpt: dict, _classification: dict | None = None) -> dict:
+    async def enrich_gpt(
+        self, gpt: dict, _classification: dict | None = None
+    ) -> tuple[dict, int, int]:
+        """Returns (enrichment_dict, prompt_tokens, completion_tokens)."""
         gpt_context = _build_gpt_context(gpt)
         prompt = PROMPT_ALL_KPIS.format(gpt_context=gpt_context)
         try:
-            result, _ = await self._call(prompt)
+            result, prompt_tokens, completion_tokens = await self._call(prompt)
         except Exception as e:
             logger.warning(f"Enrichment failed for '{gpt.get('name')}': {e}")
-            return {}
+            return {}, 0, 0
         result["semantic_enriched_at"] = datetime.now(timezone.utc).isoformat()
-        return result
+        return result, prompt_tokens, completion_tokens
 
     async def enrich_batch(
         self, gpts: list[dict], classifications: list[dict | None]
-    ) -> list[dict | None]:
+    ) -> tuple[list[dict | None], int, int]:
+        """Returns (enrichments, total_prompt_tokens, total_completion_tokens)."""
         tasks = [
             self.enrich_gpt(
                 gpt, classifications[i] if i < len(classifications) else None
@@ -410,6 +415,8 @@ class SemanticEnricher:
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         output = []
+        total_prompt = 0
+        total_completion = 0
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 logger.warning(
@@ -417,8 +424,11 @@ class SemanticEnricher:
                 )
                 output.append(None)
             else:
-                output.append(result)
-        return output
+                enr, pt, ct = result
+                output.append(enr)
+                total_prompt += pt
+                total_completion += ct
+        return output, total_prompt, total_completion
 
     async def run_single_kpi(
         self,
@@ -431,9 +441,9 @@ class SemanticEnricher:
         gpt_context = _build_gpt_context(gpt)
         prompt = prompt_template.format(gpt_context=gpt_context)
         start = time.time()
-        result, tokens = await self._call(prompt)
+        result, prompt_tokens, completion_tokens = await self._call(prompt)
         latency_ms = (time.time() - start) * 1000
-        return result, tokens, latency_ms
+        return result, prompt_tokens + completion_tokens, latency_ms
 
     async def normalize_business_processes(
         self, raw_values: list[str]

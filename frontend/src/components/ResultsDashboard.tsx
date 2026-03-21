@@ -21,7 +21,7 @@ export default function ResultsDashboard({
             Pipeline Results
           </h2>
           <p className="text-sm mt-1" style={{ color: "var(--c-text-3)" }}>
-            Discovered, classified, and enriched GPTs
+            Discovered, classified, and enriched AI assets
           </p>
         </div>
         <button

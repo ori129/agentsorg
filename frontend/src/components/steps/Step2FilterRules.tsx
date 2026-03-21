@@ -48,12 +48,16 @@ export default function Step2FilterRules() {
   return (
     <Card
       title="Filtering Rules"
-      description="Configure which GPTs to include based on visibility and ownership."
+      description="Configure which AI assets to include based on visibility and ownership."
     >
       <div className="space-y-6">
+        <div className="rounded-lg px-4 py-3 text-xs" style={{ background: "var(--c-accent-bg)", border: "1px solid #3b82f620" }}>
+          <span className="font-semibold" style={{ color: "#3b82f6" }}>GPTs &amp; Projects</span>
+          <span style={{ color: "var(--c-text-3)" }}> — Both Custom GPTs and ChatGPT Projects are fetched from your workspace. All visibility and ownership filters below apply equally to both asset types.</span>
+        </div>
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Include All GPTs</span>
+            <span className="text-sm font-medium" style={{ color: "var(--c-text)" }}>Include All Assets</span>
             <p className="form-hint">Skip filtering and include everything</p>
           </div>
           <button

@@ -10,6 +10,7 @@ import type {
   PipelineLogEntry,
   PipelineStatus,
   PipelineSummary,
+  SyncConfig,
   SyncLog,
   TestConnectionResult,
   UserImportResult,
@@ -159,6 +160,9 @@ export const api = {
   getPipelineSummary: () => request<PipelineSummary>("/pipeline/summary"),
   getPipelineGPTs: () => request<GPTItem[]>("/pipeline/gpts"),
   getPipelineHistory: () => request<SyncLog[]>("/pipeline/history"),
+  getSyncConfig: () => request<SyncConfig>("/pipeline/sync-config"),
+  patchSyncConfig: (body: Partial<SyncConfig>) =>
+    request<SyncConfig>("/pipeline/sync-config", { method: "PATCH", body: JSON.stringify(body) }),
 
   // ------------------------------------------------------------------
   // Admin

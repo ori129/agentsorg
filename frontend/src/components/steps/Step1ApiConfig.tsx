@@ -37,7 +37,7 @@ export default function Step1ApiConfig() {
   return (
     <Card
       title="API Configuration"
-      description="Connect to the OpenAI Compliance API to discover Custom GPTs in your workspace."
+      description="Connect to the OpenAI Compliance API to discover AI assets in your workspace."
     >
       <div className="space-y-4">
         <div className="alert-info">

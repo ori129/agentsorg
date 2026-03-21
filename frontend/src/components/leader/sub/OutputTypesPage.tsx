@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { GPTItem } from "../../../types";
 import GPTDrawer, { type DrawerFilter } from "../GPTDrawer";
+import { TypeFilterChips, filterByType, type TypeFilter } from "../../ui/AssetTypeBadge";
 
 interface OutputTypesPageProps {
   gpts: GPTItem[];
@@ -9,9 +10,10 @@ interface OutputTypesPageProps {
 
 export default function OutputTypesPage({ gpts, onBack }: OutputTypesPageProps) {
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
 
-  const enriched = gpts.filter((g) => g.semantic_enriched_at);
+  const enriched = filterByType(gpts, typeFilter).filter((g) => g.semantic_enriched_at);
 
   const outputTypes = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -58,7 +60,7 @@ export default function OutputTypesPage({ gpts, onBack }: OutputTypesPageProps) 
             className="text-xs font-bold px-2 py-0.5 rounded-full"
             style={{ background: "#6366f125", color: "#6366f1" }}
           >
-            {enriched.length} enriched GPTs
+            {enriched.length} enriched assets
           </span>
         </div>
       </div>
@@ -73,7 +75,13 @@ export default function OutputTypesPage({ gpts, onBack }: OutputTypesPageProps) 
         </div>
       )}
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <TypeFilterChips
+          value={typeFilter}
+          onChange={setTypeFilter}
+          gptCount={gpts.filter((g) => g.asset_type !== "project").length}
+          projectCount={gpts.filter((g) => g.asset_type === "project").length}
+        />
         <input
           type="text"
           placeholder="Search output types…"
@@ -103,7 +111,7 @@ export default function OutputTypesPage({ gpts, onBack }: OutputTypesPageProps) 
         >
           <div>Output Type</div>
           <div>Distribution</div>
-          <div className="text-right">GPTs</div>
+          <div className="text-right">Assets</div>
           <div className="text-right">%</div>
         </div>
 

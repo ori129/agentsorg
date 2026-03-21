@@ -35,6 +35,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.encryption import decrypt
 from app.models.models import (
+    Category,
     Configuration,
     CustomCourse,
     GPT,
@@ -49,6 +50,7 @@ from app.schemas.schemas import (
     CustomCourseUploadResult,
     EmployeeLearningReport,
     OrgLearningReport,
+    TaggedAssetDetail,
     WorkshopCreate,
     WorkshopImpact,
     WorkshopImpactAuto,
@@ -367,25 +369,33 @@ async def recommend_org(db: AsyncSession = Depends(get_db)):
     avg_soph = round(sum(soph_vals) / len(soph_vals), 1) if soph_vals else None
     avg_qual = round(sum(qual_vals) / len(qual_vals), 1) if qual_vals else None
 
+    gpt_count = sum(1 for g in gpts if g.asset_type != "project")
+    project_count = sum(1 for g in gpts if g.asset_type == "project")
+    asset_breakdown = (
+        f"{gpt_count} Custom GPTs + {project_count} Projects"
+        if project_count
+        else f"{gpt_count} Custom GPTs"
+    )
+
     org_profile = f"""
-Organisation AgentsOrg — Snapshot ({total} GPTs total, {len(enriched)} semantically enriched):
+Organisation AgentsOrg — Snapshot ({total} AI assets total [{asset_breakdown}], {len(enriched)} semantically enriched):
 
 Prompting quality:
-  - Average score: {avg_qual}/10 ({len(low_quality)} GPTs scored ≤4/10 — "poor quality")
-  - {len(low_quality)} poor-quality GPTs out of {len(enriched)} enriched ({round(len(low_quality) / max(len(enriched), 1) * 100)}%)
+  - Average score: {avg_qual}/10 ({len(low_quality)} assets scored ≤4/10 — "poor quality")
+  - {len(low_quality)} poor-quality assets out of {len(enriched)} enriched ({round(len(low_quality) / max(len(enriched), 1) * 100)}%)
 
 Sophistication:
-  - Average score: {avg_soph}/10 ({len(low_soph)} GPTs scored ≤3/10 — "minimal instructions")
-  - {len(low_soph)} low-sophistication GPTs ({round(len(low_soph) / max(len(enriched), 1) * 100)}%)
+  - Average score: {avg_soph}/10 ({len(low_soph)} assets scored ≤3/10 — "minimal instructions")
+  - {len(low_soph)} low-sophistication assets ({round(len(low_soph) / max(len(enriched), 1) * 100)}%)
 
 Integrations:
-  - {len(integration_vals)} of {len(enriched)} GPTs have integrations ({round(len(integration_vals) / max(len(enriched), 1) * 100)}%)
+  - {len(integration_vals)} of {len(enriched)} assets have integrations ({round(len(integration_vals) / max(len(enriched), 1) * 100)}%)
 
 Risk:
-  - {len(risk_vals)} GPTs rated high/critical risk ({round(len(risk_vals) / max(len(enriched), 1) * 100)}%)
+  - {len(risk_vals)} assets rated high/critical risk ({round(len(risk_vals) / max(len(enriched), 1) * 100)}%)
 
 Adoption friction:
-  - {len(high_friction)} GPTs with high adoption friction score (≥7/10)
+  - {len(high_friction)} assets with high adoption friction score (≥7/10)
 
 Top business processes: {", ".join(f"{bp} ({cnt})" for bp, cnt in top_processes) or "none mapped yet"}
 """
@@ -519,10 +529,11 @@ async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
     )
     output_types = list({g.output_type for g in gpts if g.output_type})
 
-    # Per-GPT detail — this is what differentiates people with similar aggregate scores
+    # Per-asset detail — this is what differentiates people with similar aggregate scores
     gpt_lines = []
     for g in gpts:
-        parts = [f'  • "{g.name}"']
+        asset_label = "Project" if g.asset_type == "project" else "GPT"
+        parts = [f'  • [{asset_label}] "{g.name}"']
         if g.business_process:
             parts.append(f"process={g.business_process}")
         if g.prompting_quality_score is not None:
@@ -555,7 +566,7 @@ async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
     safe_name = (scores.name or "unknown").replace("\n", " ").replace("\r", " ")
     profile = f"""
 Builder: {safe_email} (display name: {safe_name})
-GPTs built: {scores.gpt_count}
+AI assets built: {scores.gpt_count} ({sum(1 for g in gpts if g.asset_type != "project")} GPTs, {sum(1 for g in gpts if g.asset_type == "project")} Projects)
 
 Domain context (what this person actually builds):
 {domain_summary}
@@ -566,7 +577,7 @@ Aggregate scores (0-100 scale):
   Adoption:          {scores.adoption_score}
   Risk hygiene:      {scores.risk_hygiene_score}
 
-Individual GPTs:
+Individual assets:
 {chr(10).join(gpt_lines) if gpt_lines else "  (no data)"}
 
 Has any integrations: {"yes" if has_integrations else "no"}
@@ -747,6 +758,7 @@ def _workshop_to_read(w: Workshop) -> WorkshopRead:
         facilitator=w.facilitator,
         created_at=w.created_at,
         participant_count=len(w.participants),
+        participant_emails=[p.employee_email for p in w.participants],
         tagged_gpt_count=len(w.gpt_tags),
     )
 
@@ -941,10 +953,35 @@ async def get_workshop_impact(workshop_id: int, db: AsyncSession = Depends(get_d
         round(sum(delta_sophs) / len(delta_sophs), 2) if delta_sophs else None
     )
 
+    # Fetch full details for tagged assets
+    tagged_gpt_ids = [t.gpt_id for t in w.gpt_tags]
+    tagged_asset_details: list[TaggedAssetDetail] = []
+    if tagged_gpt_ids:
+        cat_result = await db.execute(select(Category))
+        cat_lookup: dict[int, str] = {c.id: c.name for c in cat_result.scalars().all()}
+        gpt_result = await db.execute(select(GPT).where(GPT.id.in_(tagged_gpt_ids)))
+        for g in gpt_result.scalars().all():
+            tagged_asset_details.append(
+                TaggedAssetDetail(
+                    gpt_id=g.id,
+                    name=g.name,
+                    asset_type=g.asset_type or "gpt",
+                    owner_email=g.owner_email,
+                    quality_score=g.prompting_quality_score,
+                    sophistication_score=g.sophistication_score,
+                    roi_potential_score=g.roi_potential_score,
+                    risk_level=g.risk_level,
+                    primary_category=cat_lookup.get(g.primary_category_id)
+                    if g.primary_category_id
+                    else None,
+                )
+            )
+
     return WorkshopImpact(
         workshop_id=workshop_id,
         auto_stats=auto_stats,
-        tagged_gpts=[t.gpt_id for t in w.gpt_tags],
+        tagged_gpts=tagged_gpt_ids,
+        tagged_asset_details=tagged_asset_details,
         summary_delta_quality=summary_delta_quality,
         summary_delta_sophistication=summary_delta_soph,
     )

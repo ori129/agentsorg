@@ -30,6 +30,22 @@ from app.services.semantic_enricher import SemanticEnricher
 
 logger = logging.getLogger(__name__)
 
+# LLM cost per token (USD) by model — input/output rates per 1M tokens
+# Source: OpenAI pricing as of 2026-03
+_MODEL_COSTS: dict[str, tuple[float, float]] = {
+    "gpt-4o-mini": (0.15 / 1_000_000, 0.60 / 1_000_000),
+    "gpt-4o": (2.50 / 1_000_000, 10.00 / 1_000_000),
+    "gpt-4-turbo": (10.00 / 1_000_000, 30.00 / 1_000_000),
+    "gpt-4": (30.00 / 1_000_000, 60.00 / 1_000_000),
+    "gpt-3.5-turbo": (0.50 / 1_000_000, 1.50 / 1_000_000),
+}
+_DEFAULT_COST = _MODEL_COSTS["gpt-4o-mini"]
+
+
+def _calculate_cost(model: str, tokens_input: int, tokens_output: int) -> float:
+    input_rate, output_rate = _MODEL_COSTS.get(model, _DEFAULT_COST)
+    return tokens_input * input_rate + tokens_output * output_rate
+
 
 def _content_hash(gpt_data: dict) -> str:
     """Hash the fields that affect classification output."""
@@ -166,31 +182,66 @@ async def _execute_pipeline(db: AsyncSession):
 
     page_count = 0
 
-    async def on_page(gpts: list[dict], page: int):
+    async def on_page(assets: list[dict], page: int):
         nonlocal page_count
         page_count = page
-        await _log(db, sync_log.id, "info", f"Fetched page {page} ({len(gpts)} GPTs)")
+        await _log(
+            db, sync_log.id, "info", f"Fetched page {page} ({len(assets)} assets)"
+        )
         _current_status["progress"] = min(5.0 + page * 5, 30.0)
 
+    workspace_id = (config.workspace_id or "") if config else ""
     try:
-        workspace_id = (config.workspace_id or "") if config else ""
-        all_gpts = await client.fetch_all_gpts(workspace_id, on_page)
+        # Fetch GPTs and Projects in parallel; continue if Projects fail (non-fatal)
+        async def _fetch_projects_safe() -> list[dict]:
+            if hasattr(client, "fetch_all_projects"):
+                return await client.fetch_all_projects(workspace_id)
+            return []
+
+        gpt_results, project_results = await asyncio.gather(
+            client.fetch_all_gpts(workspace_id, on_page),
+            _fetch_projects_safe(),
+            return_exceptions=True,
+        )
+
+        if isinstance(gpt_results, Exception):
+            raise gpt_results  # GPTs are required — propagate
+
+        all_gpts: list[dict] = gpt_results
+        if isinstance(project_results, Exception):
+            await _log(
+                db,
+                sync_log.id,
+                "warn",
+                f"Projects fetch failed (non-fatal, continuing with GPTs only): {project_results}",
+            )
+        else:
+            all_gpts = all_gpts + list(project_results)
     finally:
         await client.close()
 
+    gpt_count = sum(1 for a in all_gpts if a.get("asset_type", "gpt") == "gpt")
+    project_count = sum(1 for a in all_gpts if a.get("asset_type") == "project")
+
     sync_log.total_gpts_found = len(all_gpts)
     await db.commit()
-    await _log(db, sync_log.id, "info", f"Total GPTs found: {len(all_gpts)}")
+    await _log(
+        db,
+        sync_log.id,
+        "info",
+        f"Total assets found: {len(all_gpts)} ({gpt_count} GPTs, {project_count} Projects)",
+    )
 
-    # Log first GPT for debugging
+    # Log first asset for debugging
     if all_gpts:
         first = all_gpts[0]
         await _log(
             db,
             sync_log.id,
             "info",
-            f"Sample GPT: name={first.get('name')}, visibility={first.get('visibility')}, "
-            f"owner={first.get('owner_email')}, shared_users={first.get('shared_user_count')}",
+            f"Sample asset: name={first.get('name')}, type={first.get('asset_type', 'gpt')}, "
+            f"visibility={first.get('visibility')}, owner={first.get('owner_email')}, "
+            f"shared_users={first.get('shared_user_count')}",
         )
 
     # Step 2: Filter
@@ -360,6 +411,9 @@ async def _execute_pipeline(db: AsyncSession):
                 else None,
             }
 
+    tokens_input = 0
+    tokens_output = 0
+
     if classification_enabled and has_openai_key and changed_indices:
         _current_status["stage"] = "enriching"
         _current_status["progress"] = 65.0
@@ -379,9 +433,15 @@ async def _execute_pipeline(db: AsyncSession):
                 enricher = SemanticEnricher(openai_key, config.classification_model)
             changed_gpts_for_enrich = [filtered_gpts[i] for i in changed_indices]
             changed_cls_for_enrich = [classifications[i] for i in changed_indices]
-            changed_enrichments = await enricher.enrich_batch(
+            (
+                changed_enrichments,
+                batch_tokens_in,
+                batch_tokens_out,
+            ) = await enricher.enrich_batch(
                 changed_gpts_for_enrich, changed_cls_for_enrich
             )
+            tokens_input += batch_tokens_in
+            tokens_output += batch_tokens_out
             for ci, enr in enumerate(changed_enrichments):
                 enrichments[changed_indices[ci]] = enr
             enriched_count = sum(1 for e in enrichments if e is not None)
@@ -557,6 +617,7 @@ async def _execute_pipeline(db: AsyncSession):
             files=gpt_data.get("files"),
             builder_categories=gpt_data.get("builder_categories"),
             conversation_starters=gpt_data.get("conversation_starters"),
+            asset_type=gpt_data.get("asset_type", "gpt"),
             primary_category_id=primary_cat_id,
             secondary_category_id=secondary_cat_id,
             classification_confidence=cls.get("confidence") if cls else None,
@@ -595,9 +656,14 @@ async def _execute_pipeline(db: AsyncSession):
     await db.commit()
     await _log(db, sync_log.id, "info", f"Stored {len(filtered_gpts)} GPTs in database")
 
-    # Finalize
+    # Finalize — write token consumption and cost
     sync_log.status = "completed"
     sync_log.finished_at = datetime.now(timezone.utc)
+    sync_log.tokens_input = tokens_input
+    sync_log.tokens_output = tokens_output
+    sync_log.estimated_cost_usd = _calculate_cost(
+        config.classification_model, tokens_input, tokens_output
+    )
     await db.commit()
 
     _current_status["progress"] = 100.0

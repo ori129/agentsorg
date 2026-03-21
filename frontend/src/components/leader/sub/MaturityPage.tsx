@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { GPTItem } from "../../../types";
 import GPTDrawer, { type DrawerFilter } from "../GPTDrawer";
+import { TypeFilterChips, filterByType, type TypeFilter } from "../../ui/AssetTypeBadge";
 
 interface MaturityPageProps {
   gpts: GPTItem[];
@@ -34,21 +35,21 @@ function ScoreDots({ score }: { score: number }) {
 const TIERS = [
   {
     label: "Production",
-    description: "Sophistication score ≥ 4 — fully featured, integrated GPTs",
+    description: "Sophistication score ≥ 4 — fully featured, integrated AI assets",
     color: "#10b981",
     filter: (g: GPTItem) => (g.sophistication_score ?? 0) >= 4,
     scores: [4, 5],
   },
   {
     label: "Functional",
-    description: "Sophistication score = 3 — useful GPTs with room to grow",
+    description: "Sophistication score = 3 — useful AI assets with room to grow",
     color: "#f59e0b",
     filter: (g: GPTItem) => g.sophistication_score === 3,
     scores: [3],
   },
   {
     label: "Experimental",
-    description: "Sophistication score ≤ 2 — early-stage or abandoned GPTs",
+    description: "Sophistication score ≤ 2 — early-stage or abandoned AI assets",
     color: "#3b82f6",
     filter: (g: GPTItem) => (g.sophistication_score ?? 0) <= 2,
     scores: [1, 2],
@@ -57,8 +58,10 @@ const TIERS = [
 
 export default function MaturityPage({ gpts, onBack }: MaturityPageProps) {
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
-  const enriched = gpts.filter((g) => g.semantic_enriched_at);
+  const filteredGpts = useMemo(() => filterByType(gpts, typeFilter), [gpts, typeFilter]);
+  const enriched = filteredGpts.filter((g) => g.semantic_enriched_at);
   const total = enriched.length || 1;
 
   const tiers = TIERS.map((tier) => ({
@@ -78,14 +81,22 @@ export default function MaturityPage({ gpts, onBack }: MaturityPageProps) {
         ← Overview
       </button>
 
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <h1 className="text-xl font-bold" style={{ color: "var(--c-text)" }}>Portfolio Maturity</h1>
         <span
           className="text-xs font-bold px-2 py-0.5 rounded-full"
           style={{ background: "#3b82f625", color: "#3b82f6" }}
         >
-          {enriched.length} enriched GPTs
+          {enriched.length} enriched assets
         </span>
+        <div className="ml-auto">
+          <TypeFilterChips
+            value={typeFilter}
+            onChange={setTypeFilter}
+            gptCount={gpts.filter((g) => g.asset_type !== "project").length}
+            projectCount={gpts.filter((g) => g.asset_type === "project").length}
+          />
+        </div>
       </div>
 
       {enriched.length === 0 && (
@@ -139,7 +150,7 @@ export default function MaturityPage({ gpts, onBack }: MaturityPageProps) {
                     {pct}%
                   </span>
                   <span className="text-xs" style={{ color: "var(--c-text-4)" }}>
-                    {tier.gptList.length} GPTs
+                    {tier.gptList.length} assets
                   </span>
                   <span className="text-xs" style={{ color: "var(--c-text-5)" }}>↗</span>
                 </div>

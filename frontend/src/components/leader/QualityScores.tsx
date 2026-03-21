@@ -17,10 +17,13 @@ function ScoreDots({ score, max = 5 }: { score: number | null; max?: number }) {
   );
 }
 
+const PAGE = 50;
+
 export default function QualityScores({ gpts }: QualityScoresProps) {
   const [sortKey, setSortKey] = useState<SortKey>("sophistication");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const displayGpts = gpts.filter((g) => g.semantic_enriched_at);
 
@@ -53,7 +56,7 @@ export default function QualityScores({ gpts }: QualityScoresProps) {
 
       <h1 className="text-xl font-bold mb-2" style={{ color: "var(--c-text)" }}>Quality Scores</h1>
       <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>
-        Per-GPT sophistication, prompting quality, and ROI potential. Click any row to inspect.
+        Per-asset sophistication, prompting quality, and ROI potential. Click any row to inspect.
       </p>
 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--c-border)" }}>
@@ -69,7 +72,7 @@ export default function QualityScores({ gpts }: QualityScoresProps) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((g, idx) => (
+            {(showAll ? sorted : sorted.slice(0, PAGE)).map((g, idx) => (
               <tr key={g.id}
                 style={{ background: idx % 2 === 0 ? "var(--c-bg)" : "var(--c-surface)", borderBottom: "1px solid var(--c-border)", cursor: "pointer" }}
                 onClick={() => setDrawer({ label: g.name, gpts: [g] })}
@@ -88,6 +91,15 @@ export default function QualityScores({ gpts }: QualityScoresProps) {
             ))}
           </tbody>
         </table>
+        {sorted.length > PAGE && (
+          <button
+            onClick={() => setShowAll((v) => !v)}
+            className="w-full py-2.5 text-xs"
+            style={{ color: "#3b82f6", borderTop: "1px solid var(--c-border)", background: "var(--c-surface)" }}
+          >
+            {showAll ? "Show less" : `Show all ${sorted.length} assets`}
+          </button>
+        )}
       </div>
     </div>
   );

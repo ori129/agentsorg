@@ -20,7 +20,7 @@
 
 ## What is AgentsOrg.ai?
 
-AgentsOrg.ai connects to the **OpenAI Compliance API** and gives your organization a complete picture of every Custom GPT it has built — scored, risk-flagged, and mapped to business processes.
+AgentsOrg.ai connects to the **OpenAI Compliance API** and gives your organization a complete picture of every Custom GPT and Project it has built — scored, risk-flagged, and mapped to business processes.
 
 OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg.ai tells you **how good** your GPTs are — and what to do about it.
 
@@ -30,8 +30,8 @@ OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg
 
 ## Features
 
-### 🔍 GPT Registry
-Automatically discovers all Custom GPTs across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, and a slide-out detail panel for every GPT.
+### 🔍 GPT & Project Registry
+Automatically discovers all Custom GPTs and Projects across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, and a slide-out detail panel for every asset.
 
 ### 🧠 Semantic Enrichment (9 KPIs per GPT)
 An LLM reads each GPT's system prompt and extracts:
@@ -50,6 +50,7 @@ An LLM reads each GPT's system prompt and extracts:
 
 ### 📊 Leader Dashboard
 - **Overview** — portfolio KPIs, creation velocity, department breakdown, maturity tiers. Five drill-down pages (Builders, Processes, Departments, Maturity, Output Types).
+- **Sync** — Manual sync button, auto-sync toggle + schedule, token consumption and cost per sync run, and full sync history log.
 - **Risk Panel** — GPTs flagged high or critical, with per-flag breakdown.
 - **Duplicates** — pgvector semantic clustering to detect redundant builds before they proliferate.
 - **Quality Scores** — Prompting quality distribution across the portfolio.
@@ -71,28 +72,74 @@ Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs 
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/ss_onboarding.png" alt="Onboarding" /></td>
+    <td><img src="docs/screenshots/ss_onboarding.png" alt="Sign in" /></td>
     <td><img src="docs/screenshots/ss_overview.png" alt="AI Portfolio Overview" /></td>
   </tr>
   <tr>
-    <td align="center"><em>Onboarding — Try Demo or connect your real workspace</em></td>
-    <td align="center"><em>AI Portfolio Overview — 500 GPTs, KPIs, department breakdown</em></td>
+    <td align="center"><em>Sign in — self-hosted, your data stays on your infra</em></td>
+    <td align="center"><em>Overview — portfolio KPIs, velocity, department breakdown</em></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/ss_overview_builders.png" alt="Builders" /></td>
+    <td><img src="docs/screenshots/ss_overview_processes.png" alt="Business Processes" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Builders — who's building what across the org</em></td>
+    <td align="center"><em>Business Processes — AI mapped to workflows</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ss_overview_departments.png" alt="Departments" /></td>
+    <td><img src="docs/screenshots/ss_overview_maturity.png" alt="Maturity Tiers" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Departments — AI adoption by team</em></td>
+    <td align="center"><em>Maturity Tiers — Production / Functional / Experimental breakdown</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ss_overview_output_types.png" alt="Output Types" /></td>
     <td><img src="docs/screenshots/ss_risk.png" alt="Risk Panel" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Output Types — Document, Code, Analysis, Conversation…</em></td>
+    <td align="center"><em>Risk Panel — high/critical assets flagged by issue type</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ss_duplicates.png" alt="Duplicates" /></td>
     <td><img src="docs/screenshots/ss_quality.png" alt="Quality Scores" /></td>
   </tr>
   <tr>
-    <td align="center"><em>Risk Panel — high/critical GPTs flagged by issue type</em></td>
-    <td align="center"><em>Quality Scores — sophistication, prompting quality, ROI per GPT</em></td>
+    <td align="center"><em>Duplicates — semantic clustering catches redundant builds</em></td>
+    <td align="center"><em>Quality Scores — sophistication, prompting quality, ROI per asset</em></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/ss_recognition.png" alt="Builder Recognition" /></td>
-    <td><img src="docs/screenshots/ss_employee.png" alt="Employee Portal" /></td>
+    <td><img src="docs/screenshots/ss_learning.png" alt="Learning" /></td>
   </tr>
   <tr>
-    <td align="center"><em>Builder Recognition — composite scores across your team</em></td>
-    <td align="center"><em>Employee Portal — read-only GPT discovery for the whole org</em></td>
+    <td align="center"><em>Recognition — composite builder scores across your team</em></td>
+    <td align="center"><em>Learning — LLM-driven course recommendations per builder</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ss_workshops.png" alt="Workshops" /></td>
+    <td><img src="docs/screenshots/ss_sync.png" alt="Sync" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Workshops — sessions with participant lists and GPT tagging</em></td>
+    <td align="center"><em>Sync — manual sync, auto-sync schedule, token cost history</em></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ss_pipeline_setup.png" alt="Pipeline Setup" /></td>
+    <td><img src="docs/screenshots/ss_users.png" alt="Users" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Pipeline Setup — one-time wizard: API config, filters, categories</em></td>
+    <td align="center"><em>Users — roster management and role assignment</em></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/ss_employee.png" alt="Employee Portal" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><em>Employee Portal — read-only GPT & Project discovery for the whole org</em></td>
   </tr>
 </table>
 
@@ -218,6 +265,8 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 | GET | `/api/v1/pipeline/gpts` | List all GPTs |
 | GET | `/api/v1/pipeline/history` | Sync history |
 | GET | `/api/v1/pipeline/logs/{id}` | Logs for a sync run |
+| GET | `/api/v1/pipeline/sync-config` | Get auto-sync settings |
+| PATCH | `/api/v1/pipeline/sync-config` | Update auto-sync settings |
 </details>
 
 <details>
@@ -302,7 +351,7 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 │       ├── App.tsx                # Root — Leader / Employee views + onboarding
 │       ├── components/
 │       │   ├── auth/              # Register, Login, Onboarding screens
-│       │   ├── leader/            # Dashboard views (Overview, Risk, L&D…)
+│       │   ├── leader/            # Dashboard views (Overview, Sync, Risk, L&D…)
 │       │   ├── employee/          # Read-only GPT portal
 │       │   ├── steps/             # Pipeline setup wizard (Steps 1–4)
 │       │   └── layout/            # Header, Sidebar, DemoBanner
