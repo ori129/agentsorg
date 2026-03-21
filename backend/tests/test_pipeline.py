@@ -221,30 +221,39 @@ async def test_TP10_pipeline_api_returns_asset_type(client: AsyncClient):
     After running the demo pipeline, GET /pipeline/gpts returns items
     with asset_type field present and containing 'gpt' or 'project'.
     """
-    # Trigger the demo pipeline
-    run_resp = await client.post("/api/v1/pipeline/run")
-    assert run_resp.status_code in (200, 202, 409)
+    from app.services.demo_state import _demo_state  # noqa: PLC0415
 
-    # Poll for completion (up to 30 seconds in real DB mode)
-    for _ in range(30):
-        status = await client.get("/api/v1/pipeline/status")
-        data = status.json()
-        if not data.get("running"):
-            break
-        await asyncio.sleep(1)
+    original = _demo_state.copy()
+    _demo_state["enabled"] = True
+    _demo_state["size"] = "small"
+    try:
+        # Trigger the demo pipeline
+        run_resp = await client.post("/api/v1/pipeline/run")
+        assert run_resp.status_code in (200, 202, 409)
 
-    # Fetch GPTs/assets
-    gpts_resp = await client.get("/api/v1/pipeline/gpts")
-    assert gpts_resp.status_code == 200
-    items = gpts_resp.json()
+        # Poll for completion (up to 30 seconds in real DB mode)
+        for _ in range(30):
+            status = await client.get("/api/v1/pipeline/status")
+            data = status.json()
+            if not data.get("running"):
+                break
+            await asyncio.sleep(1)
 
-    if items:
-        # asset_type must be present on every item
-        for item in items:
-            assert "asset_type" in item, f"Missing asset_type on {item.get('id')}"
-            assert item["asset_type"] in ("gpt", "project"), (
-                f"Unexpected asset_type={item['asset_type']} on {item.get('id')}"
-            )
+        # Fetch GPTs/assets
+        gpts_resp = await client.get("/api/v1/pipeline/gpts")
+        assert gpts_resp.status_code == 200
+        items = gpts_resp.json()
+
+        if items:
+            # asset_type must be present on every item
+            for item in items:
+                assert "asset_type" in item, f"Missing asset_type on {item.get('id')}"
+                assert item["asset_type"] in ("gpt", "project"), (
+                    f"Unexpected asset_type={item['asset_type']} on {item.get('id')}"
+                )
+    finally:
+        _demo_state.clear()
+        _demo_state.update(original)
 
 
 # ── Token accumulation tests — T_TOK1 through T_TOK3 ─────────────────────────
