@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import type { SyncConfig } from "../types";
 
 export function useRunPipeline() {
   return useMutation({
@@ -76,4 +77,21 @@ export function useGlobalPipelineWatcher() {
 
     wasRunning.current = isRunning;
   }, [status, qc]);
+}
+
+export function useSyncConfig() {
+  return useQuery({
+    queryKey: ["sync-config"],
+    queryFn: api.getSyncConfig,
+  });
+}
+
+export function usePatchSyncConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<SyncConfig>) => api.patchSyncConfig(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sync-config"] });
+    },
+  });
 }

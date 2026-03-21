@@ -5,7 +5,6 @@ import Step1ApiConfig from "../steps/Step1ApiConfig";
 import Step2FilterRules from "../steps/Step2FilterRules";
 import Step3Categories from "../steps/Step3Categories";
 import Step4FetchClassify from "../steps/Step4FetchClassify";
-import ResultsDashboard from "../ResultsDashboard";
 
 const STEPS = ["API Configuration", "Filtering Rules", "Categories", "Run Pipeline"];
 
@@ -17,7 +16,7 @@ const COMING_SOON = [
     color: "#6366f1",
     steps: [
       "Fetch conversation logs",
-      "Map sessions to GPTs & users",
+      "Map sessions to AI assets & users",
       "Compute volume & frequency",
       "Identify power users & patterns",
       "Cluster prompt topics",
@@ -25,8 +24,8 @@ const COMING_SOON = [
     unlocks: [
       "Real adoption vs access granted",
       "Actual vs claimed ROI",
-      "Dead GPT detection",
-      "Power users per GPT",
+      "Dead asset detection",
+      "Power users per asset",
       "Adoption by department",
     ],
   },
@@ -35,7 +34,7 @@ const COMING_SOON = [
     name: "Users & Access",
     icon: "👥",
     color: "#8b5cf6",
-    steps: ["Sync user roster", "Map GPT access rights", "Detect over-sharing"],
+    steps: ["Sync user roster", "Map asset access rights", "Detect over-sharing"],
     unlocks: ["Access heatmap", "Shadow AI detection", "Least-privilege recommendations"],
   },
   {
@@ -60,12 +59,35 @@ export default function PipelineSetupPage({ onComplete }: PipelineSetupPageProps
   if (showResults) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <ResultsDashboard
-          onBackToSetup={() => {
-            setShowResults(false);
-            setCurrentStep(3);
-          }}
-        />
+        <div
+          className="rounded-xl p-8 text-center space-y-4"
+          style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
+        >
+          <div className="text-3xl">✓</div>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--c-text)" }}>
+            Pipeline configured!
+          </h2>
+          <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
+            Your AI assets have been fetched and classified. The Sync page is where you'll
+            run future syncs, enable auto-sync, and view history.
+          </p>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={onComplete}
+              className="px-5 py-2 text-sm font-medium text-white rounded-lg"
+              style={{ background: "#3b82f6" }}
+            >
+              Go to Sync →
+            </button>
+            <button
+              onClick={() => { setShowResults(false); setCurrentStep(3); }}
+              className="px-4 py-2 text-sm rounded-lg"
+              style={{ color: "var(--c-text-3)", border: "1px solid var(--c-border)" }}
+            >
+              Back to Setup
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

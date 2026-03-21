@@ -30,6 +30,22 @@ from app.services.semantic_enricher import SemanticEnricher
 
 logger = logging.getLogger(__name__)
 
+# LLM cost per token (USD) by model — input/output rates per 1M tokens
+# Source: OpenAI pricing as of 2026-03
+_MODEL_COSTS: dict[str, tuple[float, float]] = {
+    "gpt-4o-mini":   (0.15 / 1_000_000, 0.60 / 1_000_000),
+    "gpt-4o":        (2.50 / 1_000_000, 10.00 / 1_000_000),
+    "gpt-4-turbo":   (10.00 / 1_000_000, 30.00 / 1_000_000),
+    "gpt-4":         (30.00 / 1_000_000, 60.00 / 1_000_000),
+    "gpt-3.5-turbo": (0.50 / 1_000_000, 1.50 / 1_000_000),
+}
+_DEFAULT_COST = _MODEL_COSTS["gpt-4o-mini"]
+
+
+def _calculate_cost(model: str, tokens_input: int, tokens_output: int) -> float:
+    input_rate, output_rate = _MODEL_COSTS.get(model, _DEFAULT_COST)
+    return tokens_input * input_rate + tokens_output * output_rate
+
 
 def _content_hash(gpt_data: dict) -> str:
     """Hash the fields that affect classification output."""
@@ -395,6 +411,9 @@ async def _execute_pipeline(db: AsyncSession):
                 else None,
             }
 
+    tokens_input = 0
+    tokens_output = 0
+
     if classification_enabled and has_openai_key and changed_indices:
         _current_status["stage"] = "enriching"
         _current_status["progress"] = 65.0
@@ -414,9 +433,11 @@ async def _execute_pipeline(db: AsyncSession):
                 enricher = SemanticEnricher(openai_key, config.classification_model)
             changed_gpts_for_enrich = [filtered_gpts[i] for i in changed_indices]
             changed_cls_for_enrich = [classifications[i] for i in changed_indices]
-            changed_enrichments = await enricher.enrich_batch(
+            changed_enrichments, batch_tokens_in, batch_tokens_out = await enricher.enrich_batch(
                 changed_gpts_for_enrich, changed_cls_for_enrich
             )
+            tokens_input += batch_tokens_in
+            tokens_output += batch_tokens_out
             for ci, enr in enumerate(changed_enrichments):
                 enrichments[changed_indices[ci]] = enr
             enriched_count = sum(1 for e in enrichments if e is not None)
@@ -631,9 +652,14 @@ async def _execute_pipeline(db: AsyncSession):
     await db.commit()
     await _log(db, sync_log.id, "info", f"Stored {len(filtered_gpts)} GPTs in database")
 
-    # Finalize
+    # Finalize — write token consumption and cost
     sync_log.status = "completed"
     sync_log.finished_at = datetime.now(timezone.utc)
+    sync_log.tokens_input = tokens_input
+    sync_log.tokens_output = tokens_output
+    sync_log.estimated_cost_usd = _calculate_cost(
+        config.classification_model, tokens_input, tokens_output
+    )
     await db.commit()
 
     _current_status["progress"] = 100.0

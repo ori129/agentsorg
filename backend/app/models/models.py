@@ -42,6 +42,9 @@ class Configuration(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    # Auto-sync scheduler config
+    auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    auto_sync_interval_hours: Mapped[int] = mapped_column(Integer, default=24)
 
 
 class Category(Base):
@@ -70,6 +73,10 @@ class SyncLog(Base):
     gpts_embedded: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[dict | None] = mapped_column(JSONB, default=list)
     configuration_snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    # LLM token consumption tracking
+    tokens_input: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_output: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_cost_usd: Mapped[float | None] = mapped_column(Float)
 
     gpts: Mapped[list["GPT"]] = relationship(back_populates="sync_log")
     log_entries: Mapped[list["PipelineLogEntry"]] = relationship(

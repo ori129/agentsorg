@@ -6,6 +6,7 @@ export type LeaderPage =
   | "overview:maturity"
   | "overview:output-types"
   | "enrichment"
+  | "sync"
   | "risk"
   | "duplicates"
   | "quality"
@@ -58,6 +59,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "Settings",
     items: [
+      { id: "sync", label: "Sync" },
       { id: "enrichment", label: "Pipeline Setup" },
       { id: "users", label: "Users" },
     ],

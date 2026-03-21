@@ -371,10 +371,12 @@ def _enrich_single(gpt: dict) -> dict:
 
 
 class MockSemanticEnricher:
-    async def enrich_gpt(self, gpt: dict, _classification: dict | None = None) -> dict:
-        return _enrich_single(gpt)
+    async def enrich_gpt(self, gpt: dict, _classification: dict | None = None) -> tuple[dict, int, int]:
+        """Returns (enrichment_dict, prompt_tokens=0, completion_tokens=0) — mock uses no LLM."""
+        return _enrich_single(gpt), 0, 0
 
     async def enrich_batch(
         self, gpts: list[dict], classifications: list[dict | None]
-    ) -> list[dict | None]:
-        return [_enrich_single(gpt) for gpt in gpts]
+    ) -> tuple[list[dict | None], int, int]:
+        """Returns (enrichments, total_prompt_tokens=0, total_completion_tokens=0)."""
+        return [_enrich_single(gpt) for gpt in gpts], 0, 0

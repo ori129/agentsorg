@@ -16,6 +16,8 @@ class ConfigurationRead(BaseModel):
     include_all: bool
     min_shared_users: int
     excluded_emails: list[str]
+    auto_sync_enabled: bool = False
+    auto_sync_interval_hours: int = 24
 
     model_config = {"from_attributes": True}
 
@@ -87,6 +89,21 @@ class SyncLogRead(BaseModel):
     gpts_classified: int
     gpts_embedded: int
     errors: list
+    tokens_input: int = 0
+    tokens_output: int = 0
+    estimated_cost_usd: float | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class SyncConfigPatch(BaseModel):
+    auto_sync_enabled: bool | None = None
+    auto_sync_interval_hours: int | None = None
+
+
+class SyncConfigRead(BaseModel):
+    auto_sync_enabled: bool
+    auto_sync_interval_hours: int
 
     model_config = {"from_attributes": True}
 
@@ -109,6 +126,8 @@ class PipelineSummary(BaseModel):
     filtered_gpts: int
     classified_gpts: int
     embedded_gpts: int
+    gpt_count: int
+    project_count: int
     categories_used: list[CategoryCount]
     last_sync: SyncLogRead | None
 
@@ -171,6 +190,7 @@ class WorkshopRead(WorkshopCreate):
     id: int
     created_at: datetime
     participant_count: int
+    participant_emails: list[str] = []
     tagged_gpt_count: int
     model_config = ConfigDict(from_attributes=True)
 
@@ -232,10 +252,23 @@ class WorkshopImpactAuto(BaseModel):
     avg_sophistication_after: float | None
 
 
+class TaggedAssetDetail(BaseModel):
+    gpt_id: str
+    name: str
+    asset_type: str
+    owner_email: str | None
+    quality_score: float | None
+    sophistication_score: float | None
+    roi_potential_score: float | None
+    risk_level: str | None
+    primary_category: str | None
+
+
 class WorkshopImpact(BaseModel):
     workshop_id: int
     auto_stats: list[WorkshopImpactAuto]
     tagged_gpts: list[str]
+    tagged_asset_details: list[TaggedAssetDetail]
     summary_delta_quality: float | None
     summary_delta_sophistication: float | None
 

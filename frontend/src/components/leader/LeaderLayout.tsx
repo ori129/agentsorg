@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Sidebar, { type LeaderPage } from "./Sidebar";
 import Overview from "./Overview";
 import PipelineSetupPage from "./PipelineSetupPage";
+import SyncPage from "./SyncPage";
 import RiskPanel from "./RiskPanel";
 import QualityScores from "./QualityScores";
 import Duplicates from "./Duplicates";
@@ -79,11 +80,12 @@ export default function LeaderLayout({ initialPage, onSetupNavigated, onSwitchTo
         {page === "overview:departments" && <DepartmentsPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:maturity" && <MaturityPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:output-types" && <OutputTypesPage gpts={gpts} onBack={() => setPage("overview")} />}
-        {page === "enrichment" && <PipelineSetupPage onComplete={() => setPage("overview")} />}
+        {page === "sync" && <SyncPage isAdmin={isAdmin} />}
+        {page === "enrichment" && <PipelineSetupPage onComplete={() => setPage("sync")} />}
         {page === "risk" && <RiskPanel gpts={gpts} />}
         {page === "quality" && <QualityScores gpts={gpts} />}
         {page === "duplicates" && <Duplicates gpts={gpts} />}
-        {page === "recognition" && <Recognition />}
+        {page === "recognition" && <Recognition gpts={gpts} />}
         {page === "learning" && <Learning />}
         {page === "workshops" && <Workshops />}
         {page === "users" && <Users />}
