@@ -20,7 +20,7 @@
 
 ## What is AgentsOrg.ai?
 
-AgentsOrg.ai connects to the **OpenAI Compliance API** and gives your organization a complete picture of every Custom GPT it has built — scored, risk-flagged, and mapped to business processes.
+AgentsOrg.ai connects to the **OpenAI Compliance API** and gives your organization a complete picture of every Custom GPT and Project it has built — scored, risk-flagged, and mapped to business processes.
 
 OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg.ai tells you **how good** your GPTs are — and what to do about it.
 
@@ -30,8 +30,8 @@ OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg
 
 ## Features
 
-### 🔍 GPT Registry
-Automatically discovers all Custom GPTs across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, and a slide-out detail panel for every GPT.
+### 🔍 GPT & Project Registry
+Automatically discovers all Custom GPTs and Projects across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, and a slide-out detail panel for every asset.
 
 ### 🧠 Semantic Enrichment (9 KPIs per GPT)
 An LLM reads each GPT's system prompt and extracts:
@@ -50,6 +50,7 @@ An LLM reads each GPT's system prompt and extracts:
 
 ### 📊 Leader Dashboard
 - **Overview** — portfolio KPIs, creation velocity, department breakdown, maturity tiers. Five drill-down pages (Builders, Processes, Departments, Maturity, Output Types).
+- **Sync** — Manual sync button, auto-sync toggle + schedule, token consumption and cost per sync run, and full sync history log.
 - **Risk Panel** — GPTs flagged high or critical, with per-flag breakdown.
 - **Duplicates** — pgvector semantic clustering to detect redundant builds before they proliferate.
 - **Quality Scores** — Prompting quality distribution across the portfolio.
@@ -218,6 +219,8 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 | GET | `/api/v1/pipeline/gpts` | List all GPTs |
 | GET | `/api/v1/pipeline/history` | Sync history |
 | GET | `/api/v1/pipeline/logs/{id}` | Logs for a sync run |
+| GET | `/api/v1/pipeline/sync-config` | Get auto-sync settings |
+| PATCH | `/api/v1/pipeline/sync-config` | Update auto-sync settings |
 </details>
 
 <details>
@@ -302,7 +305,7 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 │       ├── App.tsx                # Root — Leader / Employee views + onboarding
 │       ├── components/
 │       │   ├── auth/              # Register, Login, Onboarding screens
-│       │   ├── leader/            # Dashboard views (Overview, Risk, L&D…)
+│       │   ├── leader/            # Dashboard views (Overview, Sync, Risk, L&D…)
 │       │   ├── employee/          # Read-only GPT portal
 │       │   ├── steps/             # Pipeline setup wizard (Steps 1–4)
 │       │   └── layout/            # Header, Sidebar, DemoBanner
