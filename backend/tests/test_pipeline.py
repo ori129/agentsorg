@@ -9,8 +9,11 @@ Tests for the Projects phase-1 feature:
 Runs against a real PostgreSQL test database (pgvector-enabled).
 """
 
+import asyncio
+
 import pytest
 from httpx import AsyncClient
+from unittest.mock import AsyncMock, MagicMock
 
 from app.services.compliance_api import ComplianceAPIClient
 from app.services.mock_fetcher import MOCK_PROJECTS, MockComplianceAPIClient
@@ -171,8 +174,6 @@ async def test_TP9_projects_fetch_failure_does_not_abort_gpts(client: AsyncClien
 
     This tests the asyncio.gather(return_exceptions=True) partial-failure path.
     """
-    import asyncio
-
     from app.services.demo_state import _demo_state  # noqa: PLC0415
 
     # Enable demo mode so we don't need a real API key
@@ -225,8 +226,6 @@ async def test_TP10_pipeline_api_returns_asset_type(client: AsyncClient):
     assert run_resp.status_code in (200, 202, 409)
 
     # Poll for completion (up to 30 seconds in real DB mode)
-    import asyncio
-
     for _ in range(30):
         status = await client.get("/api/v1/pipeline/status")
         data = status.json()
@@ -251,11 +250,6 @@ async def test_TP10_pipeline_api_returns_asset_type(client: AsyncClient):
 # ── Token accumulation tests — T_TOK1 through T_TOK3 ─────────────────────────
 # Tests that SyncLog.tokens_input, tokens_output, estimated_cost_usd are written
 # correctly after enrichment runs. Uses mock enricher to avoid real LLM calls.
-
-
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 
 def _make_mock_enricher(prompt_tokens: int = 0, completion_tokens: int = 0):
