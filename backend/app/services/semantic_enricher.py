@@ -389,7 +389,9 @@ class SemanticEnricher:
         completion_tokens = response.usage.completion_tokens if response.usage else 0
         return json.loads(text), prompt_tokens, completion_tokens
 
-    async def enrich_gpt(self, gpt: dict, _classification: dict | None = None) -> tuple[dict, int, int]:
+    async def enrich_gpt(
+        self, gpt: dict, _classification: dict | None = None
+    ) -> tuple[dict, int, int]:
         """Returns (enrichment_dict, prompt_tokens, completion_tokens)."""
         gpt_context = _build_gpt_context(gpt)
         prompt = PROMPT_ALL_KPIS.format(gpt_context=gpt_context)

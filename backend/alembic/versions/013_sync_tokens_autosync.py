@@ -19,13 +19,37 @@ depends_on = None
 
 def upgrade() -> None:
     # Token tracking on sync_logs
-    op.add_column("sync_logs", sa.Column("tokens_input", sa.Integer(), nullable=False, server_default="0"))
-    op.add_column("sync_logs", sa.Column("tokens_output", sa.Integer(), nullable=False, server_default="0"))
-    op.add_column("sync_logs", sa.Column("estimated_cost_usd", sa.Numeric(precision=10, scale=6), nullable=True))
+    op.add_column(
+        "sync_logs",
+        sa.Column("tokens_input", sa.Integer(), nullable=False, server_default="0"),
+    )
+    op.add_column(
+        "sync_logs",
+        sa.Column("tokens_output", sa.Integer(), nullable=False, server_default="0"),
+    )
+    op.add_column(
+        "sync_logs",
+        sa.Column(
+            "estimated_cost_usd", sa.Numeric(precision=10, scale=6), nullable=True
+        ),
+    )
 
     # Auto-sync config on configurations
-    op.add_column("configurations", sa.Column("auto_sync_enabled", sa.Boolean(), nullable=False, server_default="false"))
-    op.add_column("configurations", sa.Column("auto_sync_interval_hours", sa.Integer(), nullable=False, server_default="24"))
+    op.add_column(
+        "configurations",
+        sa.Column(
+            "auto_sync_enabled", sa.Boolean(), nullable=False, server_default="false"
+        ),
+    )
+    op.add_column(
+        "configurations",
+        sa.Column(
+            "auto_sync_interval_hours",
+            sa.Integer(),
+            nullable=False,
+            server_default="24",
+        ),
+    )
 
 
 def downgrade() -> None:

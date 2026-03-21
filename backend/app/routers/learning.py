@@ -371,7 +371,11 @@ async def recommend_org(db: AsyncSession = Depends(get_db)):
 
     gpt_count = sum(1 for g in gpts if g.asset_type != "project")
     project_count = sum(1 for g in gpts if g.asset_type == "project")
-    asset_breakdown = f"{gpt_count} Custom GPTs + {project_count} Projects" if project_count else f"{gpt_count} Custom GPTs"
+    asset_breakdown = (
+        f"{gpt_count} Custom GPTs + {project_count} Projects"
+        if project_count
+        else f"{gpt_count} Custom GPTs"
+    )
 
     org_profile = f"""
 Organisation AgentsOrg — Snapshot ({total} AI assets total [{asset_breakdown}], {len(enriched)} semantically enriched):
@@ -957,17 +961,21 @@ async def get_workshop_impact(workshop_id: int, db: AsyncSession = Depends(get_d
         cat_lookup: dict[int, str] = {c.id: c.name for c in cat_result.scalars().all()}
         gpt_result = await db.execute(select(GPT).where(GPT.id.in_(tagged_gpt_ids)))
         for g in gpt_result.scalars().all():
-            tagged_asset_details.append(TaggedAssetDetail(
-                gpt_id=g.id,
-                name=g.name,
-                asset_type=g.asset_type or "gpt",
-                owner_email=g.owner_email,
-                quality_score=g.prompting_quality_score,
-                sophistication_score=g.sophistication_score,
-                roi_potential_score=g.roi_potential_score,
-                risk_level=g.risk_level,
-                primary_category=cat_lookup.get(g.primary_category_id) if g.primary_category_id else None,
-            ))
+            tagged_asset_details.append(
+                TaggedAssetDetail(
+                    gpt_id=g.id,
+                    name=g.name,
+                    asset_type=g.asset_type or "gpt",
+                    owner_email=g.owner_email,
+                    quality_score=g.prompting_quality_score,
+                    sophistication_score=g.sophistication_score,
+                    roi_potential_score=g.roi_potential_score,
+                    risk_level=g.risk_level,
+                    primary_category=cat_lookup.get(g.primary_category_id)
+                    if g.primary_category_id
+                    else None,
+                )
+            )
 
     return WorkshopImpact(
         workshop_id=workshop_id,

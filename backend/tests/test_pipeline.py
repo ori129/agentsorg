@@ -264,13 +264,17 @@ def _make_mock_enricher(prompt_tokens: int = 0, completion_tokens: int = 0):
 def test_TTOK1_calculate_cost_gpt4o_mini():
     """_calculate_cost uses gpt-4o-mini rates correctly."""
     from app.services.pipeline import _calculate_cost
-    cost = _calculate_cost("gpt-4o-mini", tokens_input=1_000_000, tokens_output=1_000_000)
+
+    cost = _calculate_cost(
+        "gpt-4o-mini", tokens_input=1_000_000, tokens_output=1_000_000
+    )
     assert abs(cost - 0.75) < 0.001, f"Expected $0.75, got ${cost:.4f}"
 
 
 def test_TTOK2_calculate_cost_gpt4o():
     """_calculate_cost switches to gpt-4o rates for gpt-4o model."""
     from app.services.pipeline import _calculate_cost
+
     cost = _calculate_cost("gpt-4o", tokens_input=1_000_000, tokens_output=1_000_000)
     assert abs(cost - 12.50) < 0.01, f"Expected $12.50, got ${cost:.4f}"
 
@@ -278,8 +282,13 @@ def test_TTOK2_calculate_cost_gpt4o():
 def test_TTOK3_calculate_cost_unknown_model_uses_default():
     """_calculate_cost falls back to gpt-4o-mini rates for unknown models."""
     from app.services.pipeline import _calculate_cost
-    cost_unknown = _calculate_cost("future-model-x", tokens_input=100_000, tokens_output=100_000)
-    cost_default = _calculate_cost("gpt-4o-mini", tokens_input=100_000, tokens_output=100_000)
+
+    cost_unknown = _calculate_cost(
+        "future-model-x", tokens_input=100_000, tokens_output=100_000
+    )
+    cost_default = _calculate_cost(
+        "gpt-4o-mini", tokens_input=100_000, tokens_output=100_000
+    )
     assert cost_unknown == cost_default
 
 
@@ -288,10 +297,21 @@ async def test_TTOK4_mock_enricher_returns_zero_tokens():
     """MockSemanticEnricher.enrich_batch returns (results, 0, 0) — no LLM cost."""
     from app.services.mock_semantic_enricher import MockSemanticEnricher
 
-    gpts = [{"id": "g1", "name": "Test", "description": "", "instructions": "",
-              "tools": [], "builder_categories": [], "files": []}]
+    gpts = [
+        {
+            "id": "g1",
+            "name": "Test",
+            "description": "",
+            "instructions": "",
+            "tools": [],
+            "builder_categories": [],
+            "files": [],
+        }
+    ]
     enricher = MockSemanticEnricher()
-    results, prompt_tokens, completion_tokens = await enricher.enrich_batch(gpts, [None])
+    results, prompt_tokens, completion_tokens = await enricher.enrich_batch(
+        gpts, [None]
+    )
 
     assert prompt_tokens == 0, "Mock enricher should return 0 prompt tokens"
     assert completion_tokens == 0, "Mock enricher should return 0 completion tokens"
@@ -303,8 +323,15 @@ async def test_TTOK5_mock_enricher_enrich_gpt_returns_zero_tokens():
     """MockSemanticEnricher.enrich_gpt returns (dict, 0, 0)."""
     from app.services.mock_semantic_enricher import MockSemanticEnricher
 
-    gpt = {"id": "g1", "name": "Test", "description": "", "instructions": "",
-            "tools": [], "builder_categories": [], "files": []}
+    gpt = {
+        "id": "g1",
+        "name": "Test",
+        "description": "",
+        "instructions": "",
+        "tools": [],
+        "builder_categories": [],
+        "files": [],
+    }
     enricher = MockSemanticEnricher()
     result, pt, ct = await enricher.enrich_gpt(gpt)
 

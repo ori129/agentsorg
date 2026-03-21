@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 # LLM cost per token (USD) by model — input/output rates per 1M tokens
 # Source: OpenAI pricing as of 2026-03
 _MODEL_COSTS: dict[str, tuple[float, float]] = {
-    "gpt-4o-mini":   (0.15 / 1_000_000, 0.60 / 1_000_000),
-    "gpt-4o":        (2.50 / 1_000_000, 10.00 / 1_000_000),
-    "gpt-4-turbo":   (10.00 / 1_000_000, 30.00 / 1_000_000),
-    "gpt-4":         (30.00 / 1_000_000, 60.00 / 1_000_000),
+    "gpt-4o-mini": (0.15 / 1_000_000, 0.60 / 1_000_000),
+    "gpt-4o": (2.50 / 1_000_000, 10.00 / 1_000_000),
+    "gpt-4-turbo": (10.00 / 1_000_000, 30.00 / 1_000_000),
+    "gpt-4": (30.00 / 1_000_000, 60.00 / 1_000_000),
     "gpt-3.5-turbo": (0.50 / 1_000_000, 1.50 / 1_000_000),
 }
 _DEFAULT_COST = _MODEL_COSTS["gpt-4o-mini"]
@@ -433,7 +433,11 @@ async def _execute_pipeline(db: AsyncSession):
                 enricher = SemanticEnricher(openai_key, config.classification_model)
             changed_gpts_for_enrich = [filtered_gpts[i] for i in changed_indices]
             changed_cls_for_enrich = [classifications[i] for i in changed_indices]
-            changed_enrichments, batch_tokens_in, batch_tokens_out = await enricher.enrich_batch(
+            (
+                changed_enrichments,
+                batch_tokens_in,
+                batch_tokens_out,
+            ) = await enricher.enrich_batch(
                 changed_gpts_for_enrich, changed_cls_for_enrich
             )
             tokens_input += batch_tokens_in

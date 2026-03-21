@@ -371,7 +371,9 @@ def _enrich_single(gpt: dict) -> dict:
 
 
 class MockSemanticEnricher:
-    async def enrich_gpt(self, gpt: dict, _classification: dict | None = None) -> tuple[dict, int, int]:
+    async def enrich_gpt(
+        self, gpt: dict, _classification: dict | None = None
+    ) -> tuple[dict, int, int]:
         """Returns (enrichment_dict, prompt_tokens=0, completion_tokens=0) — mock uses no LLM."""
         return _enrich_single(gpt), 0, 0
 

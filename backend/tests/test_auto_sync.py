@@ -35,11 +35,14 @@ def _last_sync(finished_hours_ago: float) -> MagicMock:
 
 def test_TAS1_disabled_does_not_trigger():
     """auto_sync_enabled=False → never fires, regardless of last sync time."""
-    assert _should_run_auto_sync(
-        config=_config(enabled=False),
-        last_sync=_last_sync(48),  # overdue, but doesn't matter
-        pipeline_running=False,
-    ) is False
+    assert (
+        _should_run_auto_sync(
+            config=_config(enabled=False),
+            last_sync=_last_sync(48),  # overdue, but doesn't matter
+            pipeline_running=False,
+        )
+        is False
+    )
 
 
 # ── T_AS2 ─────────────────────────────────────────────────────────────────────
@@ -47,11 +50,14 @@ def test_TAS1_disabled_does_not_trigger():
 
 def test_TAS2_too_soon_does_not_trigger():
     """Last sync was 2h ago with 24h interval → not yet due."""
-    assert _should_run_auto_sync(
-        config=_config(enabled=True, interval_hours=24),
-        last_sync=_last_sync(2),
-        pipeline_running=False,
-    ) is False
+    assert (
+        _should_run_auto_sync(
+            config=_config(enabled=True, interval_hours=24),
+            last_sync=_last_sync(2),
+            pipeline_running=False,
+        )
+        is False
+    )
 
 
 # ── T_AS3 ─────────────────────────────────────────────────────────────────────
@@ -59,11 +65,14 @@ def test_TAS2_too_soon_does_not_trigger():
 
 def test_TAS3_overdue_triggers():
     """Last sync was 25h ago with 24h interval → due, should fire."""
-    assert _should_run_auto_sync(
-        config=_config(enabled=True, interval_hours=24),
-        last_sync=_last_sync(25),
-        pipeline_running=False,
-    ) is True
+    assert (
+        _should_run_auto_sync(
+            config=_config(enabled=True, interval_hours=24),
+            last_sync=_last_sync(25),
+            pipeline_running=False,
+        )
+        is True
+    )
 
 
 # ── T_AS4 ─────────────────────────────────────────────────────────────────────
@@ -71,11 +80,14 @@ def test_TAS3_overdue_triggers():
 
 def test_TAS4_no_prior_sync_triggers():
     """No prior completed sync → always due, should fire."""
-    assert _should_run_auto_sync(
-        config=_config(enabled=True),
-        last_sync=None,
-        pipeline_running=False,
-    ) is True
+    assert (
+        _should_run_auto_sync(
+            config=_config(enabled=True),
+            last_sync=None,
+            pipeline_running=False,
+        )
+        is True
+    )
 
 
 # ── T_AS5 ─────────────────────────────────────────────────────────────────────
@@ -83,11 +95,14 @@ def test_TAS4_no_prior_sync_triggers():
 
 def test_TAS5_pipeline_running_does_not_trigger():
     """Overdue but pipeline already running → skip to avoid double-run."""
-    assert _should_run_auto_sync(
-        config=_config(enabled=True, interval_hours=24),
-        last_sync=_last_sync(25),
-        pipeline_running=True,
-    ) is False
+    assert (
+        _should_run_auto_sync(
+            config=_config(enabled=True, interval_hours=24),
+            last_sync=_last_sync(25),
+            pipeline_running=True,
+        )
+        is False
+    )
 
 
 # ── Edge: config=None ─────────────────────────────────────────────────────────
@@ -95,8 +110,11 @@ def test_TAS5_pipeline_running_does_not_trigger():
 
 def test_TAS6_no_config_does_not_trigger():
     """No configuration row in DB → does not trigger."""
-    assert _should_run_auto_sync(
-        config=None,
-        last_sync=None,
-        pipeline_running=False,
-    ) is False
+    assert (
+        _should_run_auto_sync(
+            config=None,
+            last_sync=None,
+            pipeline_running=False,
+        )
+        is False
+    )

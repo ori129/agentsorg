@@ -164,9 +164,13 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
     # Count all assets and split by type
     total_result = await db.execute(select(func.count(GPT.id)))
     total = total_result.scalar() or 0
-    gpt_count_result = await db.execute(select(func.count(GPT.id)).where(GPT.asset_type != "project"))
+    gpt_count_result = await db.execute(
+        select(func.count(GPT.id)).where(GPT.asset_type != "project")
+    )
     gpt_count = gpt_count_result.scalar() or 0
-    project_count_result = await db.execute(select(func.count(GPT.id)).where(GPT.asset_type == "project"))
+    project_count_result = await db.execute(
+        select(func.count(GPT.id)).where(GPT.asset_type == "project")
+    )
     project_count = project_count_result.scalar() or 0
 
     # Category distribution
@@ -511,9 +515,7 @@ async def get_sync_config(db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/pipeline/sync-config", response_model=SyncConfigRead)
-async def patch_sync_config(
-    body: SyncConfigPatch, db: AsyncSession = Depends(get_db)
-):
+async def patch_sync_config(body: SyncConfigPatch, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Configuration).where(Configuration.id == 1))
     config = result.scalar_one_or_none()
     if not config:
