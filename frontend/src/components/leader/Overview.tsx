@@ -592,10 +592,10 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
           </div>
         </Card>
 
-        <Card title="Redundancy Clusters">
+        <Card title="Standardization Opportunities">
           {clusters.length === 0 ? (
             <div className="text-xs" style={{ color: "var(--c-text-4)" }}>
-              No clusters yet. Run clustering from the Duplicates panel to detect redundant builds.
+              No clusters yet. Run analysis from the Standardization Opportunities panel to detect demand clusters.
             </div>
           ) : (
             <div className="space-y-2 text-xs">

@@ -52,3 +52,4 @@ site/
 package-lock.json
 package.json
 .claude/skills/gstack/
+.gstack/

@@ -5,7 +5,7 @@ import PipelineSetupPage from "./PipelineSetupPage";
 import SyncPage from "./SyncPage";
 import RiskPanel from "./RiskPanel";
 import QualityScores from "./QualityScores";
-import Duplicates from "./Duplicates";
+import StandardizationOpportunities from "./StandardizationOpportunities";
 import Recognition from "./Recognition";
 import Learning from "./Learning";
 import Workshops from "./Workshops";
@@ -69,7 +69,7 @@ export default function LeaderLayout({ initialPage, onSetupNavigated, onSwitchTo
         page={page}
         onSetPage={setPage}
         riskCount={riskCount}
-        duplicateCount={0}
+        clusterCount={0}
         enrichmentPct={gpts.length > 0 ? enrichmentPct : undefined}
         isAdmin={isAdmin}
       />
@@ -84,7 +84,7 @@ export default function LeaderLayout({ initialPage, onSetupNavigated, onSwitchTo
         {page === "enrichment" && <PipelineSetupPage onComplete={() => setPage("sync")} />}
         {page === "risk" && <RiskPanel gpts={gpts} />}
         {page === "quality" && <QualityScores gpts={gpts} />}
-        {page === "duplicates" && <Duplicates gpts={gpts} />}
+        {page === "standardization" && <StandardizationOpportunities gpts={gpts} />}
         {page === "recognition" && <Recognition gpts={gpts} />}
         {page === "learning" && <Learning />}
         {page === "workshops" && <Workshops />}

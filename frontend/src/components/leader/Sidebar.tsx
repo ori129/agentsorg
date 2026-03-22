@@ -8,7 +8,7 @@ export type LeaderPage =
   | "enrichment"
   | "sync"
   | "risk"
-  | "duplicates"
+  | "standardization"
   | "quality"
   | "recognition"
   | "learning"
@@ -19,7 +19,7 @@ interface SidebarProps {
   page: LeaderPage;
   onSetPage: (p: LeaderPage) => void;
   riskCount?: number;
-  duplicateCount?: number;
+  clusterCount?: number;
   enrichmentPct?: number;
   isAdmin?: boolean;
 }
@@ -44,7 +44,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "Governance",
     items: [
       { id: "risk", label: "Risk Panel" },
-      { id: "duplicates", label: "Duplicates" },
+      { id: "standardization", label: "Standardization Opportunities" },
       { id: "quality", label: "Quality Scores" },
     ],
   },
@@ -70,15 +70,15 @@ export default function Sidebar({
   page,
   onSetPage,
   riskCount,
-  duplicateCount,
+  clusterCount,
   enrichmentPct,
   isAdmin,
 }: SidebarProps) {
   const getBadge = (id: LeaderPage): { value: string | number; color: string } | null => {
     if (id === "risk" && riskCount !== undefined && riskCount > 0)
       return { value: riskCount, color: "#ef4444" };
-    if (id === "duplicates" && duplicateCount !== undefined && duplicateCount > 0)
-      return { value: duplicateCount, color: "#f59e0b" };
+    if (id === "standardization" && clusterCount !== undefined && clusterCount > 0)
+      return { value: clusterCount, color: "#f59e0b" };
     if (id === "enrichment" && enrichmentPct !== undefined) {
       const color =
         enrichmentPct >= 70 ? "#10b981" : enrichmentPct >= 30 ? "#f59e0b" : "#ef4444";

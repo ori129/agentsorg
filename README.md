@@ -52,7 +52,7 @@ An LLM reads each GPT's system prompt and extracts:
 - **Overview** — portfolio KPIs, creation velocity, department breakdown, maturity tiers. Five drill-down pages (Builders, Processes, Departments, Maturity, Output Types).
 - **Sync** — Manual sync button, auto-sync toggle + schedule, token consumption and cost per sync run, and full sync history log.
 - **Risk Panel** — GPTs flagged high or critical, with per-flag breakdown.
-- **Duplicates** — pgvector semantic clustering to detect redundant builds before they proliferate.
+- **Standardization Opportunities** — pgvector semantic clustering to detect when multiple teams independently build GPTs for the same workflow. Each cluster is a candidate for a shared, certified org standard.
 - **Quality Scores** — Prompting quality distribution across the portfolio.
 
 ### 🎓 Learning & Development
@@ -104,11 +104,11 @@ Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs 
     <td align="center"><em>Risk Panel — high/critical assets flagged by issue type</em></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/ss_duplicates.png" alt="Duplicates" /></td>
+    <td><img src="docs/screenshots/ss_standardization.png" alt="Standardization Opportunities" /></td>
     <td><img src="docs/screenshots/ss_quality.png" alt="Quality Scores" /></td>
   </tr>
   <tr>
-    <td align="center"><em>Duplicates — semantic clustering catches redundant builds</em></td>
+    <td align="center"><em>Standardization Opportunities — demand clusters, each a candidate for a certified org standard</em></td>
     <td align="center"><em>Quality Scores — sophistication, prompting quality, ROI per asset</em></td>
   </tr>
   <tr>
@@ -286,7 +286,7 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/clustering/run` | Run duplicate detection |
+| POST | `/api/v1/clustering/run` | Detect standardization opportunities |
 | GET | `/api/v1/clustering/status` | Clustering job status |
 | GET | `/api/v1/clustering/results` | Cluster groups |
 </details>
