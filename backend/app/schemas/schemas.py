@@ -274,10 +274,30 @@ class WorkshopImpact(BaseModel):
 
 
 class ClusterGroup(BaseModel):
+    cluster_id: str = ""
     theme: str
     gpt_ids: list[str]
     gpt_names: list[str]
     estimated_wasted_hours: float | None = None
+    business_process: str | None = None
+    departments: list[str] | None = None
+    confidence: float | None = None
+    candidate_gpt_id: str | None = None
+    recommended_action: str | None = None
+
+
+class ClusterActionRequest(BaseModel):
+    action: str  # certify | publish | assign_owner | archive_variants | add_notes
+    owner_email: str | None = None
+    notes: str | None = None
+
+
+class ClusterActionResponse(BaseModel):
+    cluster_id: str
+    action: str
+    owner_email: str | None = None
+    notes: str | None = None
+    saved_at: str
 
 
 class ClusteringStatus(BaseModel):

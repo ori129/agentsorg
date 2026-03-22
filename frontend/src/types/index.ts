@@ -113,10 +113,24 @@ export interface GPTSearchResult extends GPTItem {
 }
 
 export interface ClusterGroup {
+  cluster_id: string;
   theme: string;
   gpt_ids: string[];
   gpt_names: string[];
   estimated_wasted_hours: number | null;
+  business_process: string | null;
+  departments: string[] | null;
+  confidence: number | null;
+  candidate_gpt_id: string | null;
+  recommended_action: string | null;
+}
+
+export interface ClusterAction {
+  cluster_id: string;
+  action: string;
+  owner_email: string | null;
+  notes: string | null;
+  saved_at: string;
 }
 
 export interface ClusteringStatus {
