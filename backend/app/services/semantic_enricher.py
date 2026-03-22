@@ -144,6 +144,14 @@ adoption_friction_score (integer 1-5)
 adoption_friction_rationale (string)
   One sentence explaining the adoption ease score, naming any specific barrier (required skill, process change, or access) or why it's easy.
 
+purpose_fingerprint (string)
+  Single sentence (max 15 words) capturing exactly what this tool does at the workflow level.
+  Start with a verb: "Summarizes", "Drafts", "Reviews", "Generates", "Analyzes", "Classifies", etc.
+  Be specific enough that two tools with identical fingerprints are genuine duplicates.
+  Name the input and output: "Summarizes meeting transcripts into structured action items with owners".
+  Do NOT use the tool name. Do NOT add qualifiers like "enterprise" or "AI-powered".
+  If purely experimental or placeholder: "Experimental placeholder with no defined purpose".
+
 Respond with JSON only. No commentary outside the JSON object."""
 
 # ---------------------------------------------------------------------------

@@ -10,6 +10,8 @@ Reflects real enterprise GPT distribution:
 import hashlib
 from datetime import datetime, timezone
 
+from app.services.mock_embedder import _detect_bucket, _detect_sub_bucket
+
 
 def _seed(gpt: dict) -> int:
     """Deterministic seed from GPT id/name."""
@@ -144,6 +146,88 @@ _INTEGRATIONS_BY_CATEGORY = {
     "data": ["Snowflake", "Tableau"],
 }
 
+# ---------------------------------------------------------------------------
+# Purpose fingerprint map — one sentence per sub-bucket (mirrors mock_embedder hierarchy)
+# ---------------------------------------------------------------------------
+
+_FINGERPRINT_MAP: dict[str, str] = {
+    # meeting-notes
+    "meeting-notes:standup-summary": "Summarizes daily standup meetings into action items with owners",
+    "meeting-notes:executive-briefing": "Converts executive meetings into structured briefing documents for leadership",
+    "meeting-notes:client-call-notes": "Transcribes client calls into organized notes with follow-up actions",
+    "meeting-notes:general-recap": "Summarizes meeting transcripts into key decisions and next steps",
+    # email-assistant
+    "email-assistant:cold-outreach": "Drafts personalized cold outreach emails for sales prospects",
+    "email-assistant:follow-up": "Writes follow-up email sequences for sales and customer nurture campaigns",
+    "email-assistant:internal-comms": "Drafts internal announcements and stakeholder update emails",
+    "email-assistant:general-email": "Drafts and improves professional emails for any business context",
+    # code-review
+    "code-review:pr-review": "Reviews pull requests for code quality, bugs, and best practices",
+    "code-review:security-review": "Analyzes source code for security vulnerabilities and compliance issues",
+    "code-review:documentation": "Generates code documentation, docstrings, and API reference from source code",
+    "code-review:general-code": "Reviews and improves code quality across languages and frameworks",
+    # legal-contract
+    "legal-contract:contract-review": "Reviews contracts to identify risky clauses and missing standard protections",
+    "legal-contract:nda": "Analyzes NDAs and confidentiality agreements for missing or unusual terms",
+    "legal-contract:compliance": "Checks documents and processes against regulatory compliance requirements",
+    "legal-contract:general-legal": "Reviews legal documents for standard terms and potential issues",
+    # sales-assistant
+    "sales-assistant:prospecting": "Qualifies leads against ICP criteria and researches target accounts",
+    "sales-assistant:deal-management": "Tracks deal status and suggests next actions for open opportunities",
+    "sales-assistant:proposal": "Drafts customized sales proposals and RFP responses for prospects",
+    "sales-assistant:general-sales": "Supports sales workflows including outreach, qualification, and closing",
+    # hr-assistant
+    "hr-assistant:onboarding": "Guides new hires through onboarding checklist and day-one orientation steps",
+    "hr-assistant:recruiting": "Screens candidates and generates interview questions from job descriptions",
+    "hr-assistant:performance": "Structures performance reviews with goal alignment and feedback templates",
+    "hr-assistant:general-hr": "Handles HR operations including employee queries and policy lookups",
+    # data-analytics
+    "data-analytics:dashboards": "Designs KPI dashboards and scorecard frameworks from business requirements",
+    "data-analytics:sql-analysis": "Writes and optimizes SQL queries for data warehouse analysis tasks",
+    "data-analytics:reporting": "Generates data analytics reports with insights from business metrics",
+    "data-analytics:general-data": "Analyzes datasets and produces insights and recommendations on demand",
+    # marketing-content
+    "marketing-content:social-media": "Creates social media posts and content calendars for marketing campaigns",
+    "marketing-content:seo-content": "Writes SEO-optimized blog posts and content strategies for organic growth",
+    "marketing-content:brand-voice": "Ensures marketing copy adheres to brand voice and tone guidelines",
+    "marketing-content:general-content": "Creates marketing copy and campaign content across channels",
+    # finance
+    "finance:budgeting": "Builds budget forecasts and expense tracking templates for cost centers",
+    "finance:reporting": "Produces financial reports including P&L statements and budget variance analysis",
+    "finance:analysis": "Analyzes financial data to identify revenue trends and ROI opportunities",
+    "finance:general-finance": "Supports finance operations including reporting, budgeting, and analysis",
+    # customer-support
+    "customer-support:ticket-triage": "Triages and categorizes incoming support tickets for routing and prioritization",
+    "customer-support:escalation": "Identifies at-risk accounts and drafts escalation responses for churn prevention",
+    "customer-support:self-service": "Powers customer self-service FAQs and knowledge base article generation",
+    "customer-support:general-support": "Handles customer support inquiries with resolution guidance and templates",
+}
+
+
+def _assign_fingerprint(gpt: dict, tier: int, use_case: str = "") -> str:
+    """Assign a deterministic purpose fingerprint using the same bucket hierarchy as MockEmbedder.
+
+    Uses name+description only (not the classifier use_case) for reliable keyword matching.
+    """
+    if tier == 1:
+        return "Experimental placeholder with no defined purpose"
+
+    name = gpt.get("name", "")
+    desc = (gpt.get("description") or "").lower()
+    gpt_id = gpt.get("id", "")
+
+    # Use name+description for bucket detection, NOT the classifier use_case
+    # (classifier use_case reflects the assigned category domain, not the tool's actual workflow)
+    search_text = name + " " + desc
+    bucket = _detect_bucket(search_text)
+    if not bucket:
+        return "General-purpose assistant for internal productivity tasks"
+
+    sub_bucket = _detect_sub_bucket(bucket, search_text, "", gpt_id)
+    key = f"{bucket}:{sub_bucket}"
+    return _FINGERPRINT_MAP.get(key, f"Supports {bucket.replace('-', ' ')} workflows for the organization")
+
+
 # Niche technical keywords that drive adoption friction up
 _NICHE_TECH_KEYWORDS = [
     "suitescript",
@@ -172,7 +256,7 @@ _NICHE_TECH_KEYWORDS = [
 ]
 
 
-def _enrich_single(gpt: dict) -> dict:
+def _enrich_single(gpt: dict, classification: dict | None = None) -> dict:
     seed = _seed(gpt)
     tier = _tier(gpt)
     tool_count = _tool_count(gpt)
@@ -180,6 +264,7 @@ def _enrich_single(gpt: dict) -> dict:
     name = _name_lower(gpt)
     desc = (gpt.get("description") or "").lower()
     instr = (gpt.get("instructions") or "").lower()
+    use_case = (classification or {}).get("use_case_description") or "" if classification else ""
 
     # ── Sophistication ──────────────────────────────────────────────────────
     if tier == 1:
@@ -367,6 +452,7 @@ def _enrich_single(gpt: dict) -> dict:
         "adoption_friction_score": af,
         "adoption_friction_rationale": af_rationale,
         "semantic_enriched_at": datetime.now(timezone.utc).isoformat(),
+        "purpose_fingerprint": _assign_fingerprint(gpt, tier, use_case),
     }
 
 
@@ -375,10 +461,13 @@ class MockSemanticEnricher:
         self, gpt: dict, _classification: dict | None = None
     ) -> tuple[dict, int, int]:
         """Returns (enrichment_dict, prompt_tokens=0, completion_tokens=0) — mock uses no LLM."""
-        return _enrich_single(gpt), 0, 0
+        return _enrich_single(gpt, _classification), 0, 0
 
     async def enrich_batch(
         self, gpts: list[dict], classifications: list[dict | None]
     ) -> tuple[list[dict | None], int, int]:
         """Returns (enrichments, total_prompt_tokens=0, total_completion_tokens=0)."""
-        return [_enrich_single(gpt) for gpt in gpts], 0, 0
+        return [
+            _enrich_single(gpt, classifications[i] if i < len(classifications) else None)
+            for i, gpt in enumerate(gpts)
+        ], 0, 0

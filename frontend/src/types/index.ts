@@ -123,6 +123,7 @@ export interface ClusterGroup {
   confidence: number | null;
   candidate_gpt_id: string | null;
   recommended_action: string | null;
+  cluster_explanation: string | null;
 }
 
 export interface ClusterAction {

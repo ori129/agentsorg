@@ -133,6 +133,7 @@ class GPT(Base):
     semantic_enriched_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+    purpose_fingerprint: Mapped[str | None] = mapped_column(Text)
 
     asset_type: Mapped[str] = mapped_column(String(32), default="gpt", nullable=False)
     conversation_count: Mapped[int] = mapped_column(Integer, default=0)

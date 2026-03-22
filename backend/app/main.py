@@ -17,6 +17,7 @@ from app.routers import (
     clustering,
     configuration,
     demo,
+    fingerprint,
     learning,
     pipeline,
     users,
@@ -118,6 +119,7 @@ app.include_router(pipeline.router, prefix="/api/v1")
 app.include_router(demo.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(clustering.router, prefix="/api/v1")
+app.include_router(fingerprint.router, prefix="/api/v1")
 app.include_router(learning.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 

@@ -73,7 +73,15 @@ export default function LeaderLayout({ initialPage, onSetupNavigated, onSwitchTo
         enrichmentPct={gpts.length > 0 ? enrichmentPct : undefined}
         isAdmin={isAdmin}
       />
-      <main className="flex-1 overflow-y-auto" style={{ minWidth: 0 }}>
+      <main
+        className="flex-1"
+        style={{
+          minWidth: 0,
+          overflowY: page === "standardization" ? "hidden" : "auto",
+          display: page === "standardization" ? "flex" : "block",
+          flexDirection: "column",
+        }}
+      >
         {page === "overview" && <Overview gpts={gpts} onSetPage={setPage} onSwitchToProduction={onSwitchToProduction} />}
         {page === "overview:builders" && <BuildersPage gpts={gpts} onBack={() => setPage("overview")} />}
         {page === "overview:processes" && <ProcessesPage gpts={gpts} onBack={() => setPage("overview")} />}

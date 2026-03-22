@@ -33,7 +33,7 @@ OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg
 ### 🔍 GPT & Project Registry
 Automatically discovers all Custom GPTs and Projects across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, and a slide-out detail panel for every asset.
 
-### 🧠 Semantic Enrichment (9 KPIs per GPT)
+### 🧠 Semantic Enrichment (10 signals per GPT)
 An LLM reads each GPT's system prompt and extracts:
 
 | Signal | What it captures |
@@ -47,12 +47,13 @@ An LLM reads each GPT's system prompt and extracts:
 | `integration_flags` | External systems connected |
 | `output_type` | Document, Analysis, Code, Conversation, etc. |
 | `adoption_friction_score` | How easy it is for others to adopt (1–5) |
+| `purpose_fingerprint` | Single-sentence workflow description — powers duplicate detection |
 
 ### 📊 Leader Dashboard
 - **Overview** — portfolio KPIs, creation velocity, department breakdown, maturity tiers. Five drill-down pages (Builders, Processes, Departments, Maturity, Output Types).
 - **Sync** — Manual sync button, auto-sync toggle + schedule, token consumption and cost per sync run, and full sync history log.
 - **Risk Panel** — GPTs flagged high or critical, with per-flag breakdown.
-- **Standardization Opportunities** — pgvector semantic clustering to detect when multiple teams independently build GPTs for the same workflow. Each cluster is a candidate for a shared, certified org standard.
+- **Standardization Opportunities** — Two-pane email-client layout. LLM-generated **purpose fingerprints** per GPT enable semantic clustering (pgvector + centroid-based algorithm) to detect when multiple teams independently build tools for the same workflow. Each cluster surfaces a plain-English explanation of the shared purpose, estimated wasted build hours, and the best-candidate GPT (highest sophistication score) to promote as the org standard.
 - **Quality Scores** — Prompting quality distribution across the portfolio.
 
 ### 🎓 Learning & Development
@@ -203,7 +204,7 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 |----------|-------------------------------|------------------------------|
 | Fetch    | OpenAI Compliance API         | Template-based generator     |
 | Classify | OpenAI Chat model             | Keyword matching             |
-| Enrich   | 9× LLM calls per GPT          | Deterministic mock enricher  |
+| Enrich   | 9 KPIs + purpose fingerprint via LLM | Deterministic mock enricher |
 | Embed    | OpenAI Embeddings API         | Deterministic vectors        |
 
 ### Maturity Tiers

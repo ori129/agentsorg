@@ -275,7 +275,7 @@ async def _execute_pipeline(db: AsyncSession):
         h = _content_hash(gpt_data)
         gpt_data["_content_hash"] = h
         prev = prev_gpts.get(gpt_data["id"])
-        if prev and prev.content_hash == h and prev.primary_category_id is not None:
+        if prev and prev.content_hash == h and prev.primary_category_id is not None and prev.purpose_fingerprint is not None:
             unchanged_indices.append(i)
         else:
             changed_indices.append(i)
@@ -409,6 +409,7 @@ async def _execute_pipeline(db: AsyncSession):
                 "semantic_enriched_at": prev.semantic_enriched_at.isoformat()
                 if prev.semantic_enriched_at
                 else None,
+                "purpose_fingerprint": prev.purpose_fingerprint,
             }
 
     tokens_input = 0
@@ -650,6 +651,7 @@ async def _execute_pipeline(db: AsyncSession):
             if enr
             else None,
             semantic_enriched_at=sem_at,
+            purpose_fingerprint=enr.get("purpose_fingerprint") if enr else None,
         )
         db.add(gpt)
 

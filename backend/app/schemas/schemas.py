@@ -168,6 +168,7 @@ class GPTRead(BaseModel):
     adoption_friction_score: int | None = None
     adoption_friction_rationale: str | None = None
     semantic_enriched_at: datetime | None = None
+    purpose_fingerprint: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -284,6 +285,7 @@ class ClusterGroup(BaseModel):
     confidence: float | None = None
     candidate_gpt_id: str | None = None
     recommended_action: str | None = None
+    cluster_explanation: str | None = None
 
 
 class ClusterActionRequest(BaseModel):
