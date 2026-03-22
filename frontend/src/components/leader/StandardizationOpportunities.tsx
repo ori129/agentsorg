@@ -67,7 +67,7 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
       </h1>
       <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>
         Groups AI assets with similar purpose to identify standardization opportunities.
-        When multiple employees independently build similar GPTs for the same workflow,
+        When multiple employees independently build similar GPTs or Projects for the same workflow,
         that is a strong signal that a shared, certified solution should probably exist.
       </p>
 
@@ -82,7 +82,7 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
               Demand Cluster Analysis
             </div>
             <div className="text-sm" style={{ color: "var(--c-text-4)" }}>
-              Uses pgvector cosine similarity to find AI assets built for the same purpose
+              Uses pgvector cosine similarity to find GPTs and Projects built for the same purpose
               by different teams. Each cluster is a candidate for a shared, certified solution.
               Run this after a pipeline sync.
             </div>

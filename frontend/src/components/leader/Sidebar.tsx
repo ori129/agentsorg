@@ -44,7 +44,7 @@ const SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "Governance",
     items: [
       { id: "risk", label: "Risk Panel" },
-      { id: "standardization", label: "Standardization Opportunities" },
+      { id: "standardization", label: "Standardization" },
       { id: "quality", label: "Quality Scores" },
     ],
   },

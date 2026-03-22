@@ -99,7 +99,7 @@ async def _run_clustering_task():
 
             _clustering_results = groups
             _clustering_status["status"] = "completed"
-            logger.info(f"Clustering complete: {len(groups)} duplicate clusters found")
+            logger.info(f"Clustering complete: {len(groups)} standardization opportunities found")
 
         except Exception as e:
             logger.error(f"Clustering failed: {e}")
@@ -123,7 +123,7 @@ def _infer_theme(names: list[str]) -> str:
     for theme, keywords in theme_keywords:
         if sum(1 for kw in keywords if kw in combined) >= 2:
             return theme
-    return "similar purpose GPTs"
+    return "similar purpose assets"
 
 
 @router.post("/run")
