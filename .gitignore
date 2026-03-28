@@ -53,3 +53,6 @@ package-lock.json
 package.json
 .claude/skills/gstack/
 .gstack/
+
+# Local context / retros
+.context/
