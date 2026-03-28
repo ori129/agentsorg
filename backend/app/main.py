@@ -16,6 +16,7 @@ from app.routers import (
     categories,
     clustering,
     configuration,
+    conversations,
     demo,
     fingerprint,
     learning,
@@ -99,6 +100,39 @@ async def _auto_sync_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(_auto_sync_loop())
+    try:
+        from app.database import async_session
+        from app.models.models import ConversationSyncLog, SyncLog
+        from datetime import datetime, timezone
+        from sqlalchemy import select, update
+        async with async_session() as db:
+            # Clean up logs left in "running" state from a prior crash
+            await db.execute(
+                update(ConversationSyncLog)
+                .where(ConversationSyncLog.status == "running")
+                .values(status="error", finished_at=datetime.now(timezone.utc))
+            )
+            await db.execute(
+                update(SyncLog)
+                .where(SyncLog.status == "running")
+                .values(status="error", finished_at=datetime.now(timezone.utc))
+            )
+            # Restore asset pipeline status from last completed sync log so the
+            # progress bar shows 100% instead of 0% after a server restart.
+            from app.services.pipeline import _current_status
+            last_sync_result = await db.execute(
+                select(SyncLog)
+                .order_by(SyncLog.started_at.desc())
+                .limit(1)
+            )
+            last_sync = last_sync_result.scalar_one_or_none()
+            if last_sync and last_sync.status == "completed":
+                _current_status["progress"] = 100.0
+                _current_status["stage"] = "idle"
+                _current_status["sync_log_id"] = last_sync.id
+            await db.commit()
+    except Exception as e:
+        logger.warning(f"Startup init failed: {e}")
     yield
 
 
@@ -122,6 +156,7 @@ app.include_router(clustering.router, prefix="/api/v1")
 app.include_router(fingerprint.router, prefix="/api/v1")
 app.include_router(learning.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(conversations.router, prefix="/api/v1")
 
 
 @app.get("/api/v1/health")

@@ -4,6 +4,8 @@ import { usePipelineGPTs } from "../../hooks/usePipeline";
 import { useCategories } from "../../hooks/useCategories";
 import GPTDrawer, { type DrawerFilter } from "../leader/GPTDrawer";
 import AssetTypeBadge from "../ui/AssetTypeBadge";
+import { useAuth } from "../../contexts/AuthContext";
+import { useUserInsights } from "../../hooks/useConversations";
 
 type SortOption = "shared" | "newest" | "alpha";
 type ViewMode = "grid" | "orgchart" | "tree";
@@ -482,6 +484,7 @@ function TreeView({ gpts, onSelect }: { gpts: GPTItem[]; onSelect: (g: GPTItem) 
 // ── Main Portal ───────────────────────────────────────────────────────────────
 
 export default function Portal() {
+  const { currentUser } = useAuth();
   const { data: allGpts = [], isLoading: allLoading } = usePipelineGPTs();
   const { data: categories = [] } = useCategories();
   const [search, setSearch] = useState("");
@@ -493,6 +496,8 @@ export default function Portal() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [activePortalTab, setActivePortalTab] = useState<"discover" | "my-usage">("discover");
+  const { data: myInsights = [] } = useUserInsights(currentUser?.email ?? null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -538,7 +543,31 @@ export default function Portal() {
       {/* Header */}
       <div className="px-8 py-6" style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)" }}>
         <h1 className="text-xl font-bold mb-1" style={{ color: "var(--c-text)" }}>AI Tools for Employees</h1>
-        <p className="text-sm mb-5" style={{ color: "var(--c-text-4)" }}>Describe what you need — we'll find the right AI asset for your role</p>
+        <p className="text-sm mb-4" style={{ color: "var(--c-text-4)" }}>Describe what you need — we'll find the right AI asset for your role</p>
+
+        {/* Tab navigation — "My AI Usage" only shown when data exists */}
+        {myInsights.length > 0 && (
+          <div className="flex gap-1 mb-4">
+            {(["discover", "my-usage"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActivePortalTab(tab)}
+                className="px-4 py-1.5 rounded-full text-sm font-medium transition-all"
+                style={
+                  activePortalTab === tab
+                    ? { background: "var(--c-accent-blue)", color: "white" }
+                    : {
+                        background: "var(--c-bg)",
+                        color: "var(--c-text-3)",
+                        border: "1px solid var(--c-border)",
+                      }
+                }
+              >
+                {tab === "discover" ? "Discover" : "My AI Usage"}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex gap-3 items-center">
           <div className="relative flex-1 max-w-2xl">
@@ -691,6 +720,58 @@ export default function Portal() {
           )}
         </main>
       </div>
+
+      {/* My AI Usage tab content */}
+      {activePortalTab === "my-usage" && myInsights.length > 0 && (
+        <div className="px-8 py-6 max-w-3xl">
+          <h2 className="text-base font-semibold mb-4" style={{ color: "var(--c-text)" }}>
+            My AI Usage (last 30 days)
+          </h2>
+          <div className="space-y-4">
+            {myInsights.map((insight) => {
+              const gpt = allGpts.find((g) => g.id === insight.asset_id);
+              return (
+                <div
+                  key={insight.id}
+                  className="rounded-xl p-4"
+                  style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: "var(--c-text)" }}>
+                        {gpt?.name ?? insight.asset_id}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--c-text-4)" }}>
+                        {insight.conversation_count} conversation
+                        {insight.conversation_count === 1 ? "" : "s"}
+                        {insight.last_active_at && (
+                          <span className="ml-2">
+                            · Last active{" "}
+                            {new Date(insight.last_active_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  {insight.primary_use_cases && insight.primary_use_cases.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {insight.primary_use_cases.map((uc) => (
+                        <span
+                          key={uc.topic}
+                          className="text-xs px-2 py-0.5 rounded-full"
+                          style={{ background: "#3b82f620", color: "#3b82f6" }}
+                        >
+                          {uc.topic}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

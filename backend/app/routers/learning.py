@@ -35,6 +35,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.encryption import decrypt
 from app.models.models import (
+    AssetUsageInsight,
     Category,
     Configuration,
     CustomCourse,
@@ -377,6 +378,37 @@ async def recommend_org(db: AsyncSession = Depends(get_db)):
         else f"{gpt_count} Custom GPTs"
     )
 
+    # Inject knowledge gap signals from conversation analysis (gracefully degrades if not run)
+    gap_signals_section = ""
+    try:
+        gaps_result = await db.execute(
+            select(AssetUsageInsight.asset_id, AssetUsageInsight.knowledge_gap_signals, GPT.name)
+            .join(GPT, AssetUsageInsight.asset_id == GPT.id)
+            .where(AssetUsageInsight.knowledge_gap_signals.isnot(None))
+            .order_by(AssetUsageInsight.analyzed_at.desc())
+            .limit(10)
+        )
+        gap_rows = gaps_result.fetchall()
+        if gap_rows:
+            lines = []
+            for _, signals, asset_name in gap_rows:
+                if isinstance(signals, list):
+                    for sig in signals[:2]:
+                        topic = sig.get("topic", "")
+                        example = sig.get("example_question", "")
+                        lines.append(
+                            f'  - {asset_name}: employees frequently ask about "{topic}"'
+                            + (f'\n    Example: "{example}"' if example else "")
+                        )
+            if lines:
+                gap_signals_section = (
+                    "\nAdditional signals from employee conversation analysis:\n"
+                    + "\n".join(lines)
+                    + "\n"
+                )
+    except Exception:
+        pass  # Table may not exist if migration hasn't run — skip gracefully
+
     org_profile = f"""
 Organisation AgentsOrg — Snapshot ({total} AI assets total [{asset_breakdown}], {len(enriched)} semantically enriched):
 
@@ -398,7 +430,7 @@ Adoption friction:
   - {len(high_friction)} assets with high adoption friction score (≥7/10)
 
 Top business processes: {", ".join(f"{bp} ({cnt})" for bp, cnt in top_processes) or "none mapped yet"}
-"""
+{gap_signals_section}"""
 
     # Step 1: identify skill gaps and search topics via chat.completions
     # Topics must map to what academy.openai.com actually offers (general AI skills)

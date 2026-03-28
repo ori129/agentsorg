@@ -9,7 +9,11 @@ const VISIBILITY_OPTIONS = [
   { key: "just_me", label: "Just Me" },
 ];
 
-export default function Step2FilterRules() {
+interface Step2FilterRulesProps {
+  onSaved?: () => void;
+}
+
+export default function Step2FilterRules({ onSaved }: Step2FilterRulesProps) {
   const { data: config, isLoading } = useConfiguration();
   const updateConfig = useUpdateConfig();
 
@@ -30,15 +34,18 @@ export default function Step2FilterRules() {
   if (isLoading) return <div className="form-hint">Loading...</div>;
 
   const handleSave = () => {
-    updateConfig.mutate({
-      include_all: includeAll,
-      visibility_filters: visibilityFilters,
-      min_shared_users: minSharedUsers,
-      excluded_emails: excludedEmails
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean),
-    });
+    updateConfig.mutate(
+      {
+        include_all: includeAll,
+        visibility_filters: visibilityFilters,
+        min_shared_users: minSharedUsers,
+        excluded_emails: excludedEmails
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean),
+      },
+      { onSuccess: () => onSaved?.() }
+    );
   };
 
   const toggleVisibility = (key: string) => {

@@ -211,6 +211,151 @@ class ComplianceAPIClient:
             "asset_type": "project",
         }
 
+    async def fetch_conversation_log_files(
+        self,
+        workspace_id: str,
+        since_timestamp: float | None = None,
+        on_page: Callable[[list[dict], int], Coroutine[Any, Any, None]] | None = None,
+    ) -> list[dict]:
+        """Fetch conversation log file metadata from the Compliance Logs Platform.
+
+        Returns a list of file dicts: { id, url, created_at, event_count, size_bytes }
+        The caller is responsible for downloading and streaming each file's JSONL content.
+
+        since_timestamp: Unix timestamp — the `after` datetime filter sent to the API.
+        The API requires `after` as a datetime string; passing it filters to recent logs.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        url = f"{self._base_url}/compliance/workspaces/{workspace_id}/logs"
+
+        # `after` is a required datetime query param on the /logs endpoint.
+        if since_timestamp is not None:
+            dt = datetime.fromtimestamp(since_timestamp, tz=timezone.utc)
+        else:
+            dt = datetime.now(timezone.utc) - timedelta(days=30)
+        after_dt: str = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        all_items: list[dict] = []
+        # current_after tracks the datetime cursor for pagination —
+        # use the last item's created_at timestamp to advance to the next page.
+        current_after: str = after_dt
+        page = 0
+
+        while True:
+            await self._rate_limiter.acquire()
+            params: dict[str, Any] = {
+                "limit": self._page_size,
+                "event_type": "CONVERSATION_MESSAGE",
+                "after": current_after,
+            }
+
+            logger.info(f"Requesting: GET {url} params={params}")
+            response = await self._request_with_retries("GET", url, params=params)
+            logger.info(
+                f"Response: status={response.status_code} length={len(response.text)}"
+            )
+
+            data = response.json()
+            items = data.get("data", [])
+            all_items.extend(items)
+            page += 1
+
+            logger.info(
+                f"Log files page {page}: got {len(items)}, has_more={data.get('has_more')}"
+            )
+            if items and page == 1:
+                logger.info(f"Log file item sample keys: {list(items[0].keys())}")
+                logger.info(f"Log file item[0]: {items[0]}")
+
+            if on_page:
+                await on_page(items, page)
+
+            if not data.get("has_more", False) or not items:
+                break
+
+            # Advance the datetime cursor: use the last item's end_time (or created_at)
+            last_item = items[-1]
+            last_ts = (
+                last_item.get("end_time")
+                or last_item.get("created_at")
+                or last_item.get("timestamp", "")
+            )
+            if not last_ts:
+                logger.warning(f"Log file item has no timestamp for pagination: {last_item}")
+                break
+            # Trim to seconds precision and ensure Z suffix for ISO 8601
+            current_after = last_ts[:19] + "Z" if len(last_ts) >= 19 else last_ts
+
+        logger.info(
+            f"Fetch complete: {len(all_items)} conversation log files from {url}"
+        )
+        return all_items
+
+    def get_log_file_download_url(self, workspace_id: str, log_id: str) -> str:
+        """Return the URL that serves the JSONL file (307 redirect to signed URL)."""
+        return f"{self._base_url}/compliance/workspaces/{workspace_id}/logs/{log_id}"
+
+    async def download_jsonl_lines(self, file_url: str) -> list[dict]:
+        """Stream-download a JSONL file and return parsed lines.
+
+        Skips malformed lines (JSON parse errors) with a warning log.
+        Files are up to 15MB — streamed line-by-line to avoid loading all into memory.
+        """
+        import json
+
+        lines: list[dict] = []
+        skipped = 0
+
+        await self._rate_limiter.acquire()
+        logger.info(f"Downloading JSONL: {file_url}")
+
+        # The /logs/{id} endpoint returns a 307 redirect to a signed URL (e.g. S3).
+        # Resolve the redirect first with a HEAD/GET, then stream from the final URL
+        # without the Authorization header (signed URLs don't accept Bearer tokens).
+        download_url = file_url
+        head_resp = await self._client.get(file_url, follow_redirects=False)
+        if head_resp.status_code in (301, 302, 307, 308):
+            download_url = head_resp.headers.get("location", file_url)
+            logger.info(f"Following redirect to: {download_url[:80]}...")
+            # Use a temporary client without auth headers for signed URLs
+            async with httpx.AsyncClient(timeout=60) as tmp_client:
+                async with tmp_client.stream("GET", download_url) as response:
+                    response.raise_for_status()
+                    async for raw_line in response.aiter_lines():
+                        raw_line = raw_line.strip()
+                        if not raw_line:
+                            continue
+                        try:
+                            lines.append(json.loads(raw_line))
+                        except json.JSONDecodeError as exc:
+                            skipped += 1
+                            logger.warning(
+                                f"Skipping malformed JSONL line in {file_url}: {exc} "
+                            )
+            logger.info(f"Downloaded {len(lines)} lines from {file_url} ({skipped} skipped)")
+            return lines
+
+        async with self._client.stream("GET", file_url, follow_redirects=True) as response:
+            response.raise_for_status()
+            async for raw_line in response.aiter_lines():
+                raw_line = raw_line.strip()
+                if not raw_line:
+                    continue
+                try:
+                    lines.append(json.loads(raw_line))
+                except json.JSONDecodeError as exc:
+                    skipped += 1
+                    logger.warning(
+                        f"Skipping malformed JSONL line in {file_url}: {exc} "
+                        f"(line preview: {raw_line[:120]})"
+                    )
+
+        logger.info(
+            f"JSONL download complete: {len(lines)} valid lines, {skipped} skipped"
+        )
+        return lines
+
     async def fetch_all_users(self, workspace_id: str) -> list[dict]:
         all_users: list[dict] = []
         after: str | None = None
@@ -262,6 +407,10 @@ class ComplianceAPIClient:
                 )
                 resp = await self._client.request(method, url, **kwargs)
                 if resp.status_code < 500:
+                    if not resp.is_success:
+                        logger.warning(
+                            f"HTTP {resp.status_code} response body: {resp.text[:1000]}"
+                        )
                     resp.raise_for_status()
                     return resp
                 # 5xx: retry

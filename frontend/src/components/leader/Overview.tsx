@@ -4,6 +4,7 @@ import type { ClusterGroup, GPTItem } from "../../types";
 import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
 import type { LeaderPage } from "./Sidebar";
 import { useDemoState } from "../../hooks/useDemo";
+import { useConversationOverview } from "../../hooks/useConversations";
 
 interface OverviewProps {
   gpts: GPTItem[];
@@ -285,6 +286,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
   const { data: demoState } = useDemoState();
   const isDemoActive = demoState?.enabled ?? false;
+  const { data: convOverview } = useConversationOverview(30);
 
   const { data: clusters = [] } = useQuery<ClusterGroup[]>({
     queryKey: ["clustering-results"],
@@ -721,6 +723,114 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
           )}
         </Card>
       </div>
+
+      {/* ── Actual Adoption ─────────────────────────────────────────────── */}
+      {convOverview && (
+        <div className="mt-6">
+          <h2
+            className="text-sm font-semibold uppercase tracking-widest mb-4"
+            style={{ color: "var(--c-text-4)" }}
+          >
+            Actual Adoption (last 30 days)
+          </h2>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-4">
+            {[
+              {
+                label: "Conversations",
+                value: convOverview.total_conversations.toLocaleString(),
+                color: "#3b82f6",
+              },
+              {
+                label: "Active users",
+                value: convOverview.active_users.toLocaleString(),
+                color: "#10b981",
+              },
+              {
+                label: "Active assets",
+                value: convOverview.active_assets.toLocaleString(),
+                color: "#8b5cf6",
+              },
+              {
+                label: "Ghost assets",
+                value: convOverview.ghost_assets.toLocaleString(),
+                color: convOverview.ghost_assets > 0 ? "#ef4444" : "#10b981",
+              },
+            ].map(({ label, value, color }) => (
+              <KpiCard key={label} label={label} value={value} color={color} />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Top 5 assets */}
+            {convOverview.top_assets.filter((a) => a.asset_id != null).length > 0 && (
+              <Card title="Most-used assets">
+                <div className="space-y-2">
+                  {convOverview.top_assets.filter((a) => a.asset_id != null).map((a) => {
+                    const gpt = gpts.find((g) => g.id === a.asset_id);
+                    return (
+                      <div
+                        key={a.asset_id}
+                        className="flex items-center justify-between text-xs rounded px-1 -mx-1 transition-colors"
+                        style={{ cursor: gpt ? "pointer" : "default" }}
+                        onClick={() => gpt && open(gpt.name, [gpt])}
+                        onMouseEnter={(e) => { if (gpt) (e.currentTarget as HTMLElement).style.background = "var(--c-border)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ""; }}
+                      >
+                        <span style={{ color: "var(--c-text-2)" }}>
+                          {gpt?.name ?? a.asset_id}
+                        </span>
+                        <span
+                          className="px-2 py-0.5 rounded-full"
+                          style={{ background: "#3b82f620", color: "#3b82f6" }}
+                        >
+                          {a.conversation_count} conv.
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+
+            {/* Drift alerts */}
+            {convOverview.drift_alerts > 0 && (
+              <Card title="Topic drift alerts">
+                <div className="space-y-2">
+                  {convOverview.drift_asset_ids.map((assetId) => {
+                    const gpt = gpts.find((g) => g.id === assetId);
+                    return (
+                      <div
+                        key={assetId}
+                        className="flex items-center gap-3 px-3 py-3 rounded-lg transition-colors"
+                        style={{
+                          background: "#f59e0b10",
+                          border: "1px solid #f59e0b40",
+                          cursor: gpt ? "pointer" : "default",
+                        }}
+                        onClick={() => gpt && open(gpt.name, [gpt])}
+                      >
+                        <span style={{ color: "#f59e0b", fontSize: 20 }}>⚠</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm" style={{ color: "#f59e0b" }}>
+                            {gpt?.name ?? assetId}
+                          </p>
+                          <p className="text-xs mt-0.5 truncate" style={{ color: "var(--c-text-3)" }}>
+                            Used for unintended purposes — click to investigate
+                          </p>
+                        </div>
+                        {gpt && (
+                          <span className="text-xs" style={{ color: "#f59e0b" }}>→</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -371,3 +371,97 @@ class InviteUserRequest(BaseModel):
 class InviteUserResponse(BaseModel):
     user: WorkspaceUserRead
     temp_password: str | None = None
+
+
+# ── Conversation Intelligence ─────────────────────────────────────────────────
+
+
+class ConversationConfig(BaseModel):
+    conversation_privacy_level: int | None = None
+    conversation_date_range_days: int | None = None
+    conversation_token_budget_usd: float | None = None
+    conversation_asset_scope: list[str] | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ConversationSyncLogRead(BaseModel):
+    id: int
+    started_at: datetime
+    finished_at: datetime | None
+    status: str
+    date_range_start: datetime | None
+    date_range_end: datetime | None
+    privacy_level: int | None
+    events_fetched: int
+    events_processed: int
+    assets_covered: int
+    assets_analyzed: int
+    assets_skipped_unchanged: int
+    skipped_events: int
+    estimated_cost_usd: float | None
+    actual_cost_usd: float | None
+    tokens_input: int
+    tokens_output: int
+    errors: list | None
+
+    model_config = {"from_attributes": True}
+
+
+class AssetUsageInsightRead(BaseModel):
+    id: int
+    asset_id: str
+    date_range_start: datetime | None
+    date_range_end: datetime | None
+    conversation_count: int
+    unique_user_count: int
+    avg_messages_per_conversation: float | None
+    top_topics: list | None
+    task_distribution: dict | None
+    drift_alert: str | None
+    knowledge_gap_signals: list | None
+    prompting_quality_from_messages: float | None
+    analyzed_at: datetime
+    tokens_used: int
+    cost_usd: float | None
+    privacy_level: int
+    # Week-over-week fields (computed at query time, not stored)
+    prior_conversation_count: int | None = None
+    conversation_count_delta: int | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserUsageInsightRead(BaseModel):
+    id: int
+    asset_id: str
+    user_email: str
+    user_department: str | None
+    conversation_count: int
+    last_active_at: datetime | None
+    avg_messages_per_conversation: float | None
+    prompting_quality_score: float | None
+    primary_use_cases: list | None
+    role_fit_score: float | None
+    analyzed_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConversationEstimate(BaseModel):
+    assets_to_analyze: int
+    assets_unchanged: int
+    estimated_tokens: int
+    estimated_cost_usd: float
+    prerequisite_met: bool
+
+
+class ConversationOverview(BaseModel):
+    total_conversations: int
+    active_users: int
+    active_assets: int
+    ghost_assets: int
+    top_assets: list[dict]
+    drift_alerts: int
+    drift_asset_ids: list[str]
+    date_range_days: int

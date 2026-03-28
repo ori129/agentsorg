@@ -12,7 +12,11 @@ import {
 
 const MODELS = ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"];
 
-export default function Step3Categories() {
+interface Step3CategoriesProps {
+  onSaved?: () => void;
+}
+
+export default function Step3Categories({ onSaved }: Step3CategoriesProps) {
   const { data: config, isLoading: configLoading } = useConfiguration();
   const updateConfig = useUpdateConfig();
   const testOpenai = useTestOpenaiConnection();
@@ -22,7 +26,8 @@ export default function Step3Categories() {
   const deleteCategory = useDeleteCategory();
   const seedCategories = useSeedCategories();
 
-  const [classificationEnabled, setClassificationEnabled] = useState(false);
+  // Default deep analysis to ON for new setups; respect saved value if key was previously configured
+  const [classificationEnabled, setClassificationEnabled] = useState(true);
   const [openaiApiKey, setOpenaiApiKey] = useState("");
   const [model, setModel] = useState("gpt-4o-mini");
   const [maxCategories, setMaxCategories] = useState(2);
@@ -31,7 +36,10 @@ export default function Step3Categories() {
   const [initialized, setInitialized] = useState(false);
 
   if (config && !initialized) {
-    setClassificationEnabled(config.classification_enabled);
+    // If OpenAI key was previously configured, use saved classification_enabled value.
+    // Otherwise (fresh setup), default to ON so the user sees deep analysis enabled by default.
+    const hasOpenAiKey = !!config.openai_api_key;
+    setClassificationEnabled(hasOpenAiKey ? config.classification_enabled : true);
     setModel(config.classification_model);
     setMaxCategories(config.max_categories_per_gpt);
     setInitialized(true);
@@ -40,12 +48,15 @@ export default function Step3Categories() {
   if (configLoading || catLoading) return <div className="form-hint">Loading...</div>;
 
   const handleSaveClassification = () => {
-    updateConfig.mutate({
-      classification_enabled: classificationEnabled,
-      openai_api_key: openaiApiKey || undefined,
-      classification_model: model,
-      max_categories_per_gpt: maxCategories,
-    });
+    updateConfig.mutate(
+      {
+        classification_enabled: classificationEnabled,
+        openai_api_key: openaiApiKey || undefined,
+        classification_model: model,
+        max_categories_per_gpt: maxCategories,
+      },
+      { onSuccess: () => onSaved?.() }
+    );
   };
 
   const handleTestOpenai = () => {

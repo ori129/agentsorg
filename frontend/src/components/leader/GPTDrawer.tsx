@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { GPTItem } from "../../types";
 import AssetTypeBadge, { TypeFilterChips, filterByType, type TypeFilter } from "../ui/AssetTypeBadge";
+import { useAssetUsageInsight } from "../../hooks/useConversations";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,8 @@ function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
   const integrations = (gpt.integration_flags ?? []) as string[];
   const starters = (gpt.conversation_starters ?? []) as string[];
   const cats = (gpt.builder_categories ?? []) as string[];
+  const [activeTab, setActiveTab] = useState<"details" | "usage">("details");
+  const { data: usageInsight } = useAssetUsageInsight(gpt.id);
 
   return (
     <div className="flex flex-col h-full">
@@ -105,7 +108,167 @@ function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-0">
+      {/* Tab switcher */}
+      <div className="flex border-b px-5" style={{ borderColor: "var(--c-border)" }}>
+        {(["details", "usage"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="px-3 py-2 text-sm capitalize"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              borderBottom: activeTab === tab ? "2px solid var(--c-accent-blue)" : "2px solid transparent",
+              color: activeTab === tab ? "var(--c-accent-blue)" : "var(--c-text-3)",
+              marginBottom: -1,
+            }}
+          >
+            {tab === "usage" ? "Usage" : "Details"}
+            {tab === "usage" && usageInsight && usageInsight.conversation_count > 0 && (
+              <span
+                className="ml-1 text-xs px-1.5 py-0.5 rounded-full"
+                style={{ background: "var(--c-accent-blue)20", color: "var(--c-accent-blue)" }}
+              >
+                {usageInsight.conversation_count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Usage tab */}
+      {activeTab === "usage" && (
+        <div className="flex-1 overflow-y-auto p-5">
+          {!usageInsight ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-2">
+              <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
+                No conversation data yet.
+              </p>
+              <p className="text-xs" style={{ color: "var(--c-text-4)" }}>
+                Run Conversation Analysis to see usage insights.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* Summary stats */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Conversations", value: usageInsight.conversation_count },
+                  { label: "Unique users", value: usageInsight.unique_user_count },
+                  {
+                    label: "Avg messages",
+                    value: usageInsight.avg_messages_per_conversation?.toFixed(1) ?? "—",
+                  },
+                ].map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="rounded-lg p-3 text-center"
+                    style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+                  >
+                    <p className="text-lg font-bold" style={{ color: "var(--c-text-1)" }}>
+                      {value}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--c-text-3)" }}>
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Week-over-week trend */}
+              {usageInsight.conversation_count_delta != null && (
+                <div
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
+                >
+                  <span style={{ color: usageInsight.conversation_count_delta >= 0 ? "#10b981" : "#ef4444" }}>
+                    {usageInsight.conversation_count_delta >= 0 ? "↑" : "↓"}
+                  </span>
+                  <span style={{ color: "var(--c-text-2)" }}>
+                    {Math.abs(usageInsight.conversation_count_delta)} conversations vs prior period
+                  </span>
+                  {usageInsight.prior_conversation_count != null && (
+                    <span style={{ color: "var(--c-text-4)" }}>
+                      (was {usageInsight.prior_conversation_count})
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Drift alert */}
+              {usageInsight.drift_alert && (
+                <div
+                  className="flex items-start gap-2 px-3 py-2 rounded-lg text-sm"
+                  style={{ background: "#f59e0b10", border: "1px solid #f59e0b40" }}
+                >
+                  <span style={{ color: "#f59e0b" }}>⚠</span>
+                  <span style={{ color: "#f59e0b" }}>{usageInsight.drift_alert}</span>
+                </div>
+              )}
+
+              {/* Topics */}
+              {usageInsight.top_topics && usageInsight.top_topics.length > 0 && (
+                <Section title="Top topics">
+                  <div className="space-y-2">
+                    {usageInsight.top_topics.map((t) => (
+                      <div key={t.topic}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span style={{ color: "var(--c-text-2)" }}>{t.topic}</span>
+                          <span style={{ color: "var(--c-text-3)" }}>{t.pct.toFixed(0)}%</span>
+                        </div>
+                        <div
+                          className="w-full rounded-full overflow-hidden"
+                          style={{ height: 6, background: "var(--c-border)" }}
+                        >
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${t.pct}%`,
+                              background: "var(--c-accent-blue)",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
+              {/* Knowledge gap signals */}
+              {usageInsight.knowledge_gap_signals &&
+                usageInsight.knowledge_gap_signals.length > 0 && (
+                  <Section title="Knowledge gaps">
+                    <div className="space-y-2">
+                      {usageInsight.knowledge_gap_signals.map((gap, i) => (
+                        <div
+                          key={i}
+                          className="px-3 py-2 rounded-lg text-xs"
+                          style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+                        >
+                          <p
+                            className="font-medium mb-1"
+                            style={{ color: "var(--c-text-2)" }}
+                          >
+                            {gap.topic} ({gap.frequency}×)
+                          </p>
+                          <p
+                            className="italic"
+                            style={{ color: "var(--c-text-4)" }}
+                          >
+                            "{gap.example_question}"
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+                )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-0" style={{ display: activeTab === "details" ? undefined : "none" }}>
         {(gpt.use_case_description || gpt.llm_summary || gpt.description) && (
           <Section title="Summary">
             <p className="text-sm leading-relaxed" style={{ color: "var(--c-text-2)" }}>

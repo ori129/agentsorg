@@ -8,8 +8,13 @@ import {
   usePipelineSummary,
   useRunPipeline,
 } from "../../hooks/usePipeline";
+import {
+  useConversationStatus,
+  useStartConversationPipeline,
+} from "../../hooks/useConversations";
 
-type Phase = "idle" | "running" | "finishing" | "done";
+// Overall phases: idle → assets → conversations → done
+type Phase = "idle" | "assets" | "conversations" | "done";
 
 const MIN_DISPLAY_MS = 4000;
 
@@ -21,6 +26,7 @@ interface Step4Props {
 export default function Step4FetchClassify({ onViewResults, onComplete }: Step4Props) {
   const qc = useQueryClient();
   const runPipeline = useRunPipeline();
+  const startConvPipeline = useStartConversationPipeline();
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [syncLogId, setSyncLogId] = useState<number | null>(null);
@@ -28,92 +34,166 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
   const runStartedAt = useRef(0);
   const mountCheckedRef = useRef(false);
   const logEndRef = useRef<HTMLDivElement>(null);
-  const finishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const phaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // prevent double-triggering conversation pipeline
+  const convStartedRef = useRef(false);
 
-  const polling = phase === "running" || phase === "finishing";
-  const { data: status } = usePipelineStatus(polling);
+  const assetsPolling = phase === "assets";
+  const convPolling = phase === "conversations";
+
+  const { data: assetStatus } = usePipelineStatus(assetsPolling);
+  const { data: convStatus } = useConversationStatus(convPolling);
   const { data: summary, refetch: refetchSummary } = usePipelineSummary();
-  const { data: logs = [], refetch: refetchLogs } = usePipelineLogs(
-    syncLogId,
-    polling
-  );
+  const { data: logs = [], refetch: refetchLogs } = usePipelineLogs(syncLogId, assetsPolling);
   const { data: gpts = [], refetch: refetchGPTs } = usePipelineGPTs();
 
-  // --- Effect 1: Mount check — detect already-running pipeline ---
+  // --- Mount check: detect already-running asset pipeline ---
   useEffect(() => {
     if (mountCheckedRef.current) return;
-    if (status === undefined) return;
+    if (assetStatus === undefined) return;
     mountCheckedRef.current = true;
 
-    if (status.running) {
-      setSyncLogId(status.sync_log_id);
-      setPhase("running");
+    if (assetStatus.running) {
+      setSyncLogId(assetStatus.sync_log_id);
+      setPhase("assets");
       setShowLogs(true);
       runStartedAt.current = Date.now();
     }
-  }, [status]);
+  }, [assetStatus]);
 
-  // --- Effect 2: Completion detection ---
+  // --- Asset pipeline completion → auto-start conversations ---
   useEffect(() => {
-    if (phase !== "running") return;
-    if (status?.running !== false) return;
+    if (phase !== "assets") return;
+    if (assetStatus?.running !== false) return;
+    if (convStartedRef.current) return;
+    convStartedRef.current = true;
 
-    setPhase("finishing");
     const elapsed = Date.now() - runStartedAt.current;
     const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
 
-    finishTimerRef.current = setTimeout(() => {
+    phaseTimerRef.current = setTimeout(() => {
       refetchLogs();
+      // Start conversation pipeline
+      startConvPipeline.mutate(
+        {},
+        {
+          onSuccess: () => {
+            qc.setQueryData(["conversation-status"], {
+              running: true,
+              progress: 0,
+              stage: "Starting conversation analysis...",
+            });
+            runStartedAt.current = Date.now();
+            setPhase("conversations");
+          },
+          onError: () => {
+            // Conversation pipeline failed to start — still mark as done
+            refetchSummary();
+            refetchGPTs();
+            setPhase("done");
+          },
+        }
+      );
+    }, remaining);
+  }, [phase, assetStatus?.running, refetchLogs, refetchSummary, refetchGPTs, startConvPipeline, qc]);
+
+  // --- Conversation pipeline completion ---
+  useEffect(() => {
+    if (phase !== "conversations") return;
+    if (convStatus?.running !== false) return;
+
+    const elapsed = Date.now() - runStartedAt.current;
+    const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed);
+
+    phaseTimerRef.current = setTimeout(() => {
       refetchSummary();
       refetchGPTs();
+      qc.invalidateQueries({ queryKey: ["conversation-overview"] });
+      qc.invalidateQueries({ queryKey: ["conversation-history"] });
       setPhase("done");
     }, remaining);
-  }, [phase, status?.running, refetchLogs, refetchSummary, refetchGPTs]);
+  }, [phase, convStatus?.running, refetchSummary, refetchGPTs, qc]);
 
-  // Cleanup timer only on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      if (finishTimerRef.current) clearTimeout(finishTimerRef.current);
+      if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
     };
   }, []);
 
-  // --- Effect 3: Auto-scroll logs ---
+  // Auto-scroll logs
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  // --- handleRun ---
   const handleRun = useCallback(() => {
-    setPhase("idle");
+    convStartedRef.current = false;
     setShowLogs(true);
 
     runPipeline.mutate(undefined, {
       onSuccess: (data) => {
         setSyncLogId(data.sync_log_id);
         runStartedAt.current = Date.now();
-        // Optimistically mark as running so Effect 2 doesn't race to "done"
-        // before the first real poll comes back.
         qc.setQueryData(["pipeline-status"], {
           running: true,
           progress: 0,
           stage: "Starting...",
           sync_log_id: data.sync_log_id,
         });
-        setPhase("running");
+        setPhase("assets");
       },
     });
   }, [runPipeline, qc]);
 
-  const isActive = phase === "running" || phase === "finishing";
+  const isActive = phase === "assets" || phase === "conversations";
   const hasExistingGPTs = phase === "idle" && gpts.length > 0;
+
+  // Compute unified 0–100% progress
+  let overallProgress = 0;
+  let overallStage = "";
+  if (phase === "assets" && assetStatus) {
+    overallProgress = assetStatus.progress * 0.5;
+    overallStage = `Phase 1 / Assets — ${assetStatus.stage}`;
+  } else if (phase === "conversations" && convStatus) {
+    overallProgress = 50 + convStatus.progress * 0.5;
+    overallStage = `Phase 2 / Conversations — ${convStatus.stage}`;
+  } else if (phase === "done") {
+    overallProgress = 100;
+    overallStage = "Complete";
+  }
 
   return (
     <div className="space-y-6">
       <Card
         title="Run Pipeline"
-        description="Fetch, classify, and semantically enrich every AI asset (Custom GPTs and Projects) in your workspace."
+        description="Fetch and classify all AI assets, then analyze employee conversations — both phases run automatically."
       >
         <div className="space-y-4">
+          {/* Phase indicator */}
+          {(isActive || phase === "done") && (
+            <div className="flex items-center gap-3 text-xs" style={{ color: "var(--c-text-4)" }}>
+              <span
+                className="px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  background: phase === "assets" ? "#3b82f620" : phase === "done" || phase === "conversations" ? "#10b98120" : "var(--c-border)",
+                  color: phase === "assets" ? "#3b82f6" : phase === "done" || phase === "conversations" ? "#10b981" : "var(--c-text-4)",
+                }}
+              >
+                Phase 1: Assets
+              </span>
+              <span style={{ color: "var(--c-border)" }}>→</span>
+              <span
+                className="px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  background: phase === "conversations" ? "#3b82f620" : phase === "done" ? "#10b98120" : "var(--c-border)",
+                  color: phase === "conversations" ? "#3b82f6" : phase === "done" ? "#10b981" : "var(--c-text-5)",
+                }}
+              >
+                Phase 2: Conversations
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <button
               onClick={handleRun}
@@ -122,12 +202,13 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
             >
               {runPipeline.isPending
                 ? "Starting..."
-                : isActive
-                  ? "Pipeline Running..."
-                  : "Run Pipeline"}
+                : phase === "assets"
+                  ? "Syncing Assets..."
+                  : phase === "conversations"
+                    ? "Analyzing Conversations..."
+                    : "Run Pipeline"}
             </button>
 
-            {/* Show "View Results" link if GPTs exist from a previous run */}
             {hasExistingGPTs && (
               <button
                 onClick={onViewResults}
@@ -144,17 +225,17 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
             </div>
           )}
 
-          {/* Progress bar */}
-          {isActive && status && (
+          {/* Unified progress bar */}
+          {isActive && (
             <div>
               <div className="flex justify-between text-sm mb-1" style={{ color: "var(--c-text-3)" }}>
-                <span>{status.stage}</span>
-                <span>{Math.round(status.progress)}%</span>
+                <span>{overallStage}</span>
+                <span>{Math.round(overallProgress)}%</span>
               </div>
               <div className="w-full rounded-full h-2" style={{ background: "var(--c-border)" }}>
                 <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${status.progress}%` }}
+                  style={{ width: `${overallProgress}%` }}
                 />
               </div>
             </div>
@@ -175,7 +256,13 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
                     <p className="text-xs" style={{ color: "#10b981", opacity: 0.8 }}>
                       {summary.total_gpts} discovered → {summary.filtered_gpts} after filtering
                       {(summary.gpt_count > 0 || summary.project_count > 0) && (
-                        <span> ({summary.gpt_count} GPT{summary.gpt_count !== 1 ? "s" : ""}{summary.project_count > 0 ? ` · ${summary.project_count} Project${summary.project_count !== 1 ? "s" : ""}` : ""})</span>
+                        <span>
+                          {" "}({summary.gpt_count} GPT{summary.gpt_count !== 1 ? "s" : ""}
+                          {summary.project_count > 0 ? ` · ${summary.project_count} Project${summary.project_count !== 1 ? "s" : ""}` : ""})
+                        </span>
+                      )}
+                      {convStatus && !convStatus.running && (
+                        <span> · Conversation analysis complete</span>
                       )}
                     </p>
                   </div>
@@ -209,10 +296,13 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
         </div>
       </Card>
 
-      {/* Logs panel */}
+      {/* Asset pipeline logs */}
       {logs.length > 0 && showLogs && (
-        <Card title="Pipeline Logs">
-          <div className="rounded-md p-4 max-h-80 overflow-y-auto font-mono text-xs" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+        <Card title="Asset Pipeline Logs">
+          <div
+            className="rounded-md p-4 max-h-64 overflow-y-auto font-mono text-xs"
+            style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+          >
             {logs.map((entry) => (
               <div
                 key={entry.id}
@@ -232,6 +322,31 @@ export default function Step4FetchClassify({ onViewResults, onComplete }: Step4P
               </div>
             ))}
             <div ref={logEndRef} />
+          </div>
+        </Card>
+      )}
+
+      {/* Conversation pipeline status summary (shown during/after phase 2) */}
+      {(phase === "conversations" || (phase === "done" && convStatus)) && showLogs && (
+        <Card title="Conversation Analysis">
+          <div
+            className="rounded-md p-4 font-mono text-xs"
+            style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}
+          >
+            {phase === "conversations" && convStatus && (
+              <div className="text-green-400 py-0.5">
+                <span style={{ color: "var(--c-text-4)" }}>{new Date().toLocaleTimeString()}</span>{" "}
+                <span className="uppercase">[info]</span>{" "}
+                {convStatus.stage} — {Math.round(convStatus.progress)}%
+              </div>
+            )}
+            {phase === "done" && (
+              <div className="text-green-400 py-0.5">
+                <span style={{ color: "var(--c-text-4)" }}>{new Date().toLocaleTimeString()}</span>{" "}
+                <span className="uppercase">[info]</span>{" "}
+                Conversation analysis complete.
+              </div>
+            )}
           </div>
         </Card>
       )}

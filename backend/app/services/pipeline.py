@@ -573,13 +573,22 @@ async def _execute_pipeline(db: AsyncSession):
         db, sync_log.id, "info", f"Storing {len(filtered_gpts)} GPTs in database..."
     )
 
-    # Clear existing GPTs
-    await db.execute(delete(GPT))
-    await db.commit()
-
     # Build category lookup
     cat_result = await db.execute(select(Category))
     cat_lookup = {c.name: c.id for c in cat_result.scalars().all()}
+
+    # Compute which GPT IDs are in the new dataset
+    new_gpt_ids = {gpt_data["id"] for gpt_data in filtered_gpts}
+
+    # Only delete GPTs that are no longer in the API response.
+    # This preserves conversation_events.asset_id FK links for GPTs that are
+    # still present — a wholesale DELETE would cascade SET NULL on all events.
+    existing_result = await db.execute(select(GPT.id))
+    existing_ids = {row[0] for row in existing_result.fetchall()}
+    stale_ids = existing_ids - new_gpt_ids
+    if stale_ids:
+        await db.execute(delete(GPT).where(GPT.id.in_(list(stale_ids))))
+        await db.commit()
 
     now = datetime.now(timezone.utc)
     for i, gpt_data in enumerate(filtered_gpts):
@@ -653,7 +662,7 @@ async def _execute_pipeline(db: AsyncSession):
             semantic_enriched_at=sem_at,
             purpose_fingerprint=enr.get("purpose_fingerprint") if enr else None,
         )
-        db.add(gpt)
+        await db.merge(gpt)
 
     await db.commit()
     await _log(db, sync_log.id, "info", f"Stored {len(filtered_gpts)} GPTs in database")
@@ -664,7 +673,7 @@ async def _execute_pipeline(db: AsyncSession):
     sync_log.tokens_input = tokens_input
     sync_log.tokens_output = tokens_output
     sync_log.estimated_cost_usd = _calculate_cost(
-        config.classification_model, tokens_input, tokens_output
+        config.classification_model if config else "gpt-4o-mini", tokens_input, tokens_output
     )
     await db.commit()
 

@@ -188,3 +188,111 @@ export type SystemRole = "system-admin" | "ai-leader" | "employee";
 export interface AuthStatus {
   initialized: boolean;
 }
+
+// ── Conversation Intelligence ──────────────────────────────────────────────
+
+export interface ConversationConfig {
+  conversation_privacy_level: number | null;
+  conversation_date_range_days: number | null;
+  conversation_token_budget_usd: number | null;
+  conversation_asset_scope: string[] | null;
+}
+
+export interface ConversationSyncLog {
+  id: number;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  date_range_start: string | null;
+  date_range_end: string | null;
+  privacy_level: number | null;
+  events_fetched: number;
+  events_processed: number;
+  assets_covered: number;
+  assets_analyzed: number;
+  assets_skipped_unchanged: number;
+  skipped_events: number;
+  estimated_cost_usd: number | null;
+  actual_cost_usd: number | null;
+  tokens_input: number;
+  tokens_output: number;
+  errors: Record<string, unknown>[] | null;
+}
+
+export interface TopicItem {
+  topic: string;
+  pct: number;
+  example_phrases: string[];
+}
+
+export interface KnowledgeGapSignal {
+  topic: string;
+  frequency: number;
+  example_question: string;
+}
+
+export interface AssetUsageInsight {
+  id: number;
+  asset_id: string;
+  date_range_start: string | null;
+  date_range_end: string | null;
+  conversation_count: number;
+  unique_user_count: number;
+  avg_messages_per_conversation: number | null;
+  top_topics: TopicItem[] | null;
+  task_distribution: Record<string, number> | null;
+  drift_alert: string | null;
+  knowledge_gap_signals: KnowledgeGapSignal[] | null;
+  prompting_quality_from_messages: number | null;
+  analyzed_at: string;
+  tokens_used: number;
+  cost_usd: number | null;
+  privacy_level: number;
+  // Week-over-week (computed at query time)
+  prior_conversation_count: number | null;
+  conversation_count_delta: number | null;
+}
+
+export interface UserUsageInsight {
+  id: number;
+  asset_id: string;
+  user_email: string;
+  user_department: string | null;
+  conversation_count: number;
+  last_active_at: string | null;
+  avg_messages_per_conversation: number | null;
+  prompting_quality_score: number | null;
+  primary_use_cases: { topic: string; pct: number }[] | null;
+  role_fit_score: number | null;
+  analyzed_at: string;
+}
+
+export interface ConversationEstimate {
+  assets_to_analyze: number;
+  assets_unchanged: number;
+  estimated_tokens: number;
+  estimated_cost_usd: number;
+  prerequisite_met: boolean;
+}
+
+export interface ConversationOverview {
+  total_conversations: number;
+  active_users: number;
+  active_assets: number;
+  ghost_assets: number;
+  top_assets: { asset_id: string; conversation_count: number }[];
+  drift_alerts: number;
+  drift_asset_ids: string[];
+  date_range_days: number;
+}
+
+export interface ConversationPipelineStatus {
+  running: boolean;
+  progress: number;
+  stage: string;
+  assets_total: number;
+  assets_done: number;
+  assets_skipped: number;
+  sync_log_id: number | null;
+  error: string | null;
+}

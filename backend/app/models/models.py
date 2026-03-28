@@ -45,6 +45,11 @@ class Configuration(Base):
     # Auto-sync scheduler config
     auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     auto_sync_interval_hours: Mapped[int] = mapped_column(Integer, default=24)
+    # Conversation Intelligence config
+    conversation_privacy_level: Mapped[int] = mapped_column(Integer, default=3)
+    conversation_date_range_days: Mapped[int] = mapped_column(Integer, default=30)
+    conversation_token_budget_usd: Mapped[float] = mapped_column(Float, default=10.0)
+    conversation_asset_scope: Mapped[list | None] = mapped_column(JSONB, default=None)
 
 
 class Category(Base):
@@ -239,6 +244,100 @@ class WorkspaceUser(Base):
     )
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     password_temp: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ConversationEvent(Base):
+    """One row per JSONL event (one message). Raw message content NEVER stored."""
+
+    __tablename__ = "conversation_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    conversation_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    asset_id: Mapped[str | None] = mapped_column(
+        String(255), ForeignKey("gpts.id", ondelete="SET NULL"), nullable=True
+    )
+    user_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    synced_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class AssetUsageInsight(Base):
+    """Aggregated LLM-derived insights per asset per analysis run."""
+
+    __tablename__ = "asset_usage_insights"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[str] = mapped_column(
+        String(255), ForeignKey("gpts.id", ondelete="CASCADE"), nullable=False
+    )
+    date_range_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    date_range_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    conversation_count: Mapped[int] = mapped_column(Integer, default=0)
+    unique_user_count: Mapped[int] = mapped_column(Integer, default=0)
+    avg_messages_per_conversation: Mapped[float | None] = mapped_column(Float)
+    top_topics: Mapped[list | None] = mapped_column(JSONB)
+    task_distribution: Mapped[dict | None] = mapped_column(JSONB)
+    drift_alert: Mapped[str | None] = mapped_column(Text)
+    knowledge_gap_signals: Mapped[list | None] = mapped_column(JSONB)
+    prompting_quality_from_messages: Mapped[float | None] = mapped_column(Float)
+    analyzed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    tokens_used: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    privacy_level: Mapped[int] = mapped_column(Integer, default=3)
+
+
+class UserUsageInsight(Base):
+    """Per-employee per-asset insight. Level 3 only."""
+
+    __tablename__ = "user_usage_insights"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[str] = mapped_column(
+        String(255), ForeignKey("gpts.id", ondelete="CASCADE"), nullable=False
+    )
+    user_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    user_department: Mapped[str | None] = mapped_column(String(255))
+    conversation_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    avg_messages_per_conversation: Mapped[float | None] = mapped_column(Float)
+    prompting_quality_score: Mapped[float | None] = mapped_column(Float)
+    primary_use_cases: Mapped[list | None] = mapped_column(JSONB)
+    role_fit_score: Mapped[float | None] = mapped_column(Float)
+    analyzed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ConversationSyncLog(Base):
+    """Audit log for each conversation pipeline run."""
+
+    __tablename__ = "conversation_sync_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(30), default="running")
+    date_range_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    date_range_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    privacy_level: Mapped[int | None] = mapped_column(Integer)
+    events_fetched: Mapped[int] = mapped_column(Integer, default=0)
+    events_processed: Mapped[int] = mapped_column(Integer, default=0)
+    assets_covered: Mapped[int] = mapped_column(Integer, default=0)
+    assets_analyzed: Mapped[int] = mapped_column(Integer, default=0)
+    assets_skipped_unchanged: Mapped[int] = mapped_column(Integer, default=0)
+    skipped_events: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_cost_usd: Mapped[float | None] = mapped_column(Float)
+    actual_cost_usd: Mapped[float | None] = mapped_column(Float)
+    tokens_input: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_output: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[list | None] = mapped_column(JSONB)
 
 
 class LoginSession(Base):
