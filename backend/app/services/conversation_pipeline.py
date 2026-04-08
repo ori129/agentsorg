@@ -67,9 +67,7 @@ _pipeline_state: dict[str, Any] = {
 }
 
 # Regex for stripping email addresses from message bodies (Level 2 identity stripping)
-_EMAIL_PATTERN = re.compile(
-    r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Z|a-z]{2,}\b"
-)
+_EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Z|a-z]{2,}\b")
 
 
 def get_pipeline_state() -> dict[str, Any]:
@@ -246,7 +244,11 @@ async def _run(
         file_url = (
             log_file.get("url")
             or log_file.get("download_url")
-            or (api_client.get_log_file_download_url(workspace_id, log_id) if log_id else "")
+            or (
+                api_client.get_log_file_download_url(workspace_id, log_id)
+                if log_id
+                else ""
+            )
         )
         if not file_url:
             logger.warning(f"Log file missing URL: {log_id}")
@@ -274,10 +276,12 @@ async def _run(
                 logger.info(f"JSONL line[1] full: {lines[1]}")
             # Log all keys present across the conversation object to find gpt_id
             all_conv_keys: set[str] = set()
-            for l in lines:
-                conv_obj = l.get("conversation") or {}
+            for line_obj in lines:
+                conv_obj = line_obj.get("conversation") or {}
                 all_conv_keys.update(conv_obj.keys())
-            logger.info(f"All conversation object keys across file: {sorted(all_conv_keys)}")
+            logger.info(
+                f"All conversation object keys across file: {sorted(all_conv_keys)}"
+            )
         for line in lines:
             event_id = line.get("event_id")
             # conversation_id lives at line["conversation"]["id"]
@@ -307,7 +311,9 @@ async def _run(
             principal = line.get("principal") or {}
             principal_type = principal.get("type", "")
             principal_id = principal.get("id", "")
-            principal_type_counts[principal_type] = principal_type_counts.get(principal_type, 0) + 1
+            principal_type_counts[principal_type] = (
+                principal_type_counts.get(principal_type, 0) + 1
+            )
 
             # Resolve asset_id — check multiple field paths:
             # 1. principal.type != CHATGPT_WORKSPACE → principal.id is the asset (rare)
@@ -327,9 +333,13 @@ async def _run(
                 raw_project_id = conversation_obj.get("project_id")
                 asset_id = raw_gpt_id or raw_project_id or None
                 if raw_gpt_id:
-                    logger.info(f"Found gpt_id in conversation object: {asset_id} (conv={conversation_id})")
+                    logger.info(
+                        f"Found gpt_id in conversation object: {asset_id} (conv={conversation_id})"
+                    )
                 elif raw_project_id:
-                    logger.info(f"Found project_id in conversation object: {asset_id} (conv={conversation_id})")
+                    logger.info(
+                        f"Found project_id in conversation object: {asset_id} (conv={conversation_id})"
+                    )
 
             if asset_id is not None:
                 # Filter GPT-linked events to scope
@@ -337,7 +347,9 @@ async def _run(
                     continue
 
             actor = line.get("actor") or {}
-            user_email: str | None = actor.get("user_email")  # actual field name in API response
+            user_email: str | None = actor.get(
+                "user_email"
+            )  # actual field name in API response
 
             # Parse event timestamp
             ts_raw = line.get("timestamp") or line.get("created_at")
@@ -365,12 +377,16 @@ async def _run(
             msg_author = (line.get("message") or {}).get("author") or {}
             msg_role = msg_author.get("type", "")  # "user" or "assistant"
             if msg_role == "user":
-                content = ((line.get("message") or {}).get("content") or {}).get("value", "")
+                content = ((line.get("message") or {}).get("content") or {}).get(
+                    "value", ""
+                )
                 if content:
                     asset_threads[asset_id][conversation_id].append(content)
 
         if principal_type_counts:
-            logger.info(f"File {file_idx}: principal type distribution: {principal_type_counts}")
+            logger.info(
+                f"File {file_idx}: principal type distribution: {principal_type_counts}"
+            )
 
             events_processed += 1
 
@@ -516,7 +532,8 @@ async def _run(
             db=db,
             sync_log=sync_log,
             assets_analyzed=0,
-            assets_skipped_unchanged=len(assets_skipped_unchanged) + len(assets_needing_llm),
+            assets_skipped_unchanged=len(assets_skipped_unchanged)
+            + len(assets_needing_llm),
             errors=errors
             + [
                 {
@@ -539,7 +556,9 @@ async def _run(
     from app.services.semantic_enricher import SemanticEnricher
 
     enricher = SemanticEnricher(openai_api_key)
-    assets_analyzed = len(assets_ghost)  # Ghost assets already have insight rows written
+    assets_analyzed = len(
+        assets_ghost
+    )  # Ghost assets already have insight rows written
 
     for idx, asset_id in enumerate(assets_needing_llm):
         pct = 50 + int(25 * (idx / max(len(assets_needing_llm), 1)))
@@ -586,7 +605,9 @@ async def _run(
             .where(ConversationEvent.created_at >= date_range_start)
         )
         total_events = event_count_result.scalar_one()
-        avg_msgs = (total_events / conversation_count) if conversation_count > 0 else 0.0
+        avg_msgs = (
+            (total_events / conversation_count) if conversation_count > 0 else 0.0
+        )
 
         # LLM topic analysis
         top_topics, t_in, t_out = await _analyze_topics(
@@ -684,9 +705,7 @@ async def _run(
             asset_topics = (insight.top_topics or []) if insight else []
 
             for user_email, conv_ids in user_convs.items():
-                user_threads = {
-                    cid: threads.get(cid, []) for cid in conv_ids
-                }
+                user_threads = {cid: threads.get(cid, []) for cid in conv_ids}
                 user_messages = _collect_and_strip_messages(user_threads, max_msgs=100)
 
                 # Compute prompting quality score from message patterns
@@ -712,9 +731,7 @@ async def _run(
                 )
                 last_active = last_active_result.scalar_one_or_none()
 
-                avg_msgs_user = (
-                    len(user_messages) / len(conv_ids) if conv_ids else 0.0
-                )
+                avg_msgs_user = len(user_messages) / len(conv_ids) if conv_ids else 0.0
 
                 user_insight = UserUsageInsight(
                     asset_id=asset_id,
@@ -825,7 +842,9 @@ async def _analyze_topics(
 
     # Chunk into batches of 50 and merge
     batch_size = 50
-    batches = [messages[i : i + batch_size] for i in range(0, len(messages), batch_size)]
+    batches = [
+        messages[i : i + batch_size] for i in range(0, len(messages), batch_size)
+    ]
 
     merged_topics: dict[str, dict] = {}
     tokens_in = 0

@@ -275,7 +275,12 @@ async def _execute_pipeline(db: AsyncSession):
         h = _content_hash(gpt_data)
         gpt_data["_content_hash"] = h
         prev = prev_gpts.get(gpt_data["id"])
-        if prev and prev.content_hash == h and prev.primary_category_id is not None and prev.purpose_fingerprint is not None:
+        if (
+            prev
+            and prev.content_hash == h
+            and prev.primary_category_id is not None
+            and prev.purpose_fingerprint is not None
+        ):
             unchanged_indices.append(i)
         else:
             changed_indices.append(i)
@@ -673,7 +678,9 @@ async def _execute_pipeline(db: AsyncSession):
     sync_log.tokens_input = tokens_input
     sync_log.tokens_output = tokens_output
     sync_log.estimated_cost_usd = _calculate_cost(
-        config.classification_model if config else "gpt-4o-mini", tokens_input, tokens_output
+        config.classification_model if config else "gpt-4o-mini",
+        tokens_input,
+        tokens_output,
     )
     await db.commit()
 

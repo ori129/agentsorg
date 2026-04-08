@@ -105,6 +105,7 @@ async def lifespan(app: FastAPI):
         from app.models.models import ConversationSyncLog, SyncLog
         from datetime import datetime, timezone
         from sqlalchemy import select, update
+
         async with async_session() as db:
             # Clean up logs left in "running" state from a prior crash
             await db.execute(
@@ -120,10 +121,9 @@ async def lifespan(app: FastAPI):
             # Restore asset pipeline status from last completed sync log so the
             # progress bar shows 100% instead of 0% after a server restart.
             from app.services.pipeline import _current_status
+
             last_sync_result = await db.execute(
-                select(SyncLog)
-                .order_by(SyncLog.started_at.desc())
-                .limit(1)
+                select(SyncLog).order_by(SyncLog.started_at.desc()).limit(1)
             )
             last_sync = last_sync_result.scalar_one_or_none()
             if last_sync and last_sync.status == "completed":

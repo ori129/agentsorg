@@ -98,14 +98,21 @@ async def _run_generation(force: bool):
     try:
         async with async_session() as db:
             if force:
-                result = await db.execute(text("SELECT id, name, description, instructions FROM gpts"))
+                result = await db.execute(
+                    text("SELECT id, name, description, instructions FROM gpts")
+                )
             else:
                 result = await db.execute(
-                    text("SELECT id, name, description, instructions FROM gpts WHERE purpose_fingerprint IS NULL")
+                    text(
+                        "SELECT id, name, description, instructions FROM gpts WHERE purpose_fingerprint IS NULL"
+                    )
                 )
             rows = result.fetchall()
 
-        assets = [{"id": r[0], "name": r[1], "description": r[2], "instructions": r[3]} for r in rows]
+        assets = [
+            {"id": r[0], "name": r[1], "description": r[2], "instructions": r[3]}
+            for r in rows
+        ]
         _generation_status["total"] = len(assets)
 
         if not assets:
@@ -119,7 +126,7 @@ async def _run_generation(force: bool):
                 results = await _call_claude(batch)
                 fingerprint_map = {r["id"]: r["fingerprint"] for r in results}
             except Exception as e:
-                logger.error(f"Claude batch {i//BATCH_SIZE + 1} failed: {e}")
+                logger.error(f"Claude batch {i // BATCH_SIZE + 1} failed: {e}")
                 # Fall back: mark with placeholder so we can retry later
                 fingerprint_map = {a["id"]: None for a in batch}
 
@@ -128,13 +135,17 @@ async def _run_generation(force: bool):
                     fp = fingerprint_map.get(asset["id"])
                     if fp:
                         await db.execute(
-                            text("UPDATE gpts SET purpose_fingerprint = :fp WHERE id = :id"),
+                            text(
+                                "UPDATE gpts SET purpose_fingerprint = :fp WHERE id = :id"
+                            ),
                             {"fp": fp, "id": asset["id"]},
                         )
                 await db.commit()
 
             _generation_status["done"] += len(batch)
-            logger.info(f"Fingerprints: {_generation_status['done']}/{_generation_status['total']}")
+            logger.info(
+                f"Fingerprints: {_generation_status['done']}/{_generation_status['total']}"
+            )
 
     except Exception as e:
         _generation_status["error"] = str(e)
@@ -164,4 +175,8 @@ async def fingerprint_coverage():
             text("SELECT COUNT(*) total, COUNT(purpose_fingerprint) has_fp FROM gpts")
         )
         row = result.fetchone()
-        return {"total": row[0], "has_fingerprint": row[1], "pct": round(row[1] / max(row[0], 1) * 100, 1)}
+        return {
+            "total": row[0],
+            "has_fingerprint": row[1],
+            "pct": round(row[1] / max(row[0], 1) * 100, 1),
+        }

@@ -225,7 +225,9 @@ def _assign_fingerprint(gpt: dict, tier: int, use_case: str = "") -> str:
 
     sub_bucket = _detect_sub_bucket(bucket, search_text, "", gpt_id)
     key = f"{bucket}:{sub_bucket}"
-    return _FINGERPRINT_MAP.get(key, f"Supports {bucket.replace('-', ' ')} workflows for the organization")
+    return _FINGERPRINT_MAP.get(
+        key, f"Supports {bucket.replace('-', ' ')} workflows for the organization"
+    )
 
 
 # Niche technical keywords that drive adoption friction up
@@ -264,7 +266,11 @@ def _enrich_single(gpt: dict, classification: dict | None = None) -> dict:
     name = _name_lower(gpt)
     desc = (gpt.get("description") or "").lower()
     instr = (gpt.get("instructions") or "").lower()
-    use_case = (classification or {}).get("use_case_description") or "" if classification else ""
+    use_case = (
+        (classification or {}).get("use_case_description") or ""
+        if classification
+        else ""
+    )
 
     # ── Sophistication ──────────────────────────────────────────────────────
     if tier == 1:
@@ -467,7 +473,13 @@ class MockSemanticEnricher:
         self, gpts: list[dict], classifications: list[dict | None]
     ) -> tuple[list[dict | None], int, int]:
         """Returns (enrichments, total_prompt_tokens=0, total_completion_tokens=0)."""
-        return [
-            _enrich_single(gpt, classifications[i] if i < len(classifications) else None)
-            for i, gpt in enumerate(gpts)
-        ], 0, 0
+        return (
+            [
+                _enrich_single(
+                    gpt, classifications[i] if i < len(classifications) else None
+                )
+                for i, gpt in enumerate(gpts)
+            ],
+            0,
+            0,
+        )

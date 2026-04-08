@@ -382,7 +382,11 @@ async def recommend_org(db: AsyncSession = Depends(get_db)):
     gap_signals_section = ""
     try:
         gaps_result = await db.execute(
-            select(AssetUsageInsight.asset_id, AssetUsageInsight.knowledge_gap_signals, GPT.name)
+            select(
+                AssetUsageInsight.asset_id,
+                AssetUsageInsight.knowledge_gap_signals,
+                GPT.name,
+            )
             .join(GPT, AssetUsageInsight.asset_id == GPT.id)
             .where(AssetUsageInsight.knowledge_gap_signals.isnot(None))
             .order_by(AssetUsageInsight.analyzed_at.desc())

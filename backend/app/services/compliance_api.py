@@ -282,7 +282,9 @@ class ComplianceAPIClient:
                 or last_item.get("timestamp", "")
             )
             if not last_ts:
-                logger.warning(f"Log file item has no timestamp for pagination: {last_item}")
+                logger.warning(
+                    f"Log file item has no timestamp for pagination: {last_item}"
+                )
                 break
             # Trim to seconds precision and ensure Z suffix for ISO 8601
             current_after = last_ts[:19] + "Z" if len(last_ts) >= 19 else last_ts
@@ -333,10 +335,14 @@ class ComplianceAPIClient:
                             logger.warning(
                                 f"Skipping malformed JSONL line in {file_url}: {exc} "
                             )
-            logger.info(f"Downloaded {len(lines)} lines from {file_url} ({skipped} skipped)")
+            logger.info(
+                f"Downloaded {len(lines)} lines from {file_url} ({skipped} skipped)"
+            )
             return lines
 
-        async with self._client.stream("GET", file_url, follow_redirects=True) as response:
+        async with self._client.stream(
+            "GET", file_url, follow_redirects=True
+        ) as response:
             response.raise_for_status()
             async for raw_line in response.aiter_lines():
                 raw_line = raw_line.strip()

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -28,7 +28,10 @@ from app.models.models import (
     GPT,
     UserUsageInsight,
 )
-from app.services.conversation_pipeline import run_conversation_pipeline, _pipeline_state
+from app.services.conversation_pipeline import (
+    run_conversation_pipeline,
+    _pipeline_state,
+)
 from app.services.mock_conversation_pipeline import MockConversationPipeline
 
 
@@ -297,16 +300,16 @@ async def test_cv6_level2_topics_and_drift(db_session, seed_gpts):
 
     # Finance GPT should have drift_alert
     finance_result = await db_session.execute(
-        select(AssetUsageInsight).where(
-            AssetUsageInsight.asset_id == "gpt-finance-001"
-        )
+        select(AssetUsageInsight).where(AssetUsageInsight.asset_id == "gpt-finance-001")
     )
     finance_insight = finance_result.scalar_one_or_none()
     assert finance_insight is not None
     assert finance_insight.top_topics is not None
     assert len(finance_insight.top_topics) > 0
     assert finance_insight.drift_alert is not None
-    assert "HR" in finance_insight.drift_alert or "Finance" in finance_insight.drift_alert
+    assert (
+        "HR" in finance_insight.drift_alert or "Finance" in finance_insight.drift_alert
+    )
 
 
 # ── T_CV7: Level 3 → user_usage_insights ─────────────────────────────────────

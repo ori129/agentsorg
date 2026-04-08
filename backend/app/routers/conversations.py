@@ -193,8 +193,10 @@ async def get_estimate(
     since = now - timedelta(days=date_range_days)
 
     # Count events in range
-    q = select(func.count()).select_from(ConversationEvent).where(
-        ConversationEvent.created_at >= since
+    q = (
+        select(func.count())
+        .select_from(ConversationEvent)
+        .where(ConversationEvent.created_at >= since)
     )
     if asset_ids:
         q = q.where(ConversationEvent.asset_id.in_(asset_ids))
@@ -284,7 +286,6 @@ async def get_asset_insight(
     # Week-over-week: find prior period row (±1 day tolerance)
     if insight.date_range_start and insight.date_range_end:
         prior_end = insight.date_range_start
-        prior_start = prior_end - (insight.date_range_end - insight.date_range_start)
         prior_result = await db.execute(
             select(AssetUsageInsight)
             .where(AssetUsageInsight.asset_id == asset_id)
@@ -302,9 +303,7 @@ async def get_asset_insight(
             prior_count = prior.conversation_count or 0
             current_count = insight.conversation_count or 0
             insight.__dict__["prior_conversation_count"] = prior_count
-            insight.__dict__["conversation_count_delta"] = (
-                current_count - prior_count
-            )
+            insight.__dict__["conversation_count_delta"] = current_count - prior_count
 
     return insight
 
@@ -363,8 +362,9 @@ async def get_overview(
     since = now - timedelta(days=date_range_days)
 
     total_convs_result = await db.execute(
-        select(func.count(func.distinct(ConversationEvent.conversation_id)))
-        .where(ConversationEvent.created_at >= since)
+        select(func.count(func.distinct(ConversationEvent.conversation_id))).where(
+            ConversationEvent.created_at >= since
+        )
     )
     total_conversations = total_convs_result.scalar_one()
 
@@ -380,8 +380,9 @@ async def get_overview(
     total_assets = all_assets_result.scalar_one()
 
     active_assets_result = await db.execute(
-        select(func.count(func.distinct(ConversationEvent.asset_id)))
-        .where(ConversationEvent.created_at >= since)
+        select(func.count(func.distinct(ConversationEvent.asset_id))).where(
+            ConversationEvent.created_at >= since
+        )
     )
     active_assets = active_assets_result.scalar_one()
     ghost_assets = total_assets - active_assets
@@ -390,7 +391,9 @@ async def get_overview(
     top_assets_result = await db.execute(
         select(
             ConversationEvent.asset_id,
-            func.count(func.distinct(ConversationEvent.conversation_id)).label("conv_count"),
+            func.count(func.distinct(ConversationEvent.conversation_id)).label(
+                "conv_count"
+            ),
         )
         .where(ConversationEvent.created_at >= since)
         .group_by(ConversationEvent.asset_id)

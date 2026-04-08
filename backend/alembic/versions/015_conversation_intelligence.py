@@ -152,7 +152,10 @@ def upgrade() -> None:
     op.add_column(
         "configurations",
         sa.Column(
-            "conversation_privacy_level", sa.Integer(), nullable=False, server_default="3"
+            "conversation_privacy_level",
+            sa.Integer(),
+            nullable=False,
+            server_default="3",
         ),
     )
     op.add_column(

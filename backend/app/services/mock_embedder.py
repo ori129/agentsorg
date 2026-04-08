@@ -23,12 +23,23 @@ def _is_abandoned_asset(name: str, instructions: str, tools: list) -> bool:
     name_lower = name.lower()
     instr_len = len(instructions or "")
     tool_count = len(tools or [])
-    abandoned_signals = ["my gpt", "test", "draft", "ignore", "helper", "final", "temp", "v2", "v3"]
+    abandoned_signals = [
+        "my gpt",
+        "test",
+        "draft",
+        "ignore",
+        "helper",
+        "final",
+        "temp",
+        "v2",
+        "v3",
+    ]
     if any(s in name_lower for s in abandoned_signals) and instr_len < 500:
         return True
     if instr_len < 200 and tool_count == 0:
         return True
     return False
+
 
 # ---------------------------------------------------------------------------
 # Two-level semantic hierarchy
@@ -40,19 +51,37 @@ def _is_abandoned_asset(name: str, instructions: str, tools: list) -> bool:
 _HIERARCHY: dict[str, list[tuple[str, list[str]]]] = {
     "meeting-notes": [
         ("standup-summary", ["standup", "daily standup", "scrum", "sprint recap"]),
-        ("executive-briefing", ["executive", "leadership", "board", "quarterly review"]),
-        ("client-call-notes", ["client call", "discovery call", "sales call", "customer call"]),
+        (
+            "executive-briefing",
+            ["executive", "leadership", "board", "quarterly review"],
+        ),
+        (
+            "client-call-notes",
+            ["client call", "discovery call", "sales call", "customer call"],
+        ),
         ("general-recap", ["meeting", "recap", "notes", "minute", "summariz"]),
     ],
     "email-assistant": [
-        ("cold-outreach", ["cold email", "outreach email", "prospecting", "cold outreach"]),
+        (
+            "cold-outreach",
+            ["cold email", "outreach email", "prospecting", "cold outreach"],
+        ),
         ("follow-up", ["follow-up", "follow up", "nurture", "sequence"]),
-        ("internal-comms", ["internal email", "team announcement", "stakeholder update"]),
-        ("general-email", ["email", "draft email", "compose", "inbox", "mail", "outreach"]),
+        (
+            "internal-comms",
+            ["internal email", "team announcement", "stakeholder update"],
+        ),
+        (
+            "general-email",
+            ["email", "draft email", "compose", "inbox", "mail", "outreach"],
+        ),
     ],
     "code-review": [
         ("pr-review", ["pull request", "pr review", "code review", "diff review"]),
-        ("security-review", ["security review", "vulnerability", "sast", "secure code"]),
+        (
+            "security-review",
+            ["security review", "vulnerability", "sast", "secure code"],
+        ),
         ("documentation", ["code documentation", "docstring", "api doc", "readme"]),
         ("general-code", ["code", "review", "engineering", "technical"]),
     ],
@@ -81,9 +110,21 @@ _HIERARCHY: dict[str, list[tuple[str, list[str]]]] = {
         ("general-data", ["data", "analysis", "analytics", "insight"]),
     ],
     "marketing-content": [
-        ("social-media", ["social media", "instagram", "linkedin post", "twitter", "content calendar"]),
+        (
+            "social-media",
+            [
+                "social media",
+                "instagram",
+                "linkedin post",
+                "twitter",
+                "content calendar",
+            ],
+        ),
         ("seo-content", ["seo", "blog post", "content strategy", "organic"]),
-        ("brand-voice", ["brand voice", "brand guidelines", "tone of voice", "brand compliance"]),
+        (
+            "brand-voice",
+            ["brand voice", "brand guidelines", "tone of voice", "brand compliance"],
+        ),
         ("general-content", ["campaign", "marketing", "copy", "content", "brand"]),
     ],
     "finance": [
@@ -93,10 +134,16 @@ _HIERARCHY: dict[str, list[tuple[str, list[str]]]] = {
         ("general-finance", ["finance", "revenue", "fiscal", "accounting"]),
     ],
     "customer-support": [
-        ("ticket-triage", ["ticket", "zendesk", "triage", "support queue", "help desk"]),
+        (
+            "ticket-triage",
+            ["ticket", "zendesk", "triage", "support queue", "help desk"],
+        ),
         ("escalation", ["escalation", "churn", "at-risk", "renewal"]),
         ("self-service", ["self-service", "knowledge base", "faq", "chatbot"]),
-        ("general-support", ["customer support", "customer service", "support", "customer"]),
+        (
+            "general-support",
+            ["customer support", "customer service", "support", "customer"],
+        ),
     ],
 }
 
@@ -106,12 +153,39 @@ _BUCKET_KEYWORDS: dict[str, list[str]] = {
     "email-assistant": ["email", "outreach", "inbox", "compose", "draft email"],
     "code-review": ["code review", "pull request", "pr review", "code quality"],
     "legal-contract": ["contract", "legal", "clause", "agreement", "litigation"],
-    "sales-assistant": ["sales", "deal", "crm", "salesforce", "opportunity", "pipeline"],
-    "hr-assistant": ["onboard", "employee", "hiring", "recruit", "people ops", "talent", " hr "],
+    "sales-assistant": [
+        "sales",
+        "deal",
+        "crm",
+        "salesforce",
+        "opportunity",
+        "pipeline",
+    ],
+    "hr-assistant": [
+        "onboard",
+        "employee",
+        "hiring",
+        "recruit",
+        "people ops",
+        "talent",
+        " hr ",
+    ],
     "data-analytics": ["analytics", "dashboard", "insight", "kpi", "data report"],
-    "marketing-content": ["campaign", "brand voice", "seo", "marketing copy", "content strategy"],
+    "marketing-content": [
+        "campaign",
+        "brand voice",
+        "seo",
+        "marketing copy",
+        "content strategy",
+    ],
     "finance": ["finance", "budget", "forecast", "expense", "revenue", "p&l"],
-    "customer-support": ["customer support", "ticket", "zendesk", "help desk", "customer service"],
+    "customer-support": [
+        "customer support",
+        "ticket",
+        "zendesk",
+        "help desk",
+        "customer service",
+    ],
 }
 
 
@@ -200,7 +274,11 @@ class MockEmbedder:
 
     @staticmethod
     def _deterministic_vector(
-        gpt_id: str, name: str, description: str = "", instructions: str = "", tools: list | None = None
+        gpt_id: str,
+        name: str,
+        description: str = "",
+        instructions: str = "",
+        tools: list | None = None,
     ) -> list[float]:
         DIM = 1536
 
@@ -221,7 +299,9 @@ class MockEmbedder:
             # No semantic match → fully unique (will not cluster)
             return _normalize(
                 _raw_vector(
-                    hashlib.sha256(f"unique:{gpt_id}:{name}:{description}".encode()).digest(),
+                    hashlib.sha256(
+                        f"unique:{gpt_id}:{name}:{description}".encode()
+                    ).digest(),
                     DIM,
                 )
             )
@@ -231,12 +311,8 @@ class MockEmbedder:
 
         # 95% shared sub-bucket base + 5% unique noise
         # → within sub-bucket sim ≈ 0.97, between sub-buckets sim ≈ 0
-        base = _normalize(
-            _raw_vector(hashlib.sha256(sub_key.encode()).digest(), DIM)
-        )
+        base = _normalize(_raw_vector(hashlib.sha256(sub_key.encode()).digest(), DIM))
         noise = _normalize(
-            _raw_vector(
-                hashlib.sha256(f"noise:{gpt_id}:{name}".encode()).digest(), DIM
-            )
+            _raw_vector(hashlib.sha256(f"noise:{gpt_id}:{name}".encode()).digest(), DIM)
         )
         return _normalize([0.95 * b + 0.05 * n for b, n in zip(base, noise)])

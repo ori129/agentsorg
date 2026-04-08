@@ -20,7 +20,6 @@ import logging
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,38 +39,122 @@ _DEMO_USERS = [f"user_{i}@demo.com" for i in range(1, 26)]
 
 _TOPICS_BY_ASSET_TYPE = {
     "sales": [
-        {"topic": "Pipeline Review", "pct": 40.0, "example_phrases": ["deal status", "Q2 forecast"]},
-        {"topic": "Objection Handling", "pct": 30.0, "example_phrases": ["customer pushback", "pricing concerns"]},
-        {"topic": "Proposal Writing", "pct": 20.0, "example_phrases": ["RFP response", "executive summary"]},
-        {"topic": "Competitor Analysis", "pct": 10.0, "example_phrases": ["vs competitor", "differentiation"]},
+        {
+            "topic": "Pipeline Review",
+            "pct": 40.0,
+            "example_phrases": ["deal status", "Q2 forecast"],
+        },
+        {
+            "topic": "Objection Handling",
+            "pct": 30.0,
+            "example_phrases": ["customer pushback", "pricing concerns"],
+        },
+        {
+            "topic": "Proposal Writing",
+            "pct": 20.0,
+            "example_phrases": ["RFP response", "executive summary"],
+        },
+        {
+            "topic": "Competitor Analysis",
+            "pct": 10.0,
+            "example_phrases": ["vs competitor", "differentiation"],
+        },
     ],
     "finance": [
-        {"topic": "Budget Analysis", "pct": 35.0, "example_phrases": ["YTD variance", "cost center"]},
-        {"topic": "Expense Reporting", "pct": 25.0, "example_phrases": ["T&E submission", "receipt upload"]},
+        {
+            "topic": "Budget Analysis",
+            "pct": 35.0,
+            "example_phrases": ["YTD variance", "cost center"],
+        },
+        {
+            "topic": "Expense Reporting",
+            "pct": 25.0,
+            "example_phrases": ["T&E submission", "receipt upload"],
+        },
         # Drift: HR topics in a Finance GPT
-        {"topic": "HR Policy Questions", "pct": 32.0, "example_phrases": ["leave policy", "performance review"]},
-        {"topic": "FX Reconciliation", "pct": 8.0, "example_phrases": ["currency conversion", "hedging"]},
+        {
+            "topic": "HR Policy Questions",
+            "pct": 32.0,
+            "example_phrases": ["leave policy", "performance review"],
+        },
+        {
+            "topic": "FX Reconciliation",
+            "pct": 8.0,
+            "example_phrases": ["currency conversion", "hedging"],
+        },
     ],
     "engineering": [
-        {"topic": "Code Review", "pct": 45.0, "example_phrases": ["PR feedback", "linting errors"]},
-        {"topic": "Architecture Design", "pct": 25.0, "example_phrases": ["system design", "scalability"]},
-        {"topic": "Debugging", "pct": 20.0, "example_phrases": ["stack trace", "null pointer"]},
-        {"topic": "Documentation", "pct": 10.0, "example_phrases": ["API docs", "README"]},
+        {
+            "topic": "Code Review",
+            "pct": 45.0,
+            "example_phrases": ["PR feedback", "linting errors"],
+        },
+        {
+            "topic": "Architecture Design",
+            "pct": 25.0,
+            "example_phrases": ["system design", "scalability"],
+        },
+        {
+            "topic": "Debugging",
+            "pct": 20.0,
+            "example_phrases": ["stack trace", "null pointer"],
+        },
+        {
+            "topic": "Documentation",
+            "pct": 10.0,
+            "example_phrases": ["API docs", "README"],
+        },
     ],
     "hr": [
-        {"topic": "Onboarding Assistance", "pct": 40.0, "example_phrases": ["new hire setup", "day 1 checklist"]},
-        {"topic": "Policy Queries", "pct": 35.0, "example_phrases": ["PTO balance", "remote work policy"]},
-        {"topic": "Performance Review Prep", "pct": 25.0, "example_phrases": ["self-assessment", "goal setting"]},
+        {
+            "topic": "Onboarding Assistance",
+            "pct": 40.0,
+            "example_phrases": ["new hire setup", "day 1 checklist"],
+        },
+        {
+            "topic": "Policy Queries",
+            "pct": 35.0,
+            "example_phrases": ["PTO balance", "remote work policy"],
+        },
+        {
+            "topic": "Performance Review Prep",
+            "pct": 25.0,
+            "example_phrases": ["self-assessment", "goal setting"],
+        },
     ],
     "marketing": [
-        {"topic": "Campaign Copywriting", "pct": 45.0, "example_phrases": ["email subject", "CTA text"]},
-        {"topic": "SEO Content", "pct": 30.0, "example_phrases": ["keyword density", "meta description"]},
-        {"topic": "Social Media Posts", "pct": 25.0, "example_phrases": ["LinkedIn post", "Twitter thread"]},
+        {
+            "topic": "Campaign Copywriting",
+            "pct": 45.0,
+            "example_phrases": ["email subject", "CTA text"],
+        },
+        {
+            "topic": "SEO Content",
+            "pct": 30.0,
+            "example_phrases": ["keyword density", "meta description"],
+        },
+        {
+            "topic": "Social Media Posts",
+            "pct": 25.0,
+            "example_phrases": ["LinkedIn post", "Twitter thread"],
+        },
     ],
     "default": [
-        {"topic": "General Assistance", "pct": 50.0, "example_phrases": ["help me with", "can you explain"]},
-        {"topic": "Summarization", "pct": 30.0, "example_phrases": ["summarize this", "key points"]},
-        {"topic": "Research", "pct": 20.0, "example_phrases": ["find information about", "what is"]},
+        {
+            "topic": "General Assistance",
+            "pct": 50.0,
+            "example_phrases": ["help me with", "can you explain"],
+        },
+        {
+            "topic": "Summarization",
+            "pct": 30.0,
+            "example_phrases": ["summarize this", "key points"],
+        },
+        {
+            "topic": "Research",
+            "pct": 20.0,
+            "example_phrases": ["find information about", "what is"],
+        },
     ],
 }
 
@@ -192,7 +275,10 @@ class MockConversationPipeline:
             unique_users = self._rng.sample(
                 _DEMO_USERS, min(conv_count // 3 + 1, len(_DEMO_USERS))
             )
-            conversation_ids = [str(uuid.UUID(int=self._rng.getrandbits(128))) for _ in range(conv_count)]
+            conversation_ids = [
+                str(uuid.UUID(int=self._rng.getrandbits(128)))
+                for _ in range(conv_count)
+            ]
 
             for cid in conversation_ids:
                 user_email = self._rng.choice(unique_users)
@@ -235,7 +321,9 @@ class MockConversationPipeline:
             else:
                 # Full insight with topics
                 topics = list(
-                    _TOPICS_BY_ASSET_TYPE.get(asset_category, _TOPICS_BY_ASSET_TYPE["default"])
+                    _TOPICS_BY_ASSET_TYPE.get(
+                        asset_category, _TOPICS_BY_ASSET_TYPE["default"]
+                    )
                 )
                 drift_alert: str | None = None
                 if asset.id == finance_asset_id:
@@ -279,9 +367,18 @@ class MockConversationPipeline:
                                 asset_id=asset.id,
                                 user_email=user_email,
                                 user_department=self._rng.choice(
-                                    ["Sales", "Finance", "Engineering", "HR", "Marketing", None]
+                                    [
+                                        "Sales",
+                                        "Finance",
+                                        "Engineering",
+                                        "HR",
+                                        "Marketing",
+                                        None,
+                                    ]
                                 ),
-                                conversation_count=self._rng.randint(1, max(1, conv_count // len(unique_users))),
+                                conversation_count=self._rng.randint(
+                                    1, max(1, conv_count // len(unique_users))
+                                ),
                                 avg_messages_per_conversation=round(
                                     self._rng.uniform(2.0, 6.0), 1
                                 ),
@@ -355,9 +452,7 @@ class MockConversationPipeline:
             return str(cats[0]).lower()
         return "default"
 
-    def _random_timestamp(
-        self, start: datetime, end: datetime
-    ) -> datetime:
+    def _random_timestamp(self, start: datetime, end: datetime) -> datetime:
         delta = (end - start).total_seconds()
         offset = self._rng.uniform(0, delta)
         return start + timedelta(seconds=offset)
