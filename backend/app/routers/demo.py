@@ -1,10 +1,11 @@
 import asyncio
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import require_system_admin
 from app.database import get_db
 from app.models.models import Category, SyncLog
 from app.services.demo_state import SIZE_MAP, get_demo_state, set_demo_state
@@ -55,7 +56,12 @@ async def get_demo(db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/demo", response_model=DemoStateRead)
-async def update_demo(body: DemoStateUpdate, db: AsyncSession = Depends(get_db)):
+async def update_demo(
+    body: DemoStateUpdate,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     state = set_demo_state(body.enabled, body.size)
     was_demo = await _last_sync_was_demo(db)
 

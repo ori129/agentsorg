@@ -250,9 +250,7 @@ class MockConversationPipeline:
         # Level 0: Off — write nothing, mark skipped
         if self.privacy_level == 0:
             sync_log.status = "skipped"
-            sync_log.finished_at = __import__("datetime").datetime.now(
-                __import__("datetime").timezone.utc
-            )
+            sync_log.finished_at = datetime.now(timezone.utc)
             sync_log.assets_analyzed = 0
             await db.commit()
             _set_state(running=False, progress=100, stage="done")

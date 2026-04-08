@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.auth_utils import hash_password, verify_password
 from app.database import get_db
+from app.encryption import mask_email
 from app.models.models import LoginSession, WorkspaceUser
 from app.schemas.schemas import (
     AuthStatus,
@@ -106,7 +107,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     token = await _create_session(user.id, db)
     await db.commit()
     await db.refresh(user)
-    logger.info(f"First admin registered: {user.email}")
+    logger.info(f"First admin registered: {mask_email(user.email)}")
     return LoginResponse(user=WorkspaceUserRead.model_validate(user), token=token)
 
 

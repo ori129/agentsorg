@@ -34,7 +34,7 @@ def filter_gpts(gpts: list[dict], config: Configuration | None) -> list[dict]:
         owner_email = (gpt.get("owner_email") or "").lower()
 
         if owner_email in excluded:
-            logger.info(f"EXCLUDED (email): {name} — owner {owner_email}")
+            logger.info(f"EXCLUDED (email): {name} — owner {owner_email[:1]}***@{owner_email.split('@')[1] if '@' in owner_email else '?'}")
             continue
 
         visibility = gpt.get("visibility") or ""

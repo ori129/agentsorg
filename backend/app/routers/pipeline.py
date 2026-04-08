@@ -3,11 +3,12 @@ import difflib
 import json
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from openai import AsyncOpenAI
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import require_system_admin
 from app.database import get_db
 from app.encryption import decrypt
 from app.models.models import (
@@ -122,7 +123,11 @@ router = APIRouter(tags=["pipeline"])
 
 
 @router.post("/pipeline/run")
-async def start_pipeline(db: AsyncSession = Depends(get_db)):
+async def start_pipeline(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     from app.services.demo_state import is_demo_mode
 
     status = get_pipeline_status()

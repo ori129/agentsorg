@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_deps import require_system_admin
 from app.database import get_db
 from app.encryption import decrypt, encrypt, mask
 from app.models.models import Configuration
@@ -45,7 +46,12 @@ async def get_config(db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/config", response_model=ConfigurationRead)
-async def update_config(data: ConfigurationUpdate, db: AsyncSession = Depends(get_db)):
+async def update_config(
+    data: ConfigurationUpdate,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     config = await get_or_create_config(db)
     update_data = data.model_dump(exclude_unset=True)
 
@@ -78,7 +84,11 @@ async def update_config(data: ConfigurationUpdate, db: AsyncSession = Depends(ge
 
 
 @router.post("/config/test-connection", response_model=TestConnectionResult)
-async def test_connection(db: AsyncSession = Depends(get_db)):
+async def test_connection(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     config = await get_or_create_config(db)
 
     if not config.compliance_api_key:
@@ -124,7 +134,11 @@ async def test_connection(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/config/test-openai-connection", response_model=TestConnectionResult)
-async def test_openai_connection(db: AsyncSession = Depends(get_db)):
+async def test_openai_connection(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     config = await get_or_create_config(db)
 
     if not config.openai_api_key:

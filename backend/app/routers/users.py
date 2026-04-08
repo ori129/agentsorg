@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth_deps import require_auth, require_system_admin
 from app.auth_utils import hash_password
 from app.database import get_db
-from app.encryption import decrypt
+from app.encryption import decrypt, mask_email
 from app.models.models import Configuration, WorkspaceUser
 from app.schemas.schemas import (
     InviteUserRequest,
@@ -75,7 +75,7 @@ async def invite_user(
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    logger.info(f"User {email} invited as {body.system_role} by {caller.email}")
+    logger.info(f"User {mask_email(email)} invited as {body.system_role} by {mask_email(caller.email)}")
     return InviteUserResponse(user=user, temp_password=temp_password)
 
 
@@ -216,7 +216,7 @@ async def update_user_role(
     user.system_role = body.system_role
     await db.commit()
     await db.refresh(user)
-    logger.info(f"Updated system_role for {user.email} to {body.system_role}")
+    logger.info(f"Updated system_role for {mask_email(user.email)} to {body.system_role}")
     return user
 
 
@@ -236,5 +236,5 @@ async def reset_user_password(
     user.password_hash = hash_password(temp_password)
     user.password_temp = True
     await db.commit()
-    logger.info(f"Password reset for {user.email} by {caller.email}")
+    logger.info(f"Password reset for {mask_email(user.email)} by {mask_email(caller.email)}")
     return ResetPasswordResponse(temp_password=temp_password)
