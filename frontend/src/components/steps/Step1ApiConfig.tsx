@@ -85,33 +85,38 @@ export default function Step1ApiConfig() {
           />
         </div>
 
-        <div className="flex items-center gap-3 pt-2">
+        <div className="flex items-center gap-3 pt-2 flex-wrap">
           <button
             onClick={handleSave}
             disabled={updateConfig.isPending}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50"
+            style={{ background: "#3b82f6" }}
           >
-            {updateConfig.isPending ? "Saving..." : "Save"}
+            {updateConfig.isPending ? "Saving…" : "Save credentials"}
           </button>
           <button
             onClick={handleTest}
-            disabled={testConnection.isPending}
+            disabled={testConnection.isPending || updateConfig.isPending}
             className="px-4 py-2 text-sm font-medium rounded-md disabled:opacity-50"
             style={{ color: "#3b82f6", background: "var(--c-accent-bg)", border: "1px solid #3b82f640" }}
           >
-            {testConnection.isPending ? "Testing..." : "Test Connection"}
+            {testConnection.isPending ? "Testing…" : "Save & test connection"}
           </button>
+          {/* Inline save confirmation — no layout shift */}
+          {updateConfig.isSuccess && !testConnection.isPending && (
+            <span className="text-sm" style={{ color: "#10b981" }}>✓ Saved</span>
+          )}
         </div>
 
-        {testConnection.isSuccess && (
-          <div className="alert-success">{testConnection.data.message}</div>
-        )}
-        {testConnection.isError && (
-          <div className="alert-error">{(testConnection.error as Error).message}</div>
-        )}
-        {updateConfig.isSuccess && !testConnection.isSuccess && (
-          <div className="alert-success">Configuration saved.</div>
-        )}
+        {/* Test result — reserve space so it doesn't jump */}
+        <div style={{ minHeight: 36 }}>
+          {testConnection.isSuccess && (
+            <div className="alert-success mt-2">{testConnection.data.message}</div>
+          )}
+          {testConnection.isError && (
+            <div className="alert-error mt-2">{(testConnection.error as Error).message}</div>
+          )}
+        </div>
       </div>
     </Card>
   );

@@ -42,7 +42,7 @@ interface PipelineSetupPageProps {
 export default function PipelineSetupPage({ onComplete }: PipelineSetupPageProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [comingSoonOpen, setComingSoonOpen] = useState(true);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
   // Track per-step explicit saves (for steps that require user action)
   const [step2Saved, setStep2Saved] = useState(false);
   const [step3Saved, setStep3Saved] = useState(false);

@@ -17,9 +17,10 @@ from datetime import datetime, timezone
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 from app.database import async_session
+from app.models.models import ClusterCache
 from app.schemas.schemas import (
     ClusterActionRequest,
     ClusterActionResponse,
@@ -36,8 +37,8 @@ _clustering_results: list[ClusterGroup] = []
 _clustering_lock = asyncio.Lock()
 _cluster_decisions: dict[str, dict] = {}
 
-SIMILARITY_THRESHOLD = 0.92  # Centroid-based; tighter than single-linkage 0.85
-CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+SIMILARITY_THRESHOLD = 0.82  # Tuned for smaller portfolios; catches near-duplicates
+OPENAI_VALIDATE_MODEL = "gpt-4o-mini"
 
 _VALIDATE_SYSTEM = """You analyze groups of enterprise AI tools to determine if they are genuine duplicates.
 Genuine duplicates = different employees independently built tools that solve the exact same workflow problem.
@@ -57,7 +58,7 @@ Return JSON:
 Return ONLY JSON."""
 
 
-async def _validate_cluster_with_claude(
+async def _validate_cluster_with_openai(
     names: list[str],
     fingerprints: list[str | None],
     client,
@@ -67,24 +68,21 @@ async def _validate_cluster_with_claude(
         f"- {name}: {fp or '(no fingerprint)'}" for name, fp in zip(names, fingerprints)
     )
     try:
-        message = await client.messages.create(
-            model=CLAUDE_MODEL,
+        response = await client.chat.completions.create(
+            model=OPENAI_VALIDATE_MODEL,
             max_tokens=256,
-            system=_VALIDATE_SYSTEM,
             messages=[
+                {"role": "system", "content": _VALIDATE_SYSTEM},
                 {
                     "role": "user",
                     "content": _VALIDATE_USER.format(
                         n=len(names), tools_block=tools_block
                     ),
-                }
+                },
             ],
+            response_format={"type": "json_object"},
         )
-        raw = message.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
+        raw = response.choices[0].message.content.strip()
         data = json.loads(raw)
         return (
             bool(data.get("is_genuine_duplicate", True)),
@@ -92,7 +90,7 @@ async def _validate_cluster_with_claude(
             float(data.get("confidence", 0.9)),
         )
     except Exception as e:
-        logger.warning(f"Claude cluster validation failed: {e}")
+        logger.warning(f"OpenAI cluster validation failed: {e}")
         return True, "", 0.85
 
 
@@ -184,7 +182,7 @@ def _centroid_clusters(
     return clusters
 
 
-async def _run_clustering_task():
+async def _run_clustering_task(openai_api_key: str | None = None):
     global _clustering_results
     async with async_session() as db:
         try:
@@ -321,29 +319,28 @@ async def _run_clustering_task():
                     }
                 )
 
-            # Claude validation — parallel calls per cluster
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
-            claude_available = bool(api_key)
-            claude_client = None
-            if claude_available:
+            # OpenAI validation — parallel calls per cluster
+            key = openai_api_key or os.environ.get("OPENAI_API_KEY")
+            openai_available = bool(key)
+            openai_client = None
+            if openai_available:
                 try:
-                    import anthropic
+                    from openai import AsyncOpenAI
 
-                    claude_client = anthropic.AsyncAnthropic(api_key=api_key)
+                    openai_client = AsyncOpenAI(api_key=key)
                 except ImportError:
-                    claude_available = False
+                    openai_available = False
 
             async def _validate(cg: dict) -> tuple[bool, str, float]:
                 fps = [gpt_fingerprint.get(cid) for cid in cg["c_ids"]]
-                if not claude_client:
-                    # Fingerprint-based validation: reject if assets have diverse fingerprints
+                if not openai_client:
+                    # Fingerprint-based fallback: reject if assets have diverse fingerprints
                     non_null = [
                         fp for fp in fps if fp and "Experimental placeholder" not in fp
                     ]
                     if non_null:
                         unique_fps = len(set(non_null))
                         if unique_fps == 1:
-                            # Perfect match — same fingerprint across all assets
                             fp_text = non_null[0].lower()
                             explanation = f"Multiple employees independently built tools that {fp_text}"
                             return True, explanation, round(min(0.99, cg["avg_sim"]), 2)
@@ -357,11 +354,10 @@ async def _run_clustering_task():
                                 explanation,
                                 round(majority_count / len(non_null) * 0.98, 2),
                             )
-                        # Diverse fingerprints → not genuine duplicates
                         return False, "", round(min(0.99, cg["avg_sim"]), 2)
                     return True, "", round(min(0.99, cg["avg_sim"]), 2)
-                return await _validate_cluster_with_claude(
-                    cg["c_names"], fps, claude_client
+                return await _validate_cluster_with_openai(
+                    cg["c_names"], fps, openai_client
                 )
 
             validation_results = await asyncio.gather(
@@ -369,16 +365,19 @@ async def _run_clustering_task():
             )
 
             groups = []
-            for cg, (is_genuine, explanation, claude_confidence) in zip(
+            for cg, (is_genuine, explanation, openai_confidence) in zip(
                 candidate_groups, validation_results
             ):
                 if not is_genuine:
+                    validator = (
+                        "OpenAI" if openai_available else "fingerprint validator"
+                    )
                     logger.info(
-                        f"Claude rejected cluster '{cg['theme']}' ({cg['n']} assets) as non-duplicate"
+                        f"{validator} rejected cluster '{cg['theme']}' ({cg['n']} assets) as non-duplicate"
                     )
                     continue
                 confidence = round(
-                    claude_confidence if claude_available else min(0.99, cg["avg_sim"]),
+                    openai_confidence if openai_available else min(0.99, cg["avg_sim"]),
                     2,
                 )
                 groups.append(
@@ -400,14 +399,55 @@ async def _run_clustering_task():
             groups.sort(key=lambda g: len(g.gpt_ids), reverse=True)
             _clustering_results = groups
             _clustering_status["status"] = "completed"
+            validator = "OpenAI" if openai_available else "fingerprint validator"
             logger.info(
-                f"Clustering complete: {len(groups)} opportunities ({len(candidate_groups) - len(groups)} rejected by Claude)"
+                f"Clustering complete: {len(groups)} opportunities ({len(candidate_groups) - len(groups)} rejected by {validator})"
             )
+
+            # Persist to DB so results survive container restarts
+            await _persist_cluster_results(groups)
 
         except Exception as e:
             logger.error(f"Clustering failed: {e}")
             _clustering_status["status"] = "idle"
             raise
+
+
+async def _persist_cluster_results(groups: list[ClusterGroup]) -> None:
+    """Write latest cluster results to cluster_cache table."""
+    try:
+        async with async_session() as db:
+            row = ClusterCache(
+                generated_at=datetime.now(timezone.utc),
+                results=[g.model_dump() for g in groups],
+                decisions=list(_cluster_decisions.values()),
+            )
+            db.add(row)
+            await db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to persist cluster results: {e}")
+
+
+async def _load_cluster_results_from_db() -> None:
+    """Load latest cluster results from DB into memory (called on first GET after restart)."""
+    global _clustering_results, _cluster_decisions
+    try:
+        async with async_session() as db:
+            result = await db.execute(
+                select(ClusterCache).order_by(ClusterCache.generated_at.desc()).limit(1)
+            )
+            row = result.scalar_one_or_none()
+            if row and row.results:
+                _clustering_results = [ClusterGroup(**r) for r in row.results]
+                if row.decisions:
+                    for d in row.decisions:
+                        if isinstance(d, dict) and "cluster_id" in d:
+                            _cluster_decisions[d["cluster_id"]] = d
+                logger.info(
+                    f"Loaded {len(_clustering_results)} cluster results from DB"
+                )
+    except Exception as e:
+        logger.warning(f"Failed to load cluster results from DB: {e}")
 
 
 @router.post("/run")
@@ -429,6 +469,9 @@ async def get_clustering_status() -> ClusteringStatus:
 async def get_clustering_results() -> list[ClusterGroup]:
     if _clustering_status["status"] == "running":
         raise HTTPException(status_code=202, detail="Clustering still running")
+    # On first request after restart, restore from DB if memory is empty
+    if not _clustering_results:
+        await _load_cluster_results_from_db()
     return _clustering_results
 
 
@@ -436,7 +479,7 @@ async def get_clustering_results() -> list[ClusterGroup]:
 async def save_cluster_action(
     cluster_id: str, body: ClusterActionRequest
 ) -> ClusterActionResponse:
-    """Save a leader decision for a cluster. Stored in-memory (persisted to DB in a future release)."""
+    """Save a leader decision for a cluster."""
     decision = {
         "cluster_id": cluster_id,
         "action": body.action,
@@ -446,6 +489,8 @@ async def save_cluster_action(
     }
     _cluster_decisions[cluster_id] = decision
     logger.info(f"Cluster decision saved: {cluster_id} -> {body.action}")
+    # Persist updated decisions back to latest cache row
+    await _persist_cluster_results(_clustering_results)
     return ClusterActionResponse(**decision)
 
 

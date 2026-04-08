@@ -21,8 +21,10 @@ import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from datetime import date
 
 from app.models.models import (
     AssetUsageInsight,
@@ -30,6 +32,9 @@ from app.models.models import (
     ConversationSyncLog,
     GPT,
     UserUsageInsight,
+    Workshop,
+    WorkshopGPTTag,
+    WorkshopParticipant,
 )
 from app.services.conversation_pipeline import _pipeline_state, _set_state
 
@@ -142,21 +147,58 @@ _TOPICS_BY_ASSET_TYPE = {
     "default": [
         {
             "topic": "General Assistance",
-            "pct": 50.0,
+            "pct": 30.0,
             "example_phrases": ["help me with", "can you explain"],
         },
         {
             "topic": "Summarization",
-            "pct": 30.0,
+            "pct": 20.0,
             "example_phrases": ["summarize this", "key points"],
         },
+        # Intent gap signals: these topics don't match any existing business_process
         {
-            "topic": "Research",
-            "pct": 20.0,
-            "example_phrases": ["find information about", "what is"],
+            "topic": "Vendor Contract Review",
+            "pct": 25.0,
+            "example_phrases": ["vendor agreement", "contract terms", "NDA review"],
+        },
+        {
+            "topic": "IT Access Provisioning",
+            "pct": 15.0,
+            "example_phrases": [
+                "access request",
+                "system permissions",
+                "new user setup",
+            ],
+        },
+        {
+            "topic": "Employee Offboarding Process",
+            "pct": 10.0,
+            "example_phrases": [
+                "offboarding checklist",
+                "exit process",
+                "equipment return",
+            ],
         },
     ],
 }
+
+# Intent gap topics injected into HR assets — signals demand for workflows with no dedicated asset
+_HR_GAP_TOPICS = [
+    {
+        "topic": "Vendor Contract Review",
+        "pct": 18.0,
+        "example_phrases": ["vendor agreement", "contract terms"],
+    },
+    {
+        "topic": "Employee Offboarding Process",
+        "pct": 22.0,
+        "example_phrases": [
+            "offboarding checklist",
+            "exit interview",
+            "equipment return",
+        ],
+    },
+]
 
 _KNOWLEDGE_GAP_SIGNALS_TEMPLATE = [
     {
@@ -204,6 +246,17 @@ class MockConversationPipeline:
         await db.commit()
         await db.refresh(sync_log)
         _set_state(sync_log_id=sync_log.id)
+
+        # Level 0: Off — write nothing, mark skipped
+        if self.privacy_level == 0:
+            sync_log.status = "skipped"
+            sync_log.finished_at = __import__("datetime").datetime.now(
+                __import__("datetime").timezone.utc
+            )
+            sync_log.assets_analyzed = 0
+            await db.commit()
+            _set_state(running=False, progress=100, stage="done")
+            return sync_log.id
 
         try:
             return await self._run(db, sync_log)
@@ -305,7 +358,7 @@ class MockConversationPipeline:
             if len(gap_asset_ids) < 2 and tier >= 2:
                 gap_asset_ids.append(asset.id)
 
-            if self.privacy_level <= 1:
+            if self.privacy_level == 1:
                 # Count-only insight
                 db.add(
                     AssetUsageInsight(
@@ -325,6 +378,9 @@ class MockConversationPipeline:
                         asset_category, _TOPICS_BY_ASSET_TYPE["default"]
                     )
                 )
+                # HR assets get extra intent gap topics to simulate unmet workflow demand
+                if asset_category == "hr":
+                    topics = topics + _HR_GAP_TOPICS
                 drift_alert: str | None = None
                 if asset.id == finance_asset_id:
                     # Pre-set drift: Finance GPT used for HR queries
@@ -397,11 +453,29 @@ class MockConversationPipeline:
             insights_inserted += 1
             _set_state(assets_done=idx + 1)
 
+        # Seed demo workshops (idempotent)
+        from sqlalchemy import func as _func
+
+        existing_wk = await db.execute(select(_func.count()).select_from(Workshop))
+        if existing_wk.scalar_one() == 0:
+            await self._seed_workshops(db, all_assets)
+
         # Stage 3/4: Topic analysis + user patterns (simulated delay)
         _set_state(stage="stage3_topics", progress=75)
         await asyncio.sleep(1.5)
         _set_state(stage="stage4_users", progress=88)
         await asyncio.sleep(0.8)
+
+        # Back-fill gpts.conversation_count from AssetUsageInsight records
+        # (mirrors what the real pipeline Stage 2 does via event counting)
+        insights_result = await db.execute(select(AssetUsageInsight))
+        for insight in insights_result.scalars().all():
+            await db.execute(
+                update(GPT)
+                .where(GPT.id == insight.asset_id)
+                .values(conversation_count=insight.conversation_count)
+            )
+        await db.commit()
 
         # Write sync log
         _set_state(stage="mock_stage5_commit", progress=95)
@@ -415,6 +489,16 @@ class MockConversationPipeline:
         sync_log.tokens_input = 0
         sync_log.tokens_output = 0
         await db.commit()
+
+        # Stage 6: Workflow intelligence analysis (mock, no LLM)
+        _set_state(stage="workflow_intelligence", progress=98)
+        try:
+            from app.services.mock_workflow_analyzer import MockWorkflowAnalyzer
+
+            analyzer = MockWorkflowAnalyzer()
+            await analyzer.analyze(db, conversation_sync_log_id=sync_log.id)
+        except Exception as e:
+            logger.warning(f"Mock workflow analysis failed (non-fatal): {e}")
 
         _set_state(stage="done", progress=100, running=False)
         return sync_log.id
@@ -456,3 +540,130 @@ class MockConversationPipeline:
         delta = (end - start).total_seconds()
         offset = self._rng.uniform(0, delta)
         return start + timedelta(seconds=offset)
+
+    async def _seed_workshops(self, db: AsyncSession, all_assets: list[GPT]) -> None:
+        """Seed 4 realistic demo workshops with participants and GPT tags."""
+        today = date.today()
+
+        # Pick real asset IDs for tagging — tier-2/3 assets preferred
+        tier3_ids = [a.id for a in all_assets if self._asset_tier(a) == 3]
+        tier2_ids = [a.id for a in all_assets if self._asset_tier(a) == 2]
+        tagable = (tier3_ids + tier2_ids)[:10] or [a.id for a in all_assets[:5]]
+
+        _WS = [
+            dict(
+                title="Prompt Engineering Bootcamp",
+                description="Hands-on workshop covering prompt design, chain-of-thought techniques, and real examples from our AI asset library.",
+                event_date=today - timedelta(days=82),
+                duration_hours=3.0,
+                facilitator="Sarah Chen",
+                participants=[
+                    "alice@demo.com",
+                    "bob@demo.com",
+                    "carol@demo.com",
+                    "david@demo.com",
+                    "emma@demo.com",
+                    "frank@demo.com",
+                    "grace@demo.com",
+                    "henry@demo.com",
+                    "irene@demo.com",
+                    "jack@demo.com",
+                    "karen@demo.com",
+                    "liam@demo.com",
+                    "mary@demo.com",
+                    "noah@demo.com",
+                    "olivia@demo.com",
+                    "peter@demo.com",
+                    "quinn@demo.com",
+                    "rachel@demo.com",
+                ],
+                gpt_ids=tagable[:3],
+            ),
+            dict(
+                title="AI Safety & Governance Workshop",
+                description="Deep dive into risk classification, data handling policies, and responsible AI deployment within our organisation.",
+                event_date=today - timedelta(days=41),
+                duration_hours=2.0,
+                facilitator="James Wright",
+                participants=[
+                    "alice@demo.com",
+                    "carol@demo.com",
+                    "emma@demo.com",
+                    "frank@demo.com",
+                    "henry@demo.com",
+                    "irene@demo.com",
+                    "karen@demo.com",
+                    "liam@demo.com",
+                    "mary@demo.com",
+                    "noah@demo.com",
+                    "olivia@demo.com",
+                    "peter@demo.com",
+                ],
+                gpt_ids=tagable[1:6],
+            ),
+            dict(
+                title="ChatGPT for Sales Teams",
+                description="Practical session on using AI assistants for pipeline review, proposal writing, and objection handling.",
+                event_date=today - timedelta(days=13),
+                duration_hours=1.5,
+                facilitator="Maria Lopez",
+                participants=[
+                    "bob@demo.com",
+                    "david@demo.com",
+                    "frank@demo.com",
+                    "grace@demo.com",
+                    "jack@demo.com",
+                    "karen@demo.com",
+                    "liam@demo.com",
+                    "noah@demo.com",
+                    "peter@demo.com",
+                    "quinn@demo.com",
+                    "rachel@demo.com",
+                    "alice@demo.com",
+                    "carol@demo.com",
+                    "emma@demo.com",
+                    "henry@demo.com",
+                    "irene@demo.com",
+                    "mary@demo.com",
+                    "olivia@demo.com",
+                    "james@demo.com",
+                    "sophie@demo.com",
+                    "tom@demo.com",
+                    "uma@demo.com",
+                ],
+                gpt_ids=tagable[:2],
+            ),
+            dict(
+                title="Building Custom GPTs: Advanced Track",
+                description="Advanced workshop on building production-grade Custom GPTs with integrations, system prompts, and quality evaluation.",
+                event_date=today + timedelta(days=8),
+                duration_hours=4.0,
+                facilitator="Sarah Chen",
+                participants=[
+                    "alice@demo.com",
+                    "bob@demo.com",
+                    "carol@demo.com",
+                    "david@demo.com",
+                    "emma@demo.com",
+                    "frank@demo.com",
+                    "grace@demo.com",
+                    "henry@demo.com",
+                ],
+                gpt_ids=tagable[2:6],
+            ),
+        ]
+
+        for ws_data in _WS:
+            gpt_ids = ws_data.pop("gpt_ids")
+            participants = ws_data.pop("participants")
+            ws = Workshop(**ws_data)
+            db.add(ws)
+            await db.flush()  # get ws.id
+
+            for email in participants:
+                db.add(WorkshopParticipant(workshop_id=ws.id, employee_email=email))
+            for gpt_id in gpt_ids:
+                db.add(WorkshopGPTTag(workshop_id=ws.id, gpt_id=gpt_id))
+
+        await db.commit()
+        logger.info("Seeded %d demo workshops.", len(_WS))

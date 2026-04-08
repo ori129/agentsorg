@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.models import (
     GPT,
     Category,
+    GptScoreHistory,
     PipelineLogEntry,
     SyncLog,
     Workshop,
@@ -28,6 +29,7 @@ async def reset_registry(
     await db.execute(delete(WorkshopGPTTag))
     await db.execute(delete(WorkshopParticipant))
     await db.execute(delete(Workshop))
+    await db.execute(delete(GptScoreHistory))
     await db.execute(delete(GPT))
     await db.execute(delete(PipelineLogEntry))
     await db.execute(delete(SyncLog))

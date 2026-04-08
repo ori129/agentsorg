@@ -92,6 +92,51 @@ class SyncLogRead(BaseModel):
     tokens_input: int = 0
     tokens_output: int = 0
     estimated_cost_usd: float | None = None
+    # KPI snapshots (migration 017)
+    avg_quality_score: float | None = None
+    avg_adoption_score: float | None = None
+    avg_risk_score: float | None = None
+    champion_count: int = 0
+    hidden_gem_count: int = 0
+    scaled_risk_count: int = 0
+    retirement_count: int = 0
+    ghost_asset_count: int = 0
+    high_risk_count: int = 0
+    total_asset_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class PortfolioTrendPoint(BaseModel):
+    """One data point per pipeline run for the Portfolio Health timeline chart."""
+
+    sync_log_id: int
+    synced_at: datetime
+    avg_quality_score: float | None
+    avg_adoption_score: float | None
+    avg_risk_score: float | None
+    champion_count: int
+    hidden_gem_count: int
+    scaled_risk_count: int
+    retirement_count: int
+    ghost_asset_count: int
+    high_risk_count: int
+    total_asset_count: int
+
+    model_config = {"from_attributes": True}
+
+
+class GptScoreHistoryPoint(BaseModel):
+    """One per-asset score snapshot for the longitudinal asset journey view."""
+
+    id: int
+    gpt_id: str
+    sync_log_id: int | None
+    synced_at: datetime
+    quality_score: float | None
+    adoption_score: float | None
+    risk_score: float | None
+    quadrant_label: str | None
 
     model_config = {"from_attributes": True}
 
@@ -130,6 +175,42 @@ class PipelineSummary(BaseModel):
     project_count: int
     categories_used: list[CategoryCount]
     last_sync: SyncLogRead | None
+    # Score stats (populated after Stage 6)
+    scores_assessed: int = 0
+    avg_quality_score: float | None = None
+    avg_adoption_score: float | None = None
+    avg_risk_score: float | None = None
+    champions: int = 0
+    hidden_gems: int = 0
+    scaled_risk: int = 0
+    retirement_candidates: int = 0
+    ghost_assets: int = 0
+    # Workflow coverage counts (populated by /pipeline/workflows)
+    workflows_covered: int = 0
+    workflow_gaps: int = 0
+
+
+class WorkflowAssetRef(BaseModel):
+    id: str
+    name: str
+    conversation_count: int
+    quadrant_label: str | None = None
+
+
+class WorkflowCoverageItem(BaseModel):
+    """One canonical business workflow and its coverage status."""
+
+    name: str
+    status: str  # "covered" | "ghost" | "intent_gap"
+    asset_count: int
+    conversation_count: int
+    assets: list[WorkflowAssetRef]
+    intent_signals: list[dict]  # matching topics [{topic, pct, example_phrases}]
+    example_phrases: list[str]  # top example phrases (for intent_gap rows)
+    # LLM-generated analysis (populated after /pipeline/workflows/analyze)
+    reasoning: str | None = None
+    priority_action: str | None = None
+    priority_level: str | None = None  # "low" | "medium" | "high" | "critical"
 
 
 class GPTRead(BaseModel):
@@ -169,6 +250,26 @@ class GPTRead(BaseModel):
     adoption_friction_rationale: str | None = None
     semantic_enriched_at: datetime | None = None
     purpose_fingerprint: str | None = None
+    # Conversation stats
+    conversation_count: int = 0
+    last_conversation_at: datetime | None = None
+    # LLM-assessed composite scores
+    quality_score: float | None = None
+    quality_score_rationale: str | None = None
+    quality_main_strength: str | None = None
+    quality_main_weakness: str | None = None
+    adoption_score: float | None = None
+    adoption_score_rationale: str | None = None
+    adoption_signal: str | None = None
+    adoption_barrier: str | None = None
+    risk_score: float | None = None
+    risk_score_rationale: str | None = None
+    risk_primary_driver: str | None = None
+    risk_urgency: str | None = None
+    quadrant_label: str | None = None
+    top_action: str | None = None
+    score_confidence: str | None = None
+    scores_assessed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -461,7 +562,57 @@ class ConversationOverview(BaseModel):
     active_users: int
     active_assets: int
     ghost_assets: int
-    top_assets: list[dict]
+    top_assets: list[dict]  # [{asset_id, conversation_count, avg_messages}]
     drift_alerts: int
     drift_asset_ids: list[str]
+    drift_details: list[dict]  # [{asset_id, drift_alert}]
+    ghost_asset_ids: list[str]  # IDs of ghost assets (zero conversations)
+    knowledge_gap_assets: list[
+        dict
+    ]  # [{asset_id, signals: [{topic, frequency, example_question}]}]
     date_range_days: int
+
+
+# ── Score Assessor / Priority Actions ────────────────────────────────────────
+
+
+class PriorityAction(BaseModel):
+    priority: int
+    category: str  # quality | adoption | risk | learning | governance
+    title: str
+    description: str
+    impact: str  # high | medium | low
+    effort: str  # high | medium | low
+    asset_ids: list[str] = []
+    reasoning: str
+
+
+class WorkspaceRecommendationRead(BaseModel):
+    id: int
+    generated_at: datetime
+    sync_log_id: int | None
+    recommendations: list[PriorityAction]
+    executive_summary: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class OrgLearningCacheRead(BaseModel):
+    id: int
+    generated_at: datetime
+    skill_gaps: list | None
+    recommended_courses: list | None
+    summary: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class EmployeeLearningCacheRead(BaseModel):
+    id: int
+    user_email: str
+    generated_at: datetime
+    skill_gaps: list | None
+    recommended_courses: list | None
+    gap_summary: str | None
+
+    model_config = {"from_attributes": True}

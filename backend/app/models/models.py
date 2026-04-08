@@ -82,6 +82,17 @@ class SyncLog(Base):
     tokens_input: Mapped[int] = mapped_column(Integer, default=0)
     tokens_output: Mapped[int] = mapped_column(Integer, default=0)
     estimated_cost_usd: Mapped[float | None] = mapped_column(Float)
+    # KPI snapshots — written at end of every pipeline run (migration 017)
+    avg_quality_score: Mapped[float | None] = mapped_column(Float)
+    avg_adoption_score: Mapped[float | None] = mapped_column(Float)
+    avg_risk_score: Mapped[float | None] = mapped_column(Float)
+    champion_count: Mapped[int] = mapped_column(Integer, default=0)
+    hidden_gem_count: Mapped[int] = mapped_column(Integer, default=0)
+    scaled_risk_count: Mapped[int] = mapped_column(Integer, default=0)
+    retirement_count: Mapped[int] = mapped_column(Integer, default=0)
+    ghost_asset_count: Mapped[int] = mapped_column(Integer, default=0)
+    high_risk_count: Mapped[int] = mapped_column(Integer, default=0)
+    total_asset_count: Mapped[int] = mapped_column(Integer, default=0)
 
     gpts: Mapped[list["GPT"]] = relationship(back_populates="sync_log")
     log_entries: Mapped[list["PipelineLogEntry"]] = relationship(
@@ -145,6 +156,31 @@ class GPT(Base):
     last_conversation_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True)
     )
+
+    # LLM-assessed composite scores (P04 — Stage 6)
+    quality_score: Mapped[float | None] = mapped_column(Float)
+    quality_score_rationale: Mapped[str | None] = mapped_column(Text)
+    quality_main_strength: Mapped[str | None] = mapped_column(Text)
+    quality_main_weakness: Mapped[str | None] = mapped_column(Text)
+
+    adoption_score: Mapped[float | None] = mapped_column(Float)
+    adoption_score_rationale: Mapped[str | None] = mapped_column(Text)
+    adoption_signal: Mapped[str | None] = mapped_column(Text)
+    adoption_barrier: Mapped[str | None] = mapped_column(Text)
+
+    risk_score: Mapped[float | None] = mapped_column(Float)
+    risk_score_rationale: Mapped[str | None] = mapped_column(Text)
+    risk_primary_driver: Mapped[str | None] = mapped_column(Text)
+    risk_urgency: Mapped[str | None] = mapped_column(
+        String(10)
+    )  # low|medium|high|critical
+
+    quadrant_label: Mapped[str | None] = mapped_column(
+        String(30)
+    )  # champion|hidden_gem|scaled_risk|retirement_candidate
+    top_action: Mapped[str | None] = mapped_column(Text)
+    score_confidence: Mapped[str | None] = mapped_column(String(10))  # low|medium|high
+    scores_assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     content_hash: Mapped[str | None] = mapped_column(String(64))
     sync_log_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("sync_logs.id"))
@@ -225,6 +261,29 @@ class PipelineLogEntry(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
 
     sync_log: Mapped["SyncLog"] = relationship(back_populates="log_entries")
+
+
+class GptScoreHistory(Base):
+    """Append-only per-asset score snapshot written at end of every pipeline run.
+    Never overwritten. Powers the longitudinal asset journey view.
+    """
+
+    __tablename__ = "gpt_score_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    gpt_id: Mapped[str] = mapped_column(
+        String(255), ForeignKey("gpts.id", ondelete="CASCADE"), nullable=False
+    )
+    sync_log_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("sync_logs.id", ondelete="SET NULL"), nullable=True
+    )
+    synced_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    quality_score: Mapped[float | None] = mapped_column(Float)
+    adoption_score: Mapped[float | None] = mapped_column(Float)
+    risk_score: Mapped[float | None] = mapped_column(Float)
+    quadrant_label: Mapped[str | None] = mapped_column(String(30))
 
 
 class WorkspaceUser(Base):
@@ -338,6 +397,93 @@ class ConversationSyncLog(Base):
     tokens_input: Mapped[int] = mapped_column(Integer, default=0)
     tokens_output: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[list | None] = mapped_column(JSONB)
+
+
+class WorkspaceRecommendation(Base):
+    """Pre-computed workspace-level priority actions + executive summary.
+    One row per pipeline run — frontend reads the most recent row.
+    """
+
+    __tablename__ = "workspace_recommendations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    sync_log_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("sync_logs.id", ondelete="SET NULL"), nullable=True
+    )
+    recommendations: Mapped[list] = mapped_column(
+        JSONB, nullable=False
+    )  # list[PriorityAction]
+    executive_summary: Mapped[str | None] = mapped_column(Text)
+
+
+class OrgLearningCache(Base):
+    """Cached org-level L&D recommendations — one row per pipeline run."""
+
+    __tablename__ = "org_learning_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    sync_log_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("sync_logs.id", ondelete="SET NULL"), nullable=True
+    )
+    skill_gaps: Mapped[list | None] = mapped_column(JSONB)
+    recommended_courses: Mapped[list | None] = mapped_column(JSONB)
+    summary: Mapped[str | None] = mapped_column(Text)
+
+
+class EmployeeLearningCache(Base):
+    """Cached per-employee L&D recommendations — one row per employee, upserted on rebuild."""
+
+    __tablename__ = "employee_learning_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    skill_gaps: Mapped[list | None] = mapped_column(JSONB)
+    recommended_courses: Mapped[list | None] = mapped_column(JSONB)
+    gap_summary: Mapped[str | None] = mapped_column(Text)
+
+
+class ClusterCache(Base):
+    """Persisted clustering results — one row per run, most-recent wins.
+    Survives container restarts; loaded into _clustering_results on first GET.
+    """
+
+    __tablename__ = "cluster_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    results: Mapped[list] = mapped_column(JSONB, nullable=False)
+    decisions: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
+
+class WorkflowAnalysisCache(Base):
+    """LLM-analyzed workflow coverage — one row per conversation pipeline run.
+    Stores reasoning, priority action, and priority level per workflow.
+    """
+
+    __tablename__ = "workflow_analysis_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    conversation_sync_log_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("conversation_sync_logs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # list[{name, status, reasoning, priority_action, priority_level}]
+    workflow_items: Mapped[list] = mapped_column(JSONB, nullable=False)
 
 
 class LoginSession(Base):

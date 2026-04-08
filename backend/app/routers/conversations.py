@@ -276,7 +276,10 @@ async def get_asset_insight(
     result = await db.execute(
         select(AssetUsageInsight)
         .where(AssetUsageInsight.asset_id == asset_id)
-        .order_by(AssetUsageInsight.analyzed_at.desc())
+        .order_by(
+            AssetUsageInsight.date_range_end.desc().nullslast(),
+            AssetUsageInsight.analyzed_at.desc(),
+        )
         .limit(1)
     )
     insight = result.scalar_one_or_none()
@@ -362,9 +365,9 @@ async def get_overview(
     since = now - timedelta(days=date_range_days)
 
     total_convs_result = await db.execute(
-        select(func.count(func.distinct(ConversationEvent.conversation_id))).where(
-            ConversationEvent.created_at >= since
-        )
+        select(func.count(func.distinct(ConversationEvent.conversation_id)))
+        .where(ConversationEvent.created_at >= since)
+        .where(ConversationEvent.asset_id.isnot(None))
     )
     total_conversations = total_convs_result.scalar_one()
 
@@ -380,14 +383,14 @@ async def get_overview(
     total_assets = all_assets_result.scalar_one()
 
     active_assets_result = await db.execute(
-        select(func.count(func.distinct(ConversationEvent.asset_id))).where(
-            ConversationEvent.created_at >= since
-        )
+        select(func.count(func.distinct(ConversationEvent.asset_id)))
+        .where(ConversationEvent.created_at >= since)
+        .where(ConversationEvent.asset_id.isnot(None))
     )
     active_assets = active_assets_result.scalar_one()
     ghost_assets = total_assets - active_assets
 
-    # Top 5 assets by conversation count
+    # Top 5 assets by conversation count (exclude null asset_id rows)
     top_assets_result = await db.execute(
         select(
             ConversationEvent.asset_id,
@@ -396,6 +399,7 @@ async def get_overview(
             ),
         )
         .where(ConversationEvent.created_at >= since)
+        .where(ConversationEvent.asset_id.isnot(None))
         .group_by(ConversationEvent.asset_id)
         .order_by(func.count(func.distinct(ConversationEvent.conversation_id)).desc())
         .limit(5)
@@ -405,13 +409,41 @@ async def get_overview(
         for row in top_assets_result.fetchall()
     ]
 
-    # Drift alerts — count + asset IDs
+    # Drift alerts — with message text
     drift_result = await db.execute(
-        select(AssetUsageInsight.asset_id)
+        select(AssetUsageInsight.asset_id, AssetUsageInsight.drift_alert)
         .where(AssetUsageInsight.drift_alert.isnot(None))
-        .distinct()
+        .distinct(AssetUsageInsight.asset_id)
     )
-    drift_asset_ids = [row[0] for row in drift_result.fetchall()]
+    drift_rows = drift_result.fetchall()
+    drift_asset_ids = [row[0] for row in drift_rows]
+    drift_details = [{"asset_id": row[0], "drift_alert": row[1]} for row in drift_rows]
+
+    # Ghost asset IDs — assets in GPT table with zero conversations in range
+    active_ids_result = await db.execute(
+        select(func.distinct(ConversationEvent.asset_id))
+        .where(ConversationEvent.created_at >= since)
+        .where(ConversationEvent.asset_id.isnot(None))
+    )
+    active_id_set = {
+        row[0] for row in active_ids_result.fetchall() if row[0] is not None
+    }
+    all_gpt_ids_result = await db.execute(select(GPT.id))
+    ghost_asset_ids = [
+        row[0] for row in all_gpt_ids_result.fetchall() if row[0] not in active_id_set
+    ]
+
+    # Knowledge gap signals — assets that have non-null knowledge_gap_signals
+    gaps_result = await db.execute(
+        select(AssetUsageInsight.asset_id, AssetUsageInsight.knowledge_gap_signals)
+        .where(AssetUsageInsight.knowledge_gap_signals.isnot(None))
+        .distinct(AssetUsageInsight.asset_id)
+    )
+    knowledge_gap_assets = [
+        {"asset_id": row[0], "signals": row[1]}
+        for row in gaps_result.fetchall()
+        if row[1]
+    ]
 
     return ConversationOverview(
         total_conversations=total_conversations,
@@ -421,6 +453,9 @@ async def get_overview(
         top_assets=top_assets,
         drift_alerts=len(drift_asset_ids),
         drift_asset_ids=drift_asset_ids,
+        drift_details=drift_details,
+        ghost_asset_ids=ghost_asset_ids[:20],  # cap at 20 for UI
+        knowledge_gap_assets=knowledge_gap_assets,
         date_range_days=date_range_days,
     )
 

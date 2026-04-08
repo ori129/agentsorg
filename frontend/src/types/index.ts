@@ -35,6 +35,43 @@ export interface SyncLog {
   tokens_input: number;
   tokens_output: number;
   estimated_cost_usd: number | null;
+  // KPI snapshots (migration 017)
+  avg_quality_score: number | null;
+  avg_adoption_score: number | null;
+  avg_risk_score: number | null;
+  champion_count: number;
+  hidden_gem_count: number;
+  scaled_risk_count: number;
+  retirement_count: number;
+  ghost_asset_count: number;
+  high_risk_count: number;
+  total_asset_count: number;
+}
+
+export interface PortfolioTrendPoint {
+  sync_log_id: number;
+  synced_at: string;
+  avg_quality_score: number | null;
+  avg_adoption_score: number | null;
+  avg_risk_score: number | null;
+  champion_count: number;
+  hidden_gem_count: number;
+  scaled_risk_count: number;
+  retirement_count: number;
+  ghost_asset_count: number;
+  high_risk_count: number;
+  total_asset_count: number;
+}
+
+export interface GptScoreHistoryPoint {
+  id: number;
+  gpt_id: string;
+  sync_log_id: number | null;
+  synced_at: string;
+  quality_score: number | null;
+  adoption_score: number | null;
+  risk_score: number | null;
+  quadrant_label: string | null;
 }
 
 export interface SyncConfig {
@@ -66,6 +103,65 @@ export interface PipelineSummary {
   project_count: number;
   categories_used: { name: string; count: number; color: string }[];
   last_sync: SyncLog | null;
+  // Score stats
+  scores_assessed: number;
+  avg_quality_score: number | null;
+  avg_adoption_score: number | null;
+  avg_risk_score: number | null;
+  champions: number;
+  hidden_gems: number;
+  scaled_risk: number;
+  retirement_candidates: number;
+  ghost_assets: number;
+  workflows_covered: number;
+  workflow_gaps: number;
+}
+
+export interface WorkflowAssetRef {
+  id: string;
+  name: string;
+  conversation_count: number;
+  quadrant_label: string | null;
+}
+
+export interface WorkflowIntentSignal {
+  topic: string;
+  pct: number;
+  example_phrases: string[];
+}
+
+export type WorkflowStatus = "covered" | "ghost" | "intent_gap";
+
+export interface WorkflowCoverageItem {
+  name: string;
+  status: WorkflowStatus;
+  asset_count: number;
+  conversation_count: number;
+  assets: WorkflowAssetRef[];
+  intent_signals: WorkflowIntentSignal[];
+  example_phrases: string[];
+  reasoning: string | null;
+  priority_action: string | null;
+  priority_level: "low" | "medium" | "high" | "critical" | null;
+}
+
+export interface PriorityAction {
+  priority: number;
+  category: "quality" | "adoption" | "risk" | "learning" | "governance";
+  title: string;
+  description: string;
+  impact: "high" | "medium" | "low";
+  effort: "high" | "medium" | "low";
+  asset_ids: string[];
+  reasoning: string;
+}
+
+export interface WorkspaceRecommendation {
+  id: number;
+  generated_at: string;
+  sync_log_id: number | null;
+  recommendations: PriorityAction[];
+  executive_summary: string | null;
 }
 
 export interface GPTItem {
@@ -104,6 +200,27 @@ export interface GPTItem {
   adoption_friction_score: number | null;
   adoption_friction_rationale: string | null;
   semantic_enriched_at: string | null;
+  purpose_fingerprint: string | null;
+  // Conversation stats
+  conversation_count: number;
+  last_conversation_at: string | null;
+  // LLM-assessed composite scores
+  quality_score: number | null;
+  quality_score_rationale: string | null;
+  quality_main_strength: string | null;
+  quality_main_weakness: string | null;
+  adoption_score: number | null;
+  adoption_score_rationale: string | null;
+  adoption_signal: string | null;
+  adoption_barrier: string | null;
+  risk_score: number | null;
+  risk_score_rationale: string | null;
+  risk_primary_driver: string | null;
+  risk_urgency: "low" | "medium" | "high" | null;
+  quadrant_label: "champion" | "hidden_gem" | "scaled_risk" | "retirement_candidate" | null;
+  top_action: string | null;
+  score_confidence: "high" | "medium" | "low" | null;
+  scores_assessed_at: string | null;
 }
 
 export interface GPTSearchResult extends GPTItem {
@@ -280,9 +397,12 @@ export interface ConversationOverview {
   active_users: number;
   active_assets: number;
   ghost_assets: number;
-  top_assets: { asset_id: string; conversation_count: number }[];
+  top_assets: { asset_id: string; conversation_count: number; avg_messages?: number }[];
   drift_alerts: number;
   drift_asset_ids: string[];
+  drift_details: { asset_id: string; drift_alert: string }[];
+  ghost_asset_ids: string[];
+  knowledge_gap_assets: { asset_id: string; signals: { topic: string; frequency: number; example_question: string }[] }[];
   date_range_days: number;
 }
 

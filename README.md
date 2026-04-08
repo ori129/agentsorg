@@ -30,42 +30,55 @@ OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg
 
 ## Features
 
-### 🔍 GPT & Project Registry
-Automatically discovers all Custom GPTs and Projects across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, and a slide-out detail panel for every asset.
+### 🏠 Home Dashboard
+Prioritized intelligence view for AI leaders. Opens to a set of top **priority actions** (risk, adoption, quality, governance) scored and ranked by impact × effort — each one backed by real GPT data. Alongside it, the **Quality vs. Adoption quadrant** plots every asset so you can instantly spot hidden gems (high quality, low adoption), champions (high quality, high adoption), and retirement candidates.
 
-### 🧠 Semantic Enrichment (10 signals per GPT)
-An LLM reads each GPT's system prompt and extracts:
+### 🔍 GPT & Project Registry
+Automatically discovers all Custom GPTs **and Projects** across your ChatGPT Enterprise workspace via the OpenAI Compliance API. Full-text search, filters, asset-type chips, and a slide-out detail panel for every asset.
+
+### 🧠 Semantic Enrichment (9 signals + 3 composite scores per asset)
+An LLM reads each asset's system prompt and extracts 9 enrichment signals:
 
 | Signal | What it captures |
 |--------|-----------------|
 | `risk_level` + `risk_flags` | Data exposure, compliance concerns |
 | `sophistication_score` | Depth of prompt and tooling (1–5) |
 | `prompting_quality_score` | Prompt engineering quality (1–5) |
-| `business_process` | Which workflow this GPT automates |
+| `business_process` | Which workflow this asset automates |
 | `roi_potential_score` | Estimated business value (1–5) |
-| `intended_audience` | Who the GPT is built for |
+| `intended_audience` | Who the asset is built for |
 | `integration_flags` | External systems connected |
 | `output_type` | Document, Analysis, Code, Conversation, etc. |
 | `adoption_friction_score` | How easy it is for others to adopt (1–5) |
-| `purpose_fingerprint` | Single-sentence workflow description — powers duplicate detection |
+| `purpose_fingerprint` | Single-sentence workflow description — powers demand signal detection |
+
+These feed into 3 composite scores and a quadrant label:
+
+| Composite | What it measures |
+|-----------|-----------------|
+| `quality_score` (0–100) | Design quality — prompt depth, clarity, audience fit |
+| `adoption_score` (0–100) | Usage — conversation volume, active users, recency |
+| `risk_score` (0–100) | Risk exposure — data sensitivity, compliance flags |
+| `quadrant_label` | Champion / Hidden Gem / Scaled Risk / Retirement Candidate |
 
 ### 📊 Leader Dashboard
-- **Overview** — portfolio KPIs, creation velocity, department breakdown, maturity tiers. Five drill-down pages (Builders, Processes, Departments, Maturity, Output Types).
-- **Sync** — Manual sync button, auto-sync toggle + schedule, token consumption and cost per sync run, and full sync history log.
-- **Risk Panel** — GPTs flagged high or critical, with per-flag breakdown.
-- **Standardization Opportunities** — Two-pane email-client layout. LLM-generated **purpose fingerprints** per GPT enable semantic clustering (pgvector + centroid-based algorithm) to detect when multiple teams independently build tools for the same workflow. Each cluster surfaces a plain-English explanation of the shared purpose, estimated wasted build hours, and the best-candidate GPT (highest sophistication score) to promote as the org standard.
-- **Quality Scores** — Prompting quality distribution across the portfolio.
+- **Home** — Opens to an LLM-generated **executive summary** paragraph and 5–10 ranked **priority actions** (each with category, impact, effort, reasoning, and linked assets). The **Quality vs. Adoption quadrant** plots every scored asset — Champion, Hidden Gem, Scaled Risk, or Retirement Candidate. Portfolio health trend chart tracks average quality, adoption, and risk across every sync.
+- **Portfolio** — Tabbed view: all assets with composite scores, ghost assets (zero usage), risk flags, and per-asset score history (the "Journey" tab in the slide-out drawer shows longitudinal quality/adoption/risk trend).
+- **Adoption** — Conversation intelligence: which assets are being used, by whom, and for what purpose. Conversations are attributed back to the originating GPT or Project via the conversation pipeline, giving each asset its own usage fingerprint. Ghost asset detection, drift alerts, knowledge gap signals, per-user adoption insights.
+- **Workflows** — Business process coverage analysis. Shows which workflows are covered by AI assets (with conversation evidence), which have assets built but zero conversation activity (ghost coverage), and which show user demand via conversation topics but have no dedicated asset (intent gaps). Each workflow has LLM-generated reasoning and a priority action.
+- **Build Signals** — Semantic clustering (pgvector + centroid-based algorithm + LLM validation) detects when multiple teams independently build overlapping tools. Each cluster is a proven demand signal. Surfaces the best-candidate asset to certify as an org standard, with estimated wasted hours.
+- **Sync** — Manual sync, auto-sync toggle + schedule, token consumption and cost per run, full sync history log.
 
 ### 🎓 Learning & Development
 - **Recognition** — Composite builder scores: quality 35% · adoption 25% · hygiene 25% · volume 15%.
-- **Learning** — LLM-driven course recommendations per builder, grounded in actual KPI gaps. Built-in OpenAI Academy catalog; custom courses via URL.
+- **Courses** — LLM-driven course recommendations per builder, grounded in actual KPI gaps. Built-in OpenAI Academy catalog; custom courses via URL.
 - **Workshops** — CRUD for sessions with participant lists, GPT tagging, and time-based quality impact correlation.
 
 ### 👤 Employee Portal
-Read-only GPT discovery for non-admin users — search and browse what's available without accessing governance data.
+Read-only GPT and Project discovery for non-admin users — search and browse what's available without accessing governance data.
 
 ### 🎯 Demo Mode
-Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs across 10 departments, fully enriched with scores and rationale. One click from the onboarding screen.
+Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs across 10 departments, fully enriched with scores, rationale, priority actions, and usage signals. One click from the onboarding screen.
 
 ---
 
@@ -74,51 +87,41 @@ Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs 
 <table>
   <tr>
     <td><img src="docs/screenshots/ss_onboarding.png" alt="Sign in" /></td>
-    <td><img src="docs/screenshots/ss_overview.png" alt="AI Portfolio Overview" /></td>
+    <td><img src="docs/screenshots/ss_home.png" alt="Home Dashboard" /></td>
   </tr>
   <tr>
     <td align="center"><em>Sign in — self-hosted, your data stays on your infra</em></td>
-    <td align="center"><em>Overview — portfolio KPIs, velocity, department breakdown</em></td>
+    <td align="center"><em>Home — executive summary, priority actions, Quality vs Adoption quadrant</em></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/ss_overview_builders.png" alt="Builders" /></td>
-    <td><img src="docs/screenshots/ss_overview_processes.png" alt="Business Processes" /></td>
+    <td><img src="docs/screenshots/ss_portfolio.png" alt="Portfolio" /></td>
+    <td><img src="docs/screenshots/ss_adoption.png" alt="Adoption" /></td>
   </tr>
   <tr>
-    <td align="center"><em>Builders — who's building what across the org</em></td>
-    <td align="center"><em>Business Processes — AI mapped to workflows</em></td>
+    <td align="center"><em>Portfolio — composite scores, risk flags, ghost asset detection</em></td>
+    <td align="center"><em>Adoption — conversation intelligence: ghost assets, drift alerts, knowledge gaps</em></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/ss_overview_departments.png" alt="Departments" /></td>
-    <td><img src="docs/screenshots/ss_overview_maturity.png" alt="Maturity Tiers" /></td>
+    <td><img src="docs/screenshots/ss_workflows.png" alt="Workflows" /></td>
+    <td><img src="docs/screenshots/ss_build_signals.png" alt="Build Signals" /></td>
   </tr>
   <tr>
-    <td align="center"><em>Departments — AI adoption by team</em></td>
-    <td align="center"><em>Maturity Tiers — Production / Functional / Experimental breakdown</em></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/ss_overview_output_types.png" alt="Output Types" /></td>
-    <td><img src="docs/screenshots/ss_risk.png" alt="Risk Panel" /></td>
-  </tr>
-  <tr>
-    <td align="center"><em>Output Types — Document, Code, Analysis, Conversation…</em></td>
-    <td align="center"><em>Risk Panel — high/critical assets flagged by issue type</em></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/ss_standardization.png" alt="Standardization Opportunities" /></td>
-    <td><img src="docs/screenshots/ss_quality.png" alt="Quality Scores" /></td>
-  </tr>
-  <tr>
-    <td align="center"><em>Standardization Opportunities — demand clusters, each a candidate for a certified org standard</em></td>
-    <td align="center"><em>Quality Scores — sophistication, prompting quality, ROI per asset</em></td>
+    <td align="center"><em>Workflows — covered processes, ghost coverage, and intent gaps with LLM reasoning</em></td>
+    <td align="center"><em>Build Signals — demand clusters: where multiple teams built the same thing independently</em></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/ss_recognition.png" alt="Builder Recognition" /></td>
-    <td><img src="docs/screenshots/ss_learning.png" alt="Learning" /></td>
+    <td><img src="docs/screenshots/ss_learning.png" alt="Courses" /></td>
   </tr>
   <tr>
     <td align="center"><em>Recognition — composite builder scores across your team</em></td>
-    <td align="center"><em>Learning — LLM-driven course recommendations per builder</em></td>
+    <td align="center"><em>Courses — LLM-driven course recommendations per builder</em></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/ss_journey.png" alt="Journey — per-asset score history" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><em>Journey — longitudinal quality, adoption, and risk trend per asset (drawer tab in Portfolio)</em></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/ss_workshops.png" alt="Workshops" /></td>
@@ -137,7 +140,7 @@ Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs 
     <td align="center"><em>Users — roster management and role assignment</em></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/ss_employee.png" alt="Employee Portal" /></td>
+    <td colspan="2"><img src="docs/screenshots/ss_employee.png" alt="Employee Portal" style="max-width:600px" /></td>
   </tr>
   <tr>
     <td colspan="2" align="center"><em>Employee Portal — read-only GPT & Project discovery for the whole org</em></td>
@@ -194,18 +197,36 @@ Run `make help` to see all available commands.
 
 ### Pipeline Stages
 
+Three separate pipelines run to produce the full intelligence picture:
+
+**Asset pipeline** (triggered manually or on schedule):
 ```
-Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) → Embed (75–85%) → Store (90%) → Done (100%)
+Fetch → Filter → Classify → Enrich → Embed → Score → Recommendations → Store
+  5%     35%      40–65%    65–72%   75–85%   87%        92%            100%
 ```
 
-**Incremental processing** — GPTs are content-hashed (SHA-256) on each run. Unchanged GPTs skip classification, enrichment, and embedding, carrying forward their cached results. This avoids redundant OpenAI API costs on subsequent syncs.
+**Conversation pipeline** (triggered from the Sync page):
+```
+Fetch JSONL → Aggregate → Topic Analysis → User Analysis → Commit → Workflow Intelligence
+     10%         25%           45%              65%          85%           100%
+```
+
+**Clustering pipeline** (async job, user-triggered from Build Signals):
+```
+Load embeddings → Bucket by category → Centroid clustering → LLM validation → Persist
+```
+
+**Incremental processing** — GPTs are content-hashed (SHA-256) on each asset pipeline run. Unchanged GPTs skip classification, enrichment, and embedding, carrying forward their cached results. This avoids redundant API costs on subsequent syncs.
 
 | Stage    | Production                    | Demo                         |
 |----------|-------------------------------|------------------------------|
 | Fetch    | OpenAI Compliance API         | Template-based generator     |
 | Classify | OpenAI Chat model             | Keyword matching             |
-| Enrich   | 9 KPIs + purpose fingerprint via LLM | Deterministic mock enricher |
+| Enrich   | 9 signals + purpose fingerprint via LLM | Deterministic mock enricher |
 | Embed    | OpenAI Embeddings API         | Deterministic vectors        |
+| Score    | Composite quality/adoption/risk scores | Mock score assessor |
+| Conversations | OpenAI JSONL export | Mock conversation generator |
+| Workflows | LLM workflow coverage analysis | Mock workflow analyzer |
 
 ### Maturity Tiers
 
@@ -260,14 +281,30 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/pipeline/run` | Start pipeline |
+| POST | `/api/v1/pipeline/run` | Start asset pipeline |
 | GET | `/api/v1/pipeline/status` | Live progress + stage |
-| GET | `/api/v1/pipeline/summary` | Results summary |
+| GET | `/api/v1/pipeline/summary` | Results summary (includes workflow counts) |
 | GET | `/api/v1/pipeline/gpts` | List all GPTs |
 | GET | `/api/v1/pipeline/history` | Sync history |
 | GET | `/api/v1/pipeline/logs/{id}` | Logs for a sync run |
 | GET | `/api/v1/pipeline/sync-config` | Get auto-sync settings |
 | PATCH | `/api/v1/pipeline/sync-config` | Update auto-sync settings |
+| GET | `/api/v1/pipeline/recommendations` | Latest priority actions + executive summary |
+| GET | `/api/v1/pipeline/trend` | Portfolio health over time (quality/adoption/risk per run) |
+| GET | `/api/v1/pipeline/gpt/{id}/history` | Per-asset score history |
+| GET | `/api/v1/pipeline/workflows` | Workflow coverage analysis (covered/ghost/intent gaps) |
+</details>
+
+<details>
+<summary><strong>Conversations</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/conversations/run` | Start conversation pipeline |
+| GET | `/api/v1/conversations/status` | Live pipeline progress |
+| GET | `/api/v1/conversations/overview` | Adoption summary across all assets |
+| GET | `/api/v1/conversations/asset/{id}/insight` | Per-asset conversation detail |
+| GET | `/api/v1/conversations/user/{email}/insight` | Per-user adoption insight |
 </details>
 
 <details>
@@ -289,7 +326,9 @@ Fetch (5–30%) → Filter (35%) → Classify (40–65%) → Enrich (65–72%) �
 |--------|----------|-------------|
 | POST | `/api/v1/clustering/run` | Detect standardization opportunities |
 | GET | `/api/v1/clustering/status` | Clustering job status |
-| GET | `/api/v1/clustering/results` | Cluster groups |
+| GET | `/api/v1/clustering/results` | Cluster groups (persisted across restarts) |
+| POST | `/api/v1/clustering/{cluster_id}/action` | Save leader decision for a cluster |
+| GET | `/api/v1/clustering/decisions` | All saved cluster decisions |
 </details>
 
 <details>

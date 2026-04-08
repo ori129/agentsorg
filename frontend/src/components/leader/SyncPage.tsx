@@ -417,7 +417,7 @@ export default function SyncPage({ isAdmin }: SyncPageProps) {
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)" }}>
-                  {["Date", "Status", "Discovered", "After Filter", "Classified", "Tokens In", "Tokens Out", "Cost", "Duration", "Errors"].map((h) => (
+                  {["Date", "Status", "Assets", "Avg Quality", "Champions", "Ghosts", "Tokens In", "Tokens Out", "Cost", "Duration"].map((h) => (
                     <th key={h} className="text-left px-3 py-2.5 font-medium" style={{ color: "var(--c-text-4)" }}>{h}</th>
                   ))}
                 </tr>
@@ -433,18 +433,20 @@ export default function SyncPage({ isAdmin }: SyncPageProps) {
                   >
                     <td className="px-3 py-2.5" style={{ color: "var(--c-text-3)" }}>{formatDate(run.started_at)}</td>
                     <td className="px-3 py-2.5">{statusBadge(run.status)}</td>
-                    <td className="px-3 py-2.5" style={{ color: "var(--c-text-3)" }}>{run.total_gpts_found}</td>
-                    <td className="px-3 py-2.5" style={{ color: "var(--c-text-3)" }}>{run.gpts_after_filter}</td>
-                    <td className="px-3 py-2.5" style={{ color: "var(--c-text-3)" }}>{run.gpts_classified}</td>
+                    <td className="px-3 py-2.5" style={{ color: "var(--c-text-3)" }}>{run.total_asset_count || run.gpts_after_filter}</td>
+                    <td className="px-3 py-2.5" style={{ color: run.avg_quality_score != null ? "#10b981" : "var(--c-text-5)" }}>
+                      {run.avg_quality_score != null ? `${run.avg_quality_score.toFixed(1)}` : "—"}
+                    </td>
+                    <td className="px-3 py-2.5" style={{ color: run.champion_count > 0 ? "#10b981" : "var(--c-text-5)" }}>
+                      {run.champion_count || "—"}
+                    </td>
+                    <td className="px-3 py-2.5" style={{ color: run.ghost_asset_count > 0 ? "#f59e0b" : "var(--c-text-5)" }}>
+                      {run.ghost_asset_count || "—"}
+                    </td>
                     <td className="px-3 py-2.5" style={{ color: "var(--c-text-4)" }}>{formatTokens(run.tokens_input)}</td>
                     <td className="px-3 py-2.5" style={{ color: "var(--c-text-4)" }}>{formatTokens(run.tokens_output)}</td>
                     <td className="px-3 py-2.5" style={{ color: run.estimated_cost_usd ? "var(--c-text-3)" : "var(--c-text-5)" }}>{formatCost(run.estimated_cost_usd)}</td>
                     <td className="px-3 py-2.5" style={{ color: "var(--c-text-3)" }}>{formatDuration(run.started_at, run.finished_at)}</td>
-                    <td className="px-3 py-2.5">
-                      {run.errors.length > 0
-                        ? <span style={{ color: "#ef4444" }}>{run.errors.length}</span>
-                        : <span style={{ color: "#10b981" }}>0</span>}
-                    </td>
                   </tr>
                 ))}
               </tbody>

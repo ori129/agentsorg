@@ -318,8 +318,53 @@ async def get_recognition(db: AsyncSession = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 
+_DEMO_ORG_REPORT = OrgLearningReport(
+    skill_gaps=[
+        "Low prompting quality across 38% of assets — employees are using vague, single-sentence prompts",
+        "Minimal system-prompt sophistication: 51% of assets have <100-char instructions with no persona or constraints",
+        "High adoption friction on 22 assets — no onboarding context or example prompts provided",
+        "47 assets with zero conversations in 30 days despite being shared with 10+ users (ghost assets)",
+        "Finance GPT receiving 32% HR-related queries — knowledge gap or missing HR-specific assistant",
+    ],
+    recommended_courses=[
+        CourseRecommendation(
+            course_name="Prompt Engineering for Business",
+            url="https://academy.openai.com/",
+            category="Prompt Engineering",
+            reasoning="38% of assets score ≤4/10 on prompting quality. This course directly addresses the org-wide pattern of vague, one-line prompts that limit asset effectiveness.",
+            priority=1,
+        ),
+        CourseRecommendation(
+            course_name="Building Custom GPTs",
+            url="https://academy.openai.com/",
+            category="GPT Development",
+            reasoning="51% of assets have minimal instructions (<100 chars). Builders need hands-on guidance on writing effective system prompts, personas, and constraints.",
+            priority=2,
+        ),
+        CourseRecommendation(
+            course_name="ChatGPT for Business Workflows",
+            url="https://academy.openai.com/",
+            category="Business Productivity",
+            reasoning="22 high-friction assets indicate employees struggle to integrate AI into daily work. This course builds practical workflow habits that increase adoption.",
+            priority=3,
+        ),
+    ],
+    summary=(
+        "Your organisation has 500+ AI assets but adoption is uneven — ghost assets and low prompting quality "
+        "suggest the tools exist but employees lack the skills to use them effectively. "
+        "The highest-leverage intervention is upskilling on prompt engineering and custom GPT design, "
+        "which would directly lift quality scores across 38% of the portfolio."
+    ),
+)
+
+
 @router.post("/recommend-org", response_model=OrgLearningReport)
 async def recommend_org(db: AsyncSession = Depends(get_db)):
+    from app.services.demo_state import get_demo_state
+
+    if get_demo_state()["enabled"]:
+        return _DEMO_ORG_REPORT
+
     client = await _get_openai_client(db)
 
     result = await db.execute(select(GPT))
@@ -929,6 +974,51 @@ async def untag_gpt(workshop_id: int, gpt_id: str, db: AsyncSession = Depends(ge
 # ---------------------------------------------------------------------------
 
 
+def _demo_workshop_impact(
+    w: Workshop, tagged_asset_details: list[TaggedAssetDetail]
+) -> WorkshopImpact:
+    """Return synthetic impact stats for demo workshops."""
+    import random as _random
+
+    rng = _random.Random(w.id * 17)  # deterministic per workshop
+    participants = [p.employee_email for p in w.participants]
+    auto_stats: list[WorkshopImpactAuto] = []
+    delta_qualities: list[float] = []
+    delta_sophs: list[float] = []
+    for email in participants:
+        q_before = round(rng.uniform(3.5, 5.5), 1)
+        q_after = round(q_before + rng.uniform(1.2, 2.8), 1)
+        s_before = round(rng.uniform(3.0, 5.0), 1)
+        s_after = round(s_before + rng.uniform(1.0, 2.5), 1)
+        n_before = rng.randint(1, 4)
+        n_after = rng.randint(1, 5)
+        auto_stats.append(
+            WorkshopImpactAuto(
+                participant_email=email,
+                gpts_before=n_before,
+                gpts_after=n_after,
+                avg_quality_before=q_before,
+                avg_quality_after=min(q_after, 10.0),
+                avg_sophistication_before=s_before,
+                avg_sophistication_after=min(s_after, 10.0),
+            )
+        )
+        delta_qualities.append(min(q_after, 10.0) - q_before)
+        delta_sophs.append(min(s_after, 10.0) - s_before)
+    return WorkshopImpact(
+        workshop_id=w.id,
+        auto_stats=auto_stats,
+        tagged_gpts=[t.gpt_id for t in w.gpt_tags],
+        tagged_asset_details=tagged_asset_details,
+        summary_delta_quality=round(sum(delta_qualities) / len(delta_qualities), 2)
+        if delta_qualities
+        else None,
+        summary_delta_sophistication=round(sum(delta_sophs) / len(delta_sophs), 2)
+        if delta_sophs
+        else None,
+    )
+
+
 @router.get("/workshops/{workshop_id}/impact", response_model=WorkshopImpact)
 async def get_workshop_impact(workshop_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(_with_rels().where(Workshop.id == workshop_id))
@@ -1012,6 +1102,11 @@ async def get_workshop_impact(workshop_id: int, db: AsyncSession = Depends(get_d
                     else None,
                 )
             )
+
+    from app.services.demo_state import get_demo_state
+
+    if get_demo_state()["enabled"]:
+        return _demo_workshop_impact(w, tagged_asset_details)
 
     return WorkshopImpact(
         workshop_id=workshop_id,

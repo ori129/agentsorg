@@ -5,15 +5,19 @@ import type {
   Configuration,
   DemoState,
   GPTItem,
+  GptScoreHistoryPoint,
   InviteUserResponse,
   LoginResponse,
   PipelineLogEntry,
   PipelineStatus,
   PipelineSummary,
+  PortfolioTrendPoint,
   SyncConfig,
   SyncLog,
   TestConnectionResult,
   UserImportResult,
+  WorkflowCoverageItem,
+  WorkspaceRecommendation,
   WorkspaceUser,
 } from "../types";
 
@@ -163,6 +167,11 @@ export const api = {
   getSyncConfig: () => request<SyncConfig>("/pipeline/sync-config"),
   patchSyncConfig: (body: Partial<SyncConfig>) =>
     request<SyncConfig>("/pipeline/sync-config", { method: "PATCH", body: JSON.stringify(body) }),
+  getRecommendations: () => request<WorkspaceRecommendation>("/pipeline/recommendations"),
+  getWorkflowCoverage: () => request<WorkflowCoverageItem[]>("/pipeline/workflows"),
+  getPortfolioTrend: () => request<PortfolioTrendPoint[]>("/pipeline/trend"),
+  getGptScoreHistory: (gptId: string) =>
+    request<GptScoreHistoryPoint[]>(`/pipeline/gpt/${encodeURIComponent(gptId)}/history`),
 
   // ------------------------------------------------------------------
   // Admin

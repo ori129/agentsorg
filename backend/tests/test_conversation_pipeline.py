@@ -216,7 +216,7 @@ async def test_cv4_budget_exceeded(db_session, seed_gpts, seed_config):
         workspace_id="ws-test-123",
         privacy_level=2,
         date_range_days=30,
-        token_budget_usd=0.01,  # Tiny budget
+        token_budget_usd=0.0001,  # Tiny budget — below minimum per-asset estimate
         asset_ids=None,
         openai_api_key="test-key",
     )
