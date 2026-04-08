@@ -734,6 +734,34 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
             Actual Adoption (last 30 days)
           </h2>
 
+          {(() => {
+            const totalAssets = convOverview.active_assets + convOverview.ghost_assets;
+            const utilizationPct = totalAssets > 0 ? Math.round((convOverview.active_assets / totalAssets) * 100) : 0;
+            return (
+              <div className="flex items-center gap-3 mb-3 px-1">
+                <div className="flex-1 rounded-full overflow-hidden" style={{ height: 6, background: "var(--c-border)" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${utilizationPct}%`,
+                      background: utilizationPct >= 70 ? "#10b981" : utilizationPct >= 40 ? "#f59e0b" : "#ef4444",
+                    }}
+                  />
+                </div>
+                <span className="text-xs font-semibold shrink-0"
+                  style={{ color: utilizationPct >= 70 ? "#10b981" : utilizationPct >= 40 ? "#f59e0b" : "#ef4444" }}>
+                  {utilizationPct}% utilized
+                </span>
+                <button
+                  onClick={() => onSetPage("adoption")}
+                  className="text-xs px-2 py-0.5 rounded font-medium shrink-0"
+                  style={{ background: "var(--c-border)", color: "var(--c-text-3)" }}
+                >
+                  Full report →
+                </button>
+              </div>
+            );
+          })()}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-4">
             {[
               {
@@ -797,12 +825,12 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
             {convOverview.drift_alerts > 0 && (
               <Card title="Topic drift alerts">
                 <div className="space-y-2">
-                  {convOverview.drift_asset_ids.map((assetId) => {
-                    const gpt = gpts.find((g) => g.id === assetId);
+                  {(convOverview.drift_details ?? convOverview.drift_asset_ids.map((id) => ({ asset_id: id, drift_alert: "" }))).map((d) => {
+                    const gpt = gpts.find((g) => g.id === d.asset_id);
                     return (
                       <div
-                        key={assetId}
-                        className="flex items-center gap-3 px-3 py-3 rounded-lg transition-colors"
+                        key={d.asset_id}
+                        className="flex items-start gap-3 px-3 py-3 rounded-lg transition-colors"
                         style={{
                           background: "#f59e0b10",
                           border: "1px solid #f59e0b40",
@@ -810,17 +838,17 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
                         }}
                         onClick={() => gpt && open(gpt.name, [gpt])}
                       >
-                        <span style={{ color: "#f59e0b", fontSize: 20 }}>⚠</span>
+                        <span style={{ color: "#f59e0b", fontSize: 16, marginTop: 2 }}>⚠</span>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm" style={{ color: "#f59e0b" }}>
-                            {gpt?.name ?? assetId}
+                            {gpt?.name ?? d.asset_id}
                           </p>
-                          <p className="text-xs mt-0.5 truncate" style={{ color: "var(--c-text-3)" }}>
-                            Used for unintended purposes — click to investigate
+                          <p className="text-xs mt-0.5" style={{ color: "var(--c-text-3)" }}>
+                            {d.drift_alert || "Used outside its intended purpose"}
                           </p>
                         </div>
                         {gpt && (
-                          <span className="text-xs" style={{ color: "#f59e0b" }}>→</span>
+                          <span className="text-xs shrink-0" style={{ color: "#f59e0b" }}>→</span>
                         )}
                       </div>
                     );

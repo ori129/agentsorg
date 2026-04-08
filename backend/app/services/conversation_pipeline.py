@@ -1,10 +1,11 @@
-"""Conversation Intelligence Pipeline — 5-stage async pipeline.
+"""Conversation Intelligence Pipeline — 6-stage async pipeline.
 
 Stage 1 — Fetch logs (10-40%)      Download JSONL, parse, dedup, upsert conversation_events
 Stage 2 — Aggregate + invalidation (45%)  Count per asset, decide which need LLM
 Stage 3 — Anonymous topic analysis (50-75%)  LLM topics, drift, knowledge gaps  [Level 2+]
 Stage 4 — Named user analysis (75-90%)  Per-user insights                        [Level 3]
 Stage 5 — Cost commit (95-100%)    Write sync log, trigger soft retention
+Stage 6 — Workflow intelligence (97-100%)  LLM coverage analysis + intent gap reasoning
 
 Privacy levels:
   0 = Off           (nothing runs)
@@ -67,7 +68,9 @@ _pipeline_state: dict[str, Any] = {
 }
 
 # Regex for stripping email addresses from message bodies (Level 2 identity stripping)
-_EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Z|a-z]{2,}\b")
+_EMAIL_PATTERN = re.compile(
+    r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Z|a-z]{2,}\b"
+)
 
 
 def get_pipeline_state() -> dict[str, Any]:
@@ -154,6 +157,20 @@ async def _run(
     tokens_input_total = 0
     tokens_output_total = 0
     cost_total = 0.0
+
+    # ── Level 0: Off — write a skipped sync log and return immediately ───────
+    if privacy_level == 0:
+        return await _commit_sync_log(
+            db=db,
+            sync_log=sync_log,
+            assets_analyzed=0,
+            assets_skipped_unchanged=0,
+            errors=[],
+            tokens_input=0,
+            tokens_output=0,
+            cost=0.0,
+            status="skipped",
+        )
 
     # ── Prerequisite: assets must exist ─────────────────────────────────────
     _set_state(stage="prerequisites", progress=5)
@@ -244,11 +261,7 @@ async def _run(
         file_url = (
             log_file.get("url")
             or log_file.get("download_url")
-            or (
-                api_client.get_log_file_download_url(workspace_id, log_id)
-                if log_id
-                else ""
-            )
+            or (api_client.get_log_file_download_url(workspace_id, log_id) if log_id else "")
         )
         if not file_url:
             logger.warning(f"Log file missing URL: {log_id}")
@@ -276,17 +289,20 @@ async def _run(
                 logger.info(f"JSONL line[1] full: {lines[1]}")
             # Log all keys present across the conversation object to find gpt_id
             all_conv_keys: set[str] = set()
-            for line_obj in lines:
-                conv_obj = line_obj.get("conversation") or {}
+            for l in lines:
+                conv_obj = l.get("conversation") or {}
                 all_conv_keys.update(conv_obj.keys())
-            logger.info(
-                f"All conversation object keys across file: {sorted(all_conv_keys)}"
-            )
+            logger.info(f"All conversation object keys across file: {sorted(all_conv_keys)}")
         for line in lines:
             event_id = line.get("event_id")
-            # conversation_id lives at line["conversation"]["id"]
+            # Support both API formats:
+            # - Real API: conversation_id nested at line["conversation"]["id"]
+            # - Plan-spec / test format: conversation_id at top level
             conversation_obj = line.get("conversation") or {}
-            conversation_id = conversation_obj.get("id", "")
+            conversation_id = (
+                line.get("conversation_id")
+                or conversation_obj.get("id", "")
+            )
 
             # Validate required fields
             if not event_id or not conversation_id:
@@ -311,9 +327,7 @@ async def _run(
             principal = line.get("principal") or {}
             principal_type = principal.get("type", "")
             principal_id = principal.get("id", "")
-            principal_type_counts[principal_type] = (
-                principal_type_counts.get(principal_type, 0) + 1
-            )
+            principal_type_counts[principal_type] = principal_type_counts.get(principal_type, 0) + 1
 
             # Resolve asset_id — check multiple field paths:
             # 1. principal.type != CHATGPT_WORKSPACE → principal.id is the asset (rare)
@@ -325,21 +339,23 @@ async def _run(
                 asset_id: str | None = principal_id
             else:
                 # Prefer gpt_id; fall back to project_id
+                payload = line.get("payload") or {}
                 raw_gpt_id = (
                     conversation_obj.get("gpt_id")
                     or conversation_obj.get("assistant_id")
                     or conversation_obj.get("custom_gpt_id")
+                    or payload.get("gpt_id")
+                    or payload.get("assistant_id")
                 )
-                raw_project_id = conversation_obj.get("project_id")
+                raw_project_id = (
+                    conversation_obj.get("project_id")
+                    or payload.get("project_id")
+                )
                 asset_id = raw_gpt_id or raw_project_id or None
                 if raw_gpt_id:
-                    logger.info(
-                        f"Found gpt_id in conversation object: {asset_id} (conv={conversation_id})"
-                    )
+                    logger.info(f"Found gpt_id in conversation object: {asset_id} (conv={conversation_id})")
                 elif raw_project_id:
-                    logger.info(
-                        f"Found project_id in conversation object: {asset_id} (conv={conversation_id})"
-                    )
+                    logger.info(f"Found project_id in conversation object: {asset_id} (conv={conversation_id})")
 
             if asset_id is not None:
                 # Filter GPT-linked events to scope
@@ -347,9 +363,8 @@ async def _run(
                     continue
 
             actor = line.get("actor") or {}
-            user_email: str | None = actor.get(
-                "user_email"
-            )  # actual field name in API response
+            # Support both field names: "user_email" (real API) and "email" (plan spec / tests)
+            user_email: str | None = actor.get("user_email") or actor.get("email")
 
             # Parse event timestamp
             ts_raw = line.get("timestamp") or line.get("created_at")
@@ -377,16 +392,12 @@ async def _run(
             msg_author = (line.get("message") or {}).get("author") or {}
             msg_role = msg_author.get("type", "")  # "user" or "assistant"
             if msg_role == "user":
-                content = ((line.get("message") or {}).get("content") or {}).get(
-                    "value", ""
-                )
+                content = ((line.get("message") or {}).get("content") or {}).get("value", "")
                 if content:
                     asset_threads[asset_id][conversation_id].append(content)
 
         if principal_type_counts:
-            logger.info(
-                f"File {file_idx}: principal type distribution: {principal_type_counts}"
-            )
+            logger.info(f"File {file_idx}: principal type distribution: {principal_type_counts}")
 
             events_processed += 1
 
@@ -440,6 +451,7 @@ async def _run(
     assets_needing_llm: list[str] = []
     assets_skipped_unchanged: list[str] = []
     assets_ghost: list[str] = []  # No conversations in range — write zero-count insight
+    asset_event_counts: dict[str, int] = {}  # DB event count per asset, for cost estimation
 
     for asset_id in scope_ids:
         # Count events in range
@@ -450,6 +462,8 @@ async def _run(
             .where(ConversationEvent.created_at >= date_range_start)
         )
         conv_events = count_result.scalar_one()
+
+        asset_event_counts[asset_id] = conv_events
 
         if conv_events == 0:
             # Ghost asset: genuinely no conversations. Write a zero-count insight so
@@ -499,7 +513,7 @@ async def _run(
     )
 
     # For privacy level 1: write count-only insights and finish
-    if privacy_level <= 1:
+    if privacy_level == 1:
         for asset_id in assets_needing_llm:
             await _write_count_only_insight(
                 db, asset_id, date_range_start, date_range_end, privacy_level
@@ -519,7 +533,9 @@ async def _run(
         )
 
     # ── Budget pre-check ──────────────────────────────────────────────────────
-    estimated_cost = _estimate_cost(assets_needing_llm, asset_threads, privacy_level)
+    estimated_cost = _estimate_cost(
+        assets_needing_llm, asset_threads, privacy_level, asset_event_counts
+    )
     sync_log.estimated_cost_usd = estimated_cost
     await db.commit()
 
@@ -532,8 +548,7 @@ async def _run(
             db=db,
             sync_log=sync_log,
             assets_analyzed=0,
-            assets_skipped_unchanged=len(assets_skipped_unchanged)
-            + len(assets_needing_llm),
+            assets_skipped_unchanged=len(assets_skipped_unchanged) + len(assets_needing_llm),
             errors=errors
             + [
                 {
@@ -556,9 +571,7 @@ async def _run(
     from app.services.semantic_enricher import SemanticEnricher
 
     enricher = SemanticEnricher(openai_api_key)
-    assets_analyzed = len(
-        assets_ghost
-    )  # Ghost assets already have insight rows written
+    assets_analyzed = len(assets_ghost)  # Ghost assets already have insight rows written
 
     for idx, asset_id in enumerate(assets_needing_llm):
         pct = 50 + int(25 * (idx / max(len(assets_needing_llm), 1)))
@@ -605,9 +618,7 @@ async def _run(
             .where(ConversationEvent.created_at >= date_range_start)
         )
         total_events = event_count_result.scalar_one()
-        avg_msgs = (
-            (total_events / conversation_count) if conversation_count > 0 else 0.0
-        )
+        avg_msgs = (total_events / conversation_count) if conversation_count > 0 else 0.0
 
         # LLM topic analysis
         top_topics, t_in, t_out = await _analyze_topics(
@@ -705,7 +716,9 @@ async def _run(
             asset_topics = (insight.top_topics or []) if insight else []
 
             for user_email, conv_ids in user_convs.items():
-                user_threads = {cid: threads.get(cid, []) for cid in conv_ids}
+                user_threads = {
+                    cid: threads.get(cid, []) for cid in conv_ids
+                }
                 user_messages = _collect_and_strip_messages(user_threads, max_msgs=100)
 
                 # Compute prompting quality score from message patterns
@@ -731,7 +744,9 @@ async def _run(
                 )
                 last_active = last_active_result.scalar_one_or_none()
 
-                avg_msgs_user = len(user_messages) / len(conv_ids) if conv_ids else 0.0
+                avg_msgs_user = (
+                    len(user_messages) / len(conv_ids) if conv_ids else 0.0
+                )
 
                 user_insight = UserUsageInsight(
                     asset_id=asset_id,
@@ -774,6 +789,20 @@ async def _run(
     asyncio.ensure_future(
         _soft_retention_cleanup(db_url=None)  # will use same session factory
     )
+
+    # Stage 6: Workflow Intelligence — LLM analysis of coverage + intent gaps
+    _set_state(stage="workflow_intelligence", progress=97)
+    try:
+        from app.services.workflow_analyzer import WorkflowAnalyzer
+        wf_analyzer = WorkflowAnalyzer(openai_api_key)
+        wf_items, wf_t_in, wf_t_out = await wf_analyzer.analyze(
+            db, conversation_sync_log_id=result_id
+        )
+        tokens_input_total += wf_t_in
+        tokens_output_total += wf_t_out
+        logger.info(f"Stage 6: Workflow analysis complete — {len(wf_items)} workflows")
+    except Exception as exc:
+        logger.warning(f"Workflow analysis failed (non-fatal): {exc}")
 
     _set_state(stage="done", progress=100)
     return result_id
@@ -842,9 +871,7 @@ async def _analyze_topics(
 
     # Chunk into batches of 50 and merge
     batch_size = 50
-    batches = [
-        messages[i : i + batch_size] for i in range(0, len(messages), batch_size)
-    ]
+    batches = [messages[i : i + batch_size] for i in range(0, len(messages), batch_size)]
 
     merged_topics: dict[str, dict] = {}
     tokens_in = 0
@@ -1015,6 +1042,7 @@ def _estimate_cost(
     asset_ids: list[str],
     asset_threads: dict[str, dict[str, list[str]]],
     privacy_level: int,
+    asset_event_counts: dict[str, int] | None = None,
 ) -> float:
     """Rough cost estimate before running LLM stages."""
     total_messages = sum(
@@ -1022,11 +1050,22 @@ def _estimate_cost(
         for asset_id in asset_ids
         for msgs in asset_threads.get(asset_id, {}).values()
     )
+    # Fallback: when asset_threads is empty (no JSONL downloaded this run),
+    # use DB event counts as a proxy for message volume (1 event ≈ 1 user message).
+    if total_messages == 0 and asset_event_counts and asset_ids:
+        total_messages = sum(
+            asset_event_counts.get(a, 0) for a in asset_ids
+        )
+    # Absolute minimum floor: each asset needing analysis requires at least one
+    # LLM call, which costs ~$0.0002.  Ensures budget check fires even for tiny datasets.
+    if not total_messages and asset_ids and privacy_level >= 2:
+        total_messages = len(asset_ids) * 5  # assume at least 5 messages per asset
+
     # Stage 3: ~500 msgs per asset sampled, 1 LLM call per 50 msgs
     # gpt-4o-mini: $0.15/1M input tokens, $0.60/1M output tokens
     # Estimate ~200 tokens input + 100 tokens output per message analyzed
     sampled_msgs = min(total_messages, len(asset_ids) * 500)
-    batches = sampled_msgs / 50
+    batches = max(sampled_msgs / 50, len(asset_ids) * 0.2)  # min 0.2 batches per asset
     est_input_tokens = batches * 200 * 50
     est_output_tokens = batches * 200
     stage3_cost = (est_input_tokens * 0.15 + est_output_tokens * 0.60) / 1_000_000

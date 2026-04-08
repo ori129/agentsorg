@@ -4,13 +4,31 @@ import { useConfiguration } from "../../hooks/useConfiguration";
 import { usePatchConversationConfig } from "../../hooks/useConversations";
 
 const PRIVACY_OPTIONS = [
-  { level: 0, label: "Off", sublabel: "No analysis", cost: "" },
-  { level: 1, label: "Counts only", sublabel: "Free", cost: "" },
-  { level: 2, label: "Anonymous topics", sublabel: "$", cost: "" },
-  { level: 3, label: "Named user analysis", sublabel: "$$", cost: "" },
+  {
+    level: 0,
+    label: "Off",
+    sublabel: "No analysis",
+    unlocks: [],
+  },
+  {
+    level: 1,
+    label: "Counts only",
+    sublabel: "Free · no LLM cost",
+    unlocks: ["Conversation counts per asset", "Active vs ghost assets", "Adoption page KPIs"],
+  },
+  {
+    level: 2,
+    label: "Anonymous topics",
+    sublabel: "$ · LLM analyzes patterns, identity stripped",
+    unlocks: ["Everything in Level 1", "Topic distribution per asset", "Drift alerts (e.g. Finance GPT used for HR)", "Knowledge gap signals → L&D recommendations"],
+  },
+  {
+    level: 3,
+    label: "Named user analysis",
+    sublabel: "$$ · per-user insights",
+    unlocks: ["Everything in Level 2", "Per-employee prompting quality score", "Role fit score per asset", "Employee Portal 'My AI Usage' tab"],
+  },
 ];
-
-const DATE_RANGE_DAYS = 30;
 
 interface Step3ConversationFilteringProps {
   onSaved?: () => void;
@@ -21,12 +39,14 @@ export default function Step3ConversationFiltering({ onSaved }: Step3Conversatio
   const patchConfig = usePatchConversationConfig();
 
   const [privacyLevel, setPrivacyLevel] = useState(3);
+  const [dateRangeDays, setDateRangeDays] = useState(30);
   const [tokenBudget, setTokenBudget] = useState(10);
   const [initialized, setInitialized] = useState(false);
 
   if (config && !initialized) {
     const raw = config as unknown as Record<string, unknown>;
     setPrivacyLevel(typeof raw.conversation_privacy_level === "number" ? raw.conversation_privacy_level : 3);
+    setDateRangeDays(typeof raw.conversation_date_range_days === "number" ? raw.conversation_date_range_days : 30);
     setTokenBudget(typeof raw.conversation_token_budget_usd === "number" ? raw.conversation_token_budget_usd : 10);
     setInitialized(true);
   }
@@ -35,7 +55,7 @@ export default function Step3ConversationFiltering({ onSaved }: Step3Conversatio
     patchConfig.mutate(
       {
         conversation_privacy_level: privacyLevel,
-        conversation_date_range_days: DATE_RANGE_DAYS,
+        conversation_date_range_days: dateRangeDays,
         conversation_token_budget_usd: tokenBudget,
       },
       { onSuccess: () => onSaved?.() }
@@ -51,7 +71,7 @@ export default function Step3ConversationFiltering({ onSaved }: Step3Conversatio
         {/* Privacy Level */}
         <div>
           <label className="form-label mb-3 block">Privacy level</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-2">
             {PRIVACY_OPTIONS.map((opt) => {
               const isSelected = privacyLevel === opt.level;
               return (
@@ -65,21 +85,47 @@ export default function Step3ConversationFiltering({ onSaved }: Step3Conversatio
                     color: isSelected ? "#3b82f6" : "var(--c-text-2)",
                   }}
                 >
-                  <div className="font-medium">{opt.level}: {opt.label}</div>
-                  {opt.sublabel && (
-                    <div className="text-xs mt-0.5" style={{ color: isSelected ? "#60a5fa" : "var(--c-text-5)" }}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{opt.level}: {opt.label}</span>
+                    <span className="text-xs" style={{ color: isSelected ? "#60a5fa" : "var(--c-text-5)" }}>
                       {opt.sublabel}
+                    </span>
+                  </div>
+                  {isSelected && opt.unlocks.length > 0 && (
+                    <div className="mt-2 flex flex-col gap-1">
+                      {opt.unlocks.map((u) => (
+                        <div key={u} className="flex items-start gap-1.5 text-xs" style={{ color: "#60a5fa" }}>
+                          <span className="mt-px">✓</span>
+                          <span>{u}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {isSelected && opt.unlocks.length === 0 && (
+                    <div className="mt-1 text-xs" style={{ color: "#94a3b8" }}>
+                      Adoption page will remain empty. No data collected.
                     </div>
                   )}
                 </button>
               );
             })}
           </div>
-          <div className="mt-2 text-xs" style={{ color: "var(--c-text-5)" }}>
-            {privacyLevel === 0 && "Conversation analysis is disabled. No data will be fetched."}
-            {privacyLevel === 1 && "Counts only — conversation volume and user counts per asset. No AI cost."}
-            {privacyLevel === 2 && "Anonymous topic analysis — LLM analyzes message patterns with all identity stripped."}
-            {privacyLevel === 3 && "Full analysis — per-user prompting quality, role fit, and knowledge gap signals."}
+        </div>
+
+        {/* Date range */}
+        <div>
+          <label className="form-label">How far back to analyze</label>
+          <select
+            value={dateRangeDays}
+            onChange={(e) => setDateRangeDays(Number(e.target.value))}
+            className="form-input"
+          >
+            {[7, 14, 30].map((d) => (
+              <option key={d} value={d}>Last {d} days</option>
+            ))}
+          </select>
+          <div className="mt-1 text-xs" style={{ color: "var(--c-text-5)" }}>
+            OpenAI Compliance API retains conversation logs for up to 30 days.
           </div>
         </div>
 

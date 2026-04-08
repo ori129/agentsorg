@@ -5,9 +5,9 @@ import AssetTypeBadge from "../ui/AssetTypeBadge";
 
 const API = "/api/v1/clustering";
 
-interface DuplicatesProps { gpts: GPTItem[] }
+interface BuildSignalsProps { gpts: GPTItem[] }
 
-export default function Duplicates({ gpts }: DuplicatesProps) {
+export default function Duplicates({ gpts }: BuildSignalsProps) {
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
   const [status, setStatus] = useState<"idle" | "running" | "completed">("idle");
   const [clusters, setClusters] = useState<ClusterGroup[]>([]);
@@ -20,7 +20,7 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
       const runRes = await fetch(`${API}/run`, { method: "POST" });
       if (!runRes.ok) {
         const body = await runRes.json().catch(() => ({}));
-        throw new Error(body.detail || "Failed to start duplicate detection. Make sure the pipeline has run and assets are loaded.");
+        throw new Error(body.detail || "Failed to start signal analysis. Make sure the pipeline has run and assets are loaded.");
       }
 
       // Poll for results
@@ -38,7 +38,7 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
           setTimeout(poll, 1500);
         } else {
           setStatus("idle");
-          setError("Duplicate detection timed out. This can happen with large datasets — try again, or run the pipeline first to ensure assets are loaded.");
+          setError("Signal analysis timed out. This can happen with large datasets — try again, or run the pipeline first to ensure assets are loaded.");
         }
       };
       setTimeout(poll, 1000);
@@ -63,11 +63,11 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
     <div className="p-6 max-w-4xl mx-auto">
       <GPTDrawer filter={drawer} onClose={() => setDrawer(null)} />
       <h1 className="text-xl font-bold mb-2" style={{ color: "var(--c-text)" }}>
-        Duplicate Detection
+        Build Signals
       </h1>
       <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>
-        Groups AI assets with similar embeddings (cosine similarity &gt; 0.92) to identify
-        redundant builds.
+        Finds areas where multiple teams independently built similar tools — a strong signal
+        of unmet demand. Each cluster is an opportunity to invest in one robust, well-maintained agent.
       </p>
 
       {status === "idle" && clusters.length === 0 && (
@@ -75,14 +75,14 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
           className="rounded-xl p-8 flex flex-col items-center gap-4 text-center"
           style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
         >
-          <div className="text-4xl">🔍</div>
+          <div className="text-4xl">📡</div>
           <div>
             <div className="font-medium mb-1" style={{ color: "var(--c-text)" }}>
-              Redundancy Clustering
+              Demand Signal Analysis
             </div>
             <div className="text-sm" style={{ color: "var(--c-text-4)" }}>
-              Uses pgvector cosine similarity to find AI assets built for the same purpose
-              by different teams. Run this after a pipeline sync.
+              Uses semantic similarity to find areas where teams independently built overlapping tools.
+              Where overlap exists, demand is proven — a green light to build something better.
             </div>
           </div>
           <button
@@ -90,7 +90,7 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
             className="px-6 py-2.5 rounded-lg font-medium text-sm"
             style={{ background: "#3b82f6", color: "#fff" }}
           >
-            Run Clustering
+            Detect Signals
           </button>
           {error && (
             <div className="text-sm" style={{ color: "#ef4444" }}>
@@ -110,7 +110,7 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
             style={{ borderColor: "#3b82f6", borderTopColor: "transparent" }}
           />
           <div className="text-sm" style={{ color: "var(--c-text-3)" }}>
-            Running clustering analysis…
+            Analyzing demand signals…
           </div>
         </div>
       )}
@@ -120,15 +120,15 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm" style={{ color: "var(--c-text-3)" }}>
               {clusters.length === 0
-                ? "No duplicate clusters found."
-                : `${clusters.length} duplicate cluster${clusters.length !== 1 ? "s" : ""} detected`}
+                ? "No demand signals detected."
+                : `${clusters.length} high-demand area${clusters.length !== 1 ? "s" : ""} identified`}
             </div>
             <button
               onClick={runClustering}
               className="text-xs px-3 py-1.5 rounded"
               style={{ background: "var(--c-border)", color: "var(--c-text-3)" }}
             >
-              Re-run
+              Re-analyze
             </button>
           </div>
 
@@ -137,7 +137,7 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
               className="rounded-xl p-8 text-center text-sm"
               style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)", color: "var(--c-text-4)" }}
             >
-              No assets with similarity &gt; 0.92 found. Your portfolio has no obvious duplicates.
+              No overlapping demand detected. Each area of your portfolio has a clear, distinct owner.
             </div>
           ) : (
             <div className="space-y-4">
@@ -153,15 +153,15 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
                         {cluster.theme}
                       </div>
                       <div className="text-xs mt-0.5" style={{ color: "var(--c-text-4)" }}>
-                        {cluster.gpt_ids.length} similar assets
+                        {cluster.gpt_ids.length} independent builds → proven demand
                       </div>
                     </div>
                     {cluster.estimated_wasted_hours && (
                       <div
                         className="px-3 py-1 rounded-lg text-xs font-medium"
-                        style={{ background: "#1c1200", color: "#f59e0b", border: "1px solid #78350f" }}
+                        style={{ background: "#0d1f12", color: "#10b981", border: "1px solid #14532d" }}
                       >
-                        ~{cluster.estimated_wasted_hours}h wasted
+                        ~{cluster.estimated_wasted_hours}h of signal
                       </div>
                     )}
                   </div>
@@ -187,15 +187,16 @@ export default function Duplicates({ gpts }: DuplicatesProps) {
                               className="ml-2 px-1.5 py-0.5 rounded text-xs"
                               style={{ background: "#0a1a0f", color: "#10b981" }}
                             >
-                              keep
+                              best base
                             </span>
                           )}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div className="text-xs mt-3" style={{ color: "var(--c-text-4)" }}>
-                    Recommendation: consolidate into a single well-maintained asset. Archive the rest.
+                  <div className="text-xs mt-3 flex items-center gap-1.5" style={{ color: "#10b981" }}>
+                    <span>→</span>
+                    <span>Build one robust agent here. Demand is proven — this is worth investing in.</span>
                   </div>
                 </div>
               ))}

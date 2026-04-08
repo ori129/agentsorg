@@ -73,10 +73,34 @@ export function useGlobalPipelineWatcher() {
       qc.invalidateQueries({ queryKey: ["pipeline-gpts"] });
       qc.invalidateQueries({ queryKey: ["pipeline-summary"] });
       qc.invalidateQueries({ queryKey: ["pipeline-history"] });
+      qc.invalidateQueries({ queryKey: ["portfolio-trend"] });
+      qc.invalidateQueries({ queryKey: ["workflow-coverage"] });
     }
 
     wasRunning.current = isRunning;
   }, [status, qc]);
+}
+
+export function usePortfolioTrend() {
+  return useQuery({
+    queryKey: ["portfolio-trend"],
+    queryFn: api.getPortfolioTrend,
+  });
+}
+
+export function useWorkflowCoverage() {
+  return useQuery({
+    queryKey: ["workflow-coverage"],
+    queryFn: api.getWorkflowCoverage,
+  });
+}
+
+export function useGptScoreHistory(gptId: string | null) {
+  return useQuery({
+    queryKey: ["gpt-score-history", gptId],
+    queryFn: () => api.getGptScoreHistory(gptId!),
+    enabled: !!gptId,
+  });
 }
 
 export function useSyncConfig() {
@@ -92,6 +116,18 @@ export function usePatchSyncConfig() {
     mutationFn: (body: Partial<SyncConfig>) => api.patchSyncConfig(body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sync-config"] });
+    },
+  });
+}
+
+export function useRecommendations() {
+  return useQuery({
+    queryKey: ["pipeline-recommendations"],
+    queryFn: api.getRecommendations,
+    // 404 means no recommendations yet — don't treat as error
+    retry: (_, error) => {
+      if (error instanceof Error && error.message.includes("404")) return false;
+      return true;
     },
   });
 }

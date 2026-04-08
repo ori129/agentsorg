@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { GPTItem } from "../../types";
 import AssetTypeBadge, { TypeFilterChips, filterByType, type TypeFilter } from "../ui/AssetTypeBadge";
 import { useAssetUsageInsight } from "../../hooks/useConversations";
+import { useGptScoreHistory } from "../../hooks/usePipeline";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ const RISK_STYLE: Record<string, { bg: string; color: string }> = {
 };
 
 type SortKey = "name" | "risk" | "quality" | "date";
+export type DetailTab = "details" | "usage" | "quality" | "risk" | "journey";
 
 function sortGpts(gpts: GPTItem[], key: SortKey): GPTItem[] {
   return [...gpts].sort((a, b) => {
@@ -60,9 +62,169 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// ── Journey Tab (score history sparkline) ────────────────────────────────────
+
+function JourneyTab({ gptId }: { gptId: string }) {
+  const { data: history = [] } = useGptScoreHistory(gptId);
+
+  if (history.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-32 gap-2">
+        <p className="text-sm" style={{ color: "var(--c-text-3)" }}>No score history yet.</p>
+        <p className="text-xs text-center" style={{ color: "var(--c-text-4)" }}>
+          Run the pipeline to start tracking quality, adoption, and risk trends over time.
+        </p>
+      </div>
+    );
+  }
+
+  const series = [
+    { key: "quality_score" as const,  color: "#3b82f6", label: "Quality" },
+    { key: "adoption_score" as const, color: "#6366f1", label: "Adoption" },
+    { key: "risk_score" as const,     color: "#ef4444", label: "Risk" },
+  ];
+
+  const latestPoint = history[history.length - 1];
+  const prevPoint = history.length > 1 ? history[history.length - 2] : null;
+
+  if (history.length === 1) {
+    return (
+      <div className="space-y-4">
+        <p className="text-xs" style={{ color: "var(--c-text-4)" }}>
+          First pipeline run recorded. Run the pipeline again to see trends.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {series.map(({ key, color, label }) => (
+            <div key={key} className="rounded-lg p-3 text-center" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+              <p className="text-xl font-bold" style={{ color }}>{latestPoint[key]?.toFixed(0) ?? "—"}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--c-text-3)" }}>{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const W = 420, H = 160, PAD = { top: 12, right: 20, bottom: 30, left: 32 };
+  const iW = W - PAD.left - PAD.right;
+  const iH = H - PAD.top - PAD.bottom;
+  const xScale = (i: number) => PAD.left + (i / (history.length - 1)) * iW;
+  const yScale = (v: number) => PAD.top + iH - (v / 100) * iH;
+
+  function makePath(key: "quality_score" | "adoption_score" | "risk_score") {
+    const pts = history
+      .map((d, i) => (d[key] != null ? `${xScale(i).toFixed(1)},${yScale(d[key]!).toFixed(1)}` : null))
+      .filter(Boolean);
+    return pts.length >= 2 ? `M ${pts.join(" L ")}` : null;
+  }
+
+  const labelIdxs = [0, history.length - 1];
+  if (history.length >= 4) labelIdxs.splice(1, 0, Math.floor(history.length / 2));
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg p-3" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+        <p className="text-xs font-medium mb-3" style={{ color: "var(--c-text-3)" }}>
+          Score history · {history.length} syncs
+        </p>
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
+          {[0, 25, 50, 75, 100].map((v) => (
+            <g key={v}>
+              <line x1={PAD.left} y1={yScale(v)} x2={PAD.left + iW} y2={yScale(v)} stroke="#1a2235" strokeWidth={0.5} />
+              <text x={PAD.left - 4} y={yScale(v) + 3.5} textAnchor="end" fontSize={8} fill="#3d5070">{v}</text>
+            </g>
+          ))}
+          {series.map(({ key, color }) => {
+            const d = makePath(key);
+            return d ? <path key={key} d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" /> : null;
+          })}
+          {series.map(({ key, color }) =>
+            history.map((pt, i) =>
+              pt[key] != null ? (
+                <circle key={`${key}-${i}`} cx={xScale(i)} cy={yScale(pt[key]!)} r={3} fill={color} />
+              ) : null
+            )
+          )}
+          {labelIdxs.map((i) => (
+            <text
+              key={i}
+              x={xScale(i)}
+              y={H - 4}
+              textAnchor={i === 0 ? "start" : i === history.length - 1 ? "end" : "middle"}
+              fontSize={8}
+              fill="#3d5070"
+            >
+              {new Date(history[i].synced_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            </text>
+          ))}
+        </svg>
+        <div className="flex items-center gap-4 mt-2 justify-center">
+          {series.map(({ color, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div style={{ width: 12, height: 2, background: color, borderRadius: 1 }} />
+              <span style={{ fontSize: 10, color: "var(--c-text-4)" }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {prevPoint && (
+        <div className="grid grid-cols-3 gap-3">
+          {series.map(({ key, color, label }) => {
+            const latest = latestPoint[key];
+            const prev = prevPoint[key];
+            const delta = latest != null && prev != null ? latest - prev : null;
+            return (
+              <div key={key} className="rounded-lg p-3" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+                <p className="text-xs" style={{ color: "var(--c-text-4)" }}>{label}</p>
+                <p className="text-xl font-bold mt-1" style={{ color }}>{latest?.toFixed(0) ?? "—"}</p>
+                {delta != null && (
+                  <p className="text-xs mt-0.5" style={{ color: Math.abs(delta) < 1 ? "var(--c-text-5)" : delta >= 0 ? "#10b981" : "#ef4444" }}>
+                    {Math.abs(delta) < 1 ? "=" : delta > 0 ? `↑ ${delta.toFixed(0)}` : `↓ ${Math.abs(delta).toFixed(0)}`} vs prev
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── GPT Detail Panel ─────────────────────────────────────────────────────────
 
-function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
+const QUADRANT_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  champion:             { label: "Champion",       color: "#10b981", bg: "#052e16" },
+  hidden_gem:          { label: "Hidden Gem",      color: "#6366f1", bg: "#1e1b4b" },
+  scaled_risk:         { label: "Scaled Risk",     color: "#f59e0b", bg: "#1c1200" },
+  retirement_candidate:{ label: "Retirement Cand.",color: "#6b7280", bg: "#111827" },
+};
+
+function ScoreGauge({ label, value, color, rationale, children }: {
+  label: string;
+  value: number | null;
+  color: string;
+  rationale?: string | null;
+  children?: React.ReactNode;
+}) {
+  if (value == null) return null;
+  return (
+    <div className="rounded-lg p-3" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium" style={{ color: "var(--c-text-3)" }}>{label}</span>
+        <span className="text-lg font-bold" style={{ color }}>{value.toFixed(0)}<span className="text-xs font-normal" style={{ color: "var(--c-text-5)" }}>/100</span></span>
+      </div>
+      <div className="w-full rounded-full overflow-hidden mb-2" style={{ height: 6, background: "var(--c-border)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, background: color }} />
+      </div>
+      {rationale && <p className="text-xs leading-relaxed" style={{ color: "var(--c-text-4)" }}>{rationale}</p>}
+      {children}
+    </div>
+  );
+}
+
+function GPTDetail({ gpt, onBack, initialTab }: { gpt: GPTItem; onBack: () => void; initialTab?: DetailTab }) {
   const tools = (gpt.tools ?? []) as { type: string }[];
   const riskStyle = gpt.risk_level ? RISK_STYLE[gpt.risk_level] : null;
   const riskFlags = (gpt.risk_flags ?? []) as string[];
@@ -70,8 +232,10 @@ function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
   const integrations = (gpt.integration_flags ?? []) as string[];
   const starters = (gpt.conversation_starters ?? []) as string[];
   const cats = (gpt.builder_categories ?? []) as string[];
-  const [activeTab, setActiveTab] = useState<"details" | "usage">("details");
+  const [activeTab, setActiveTab] = useState<DetailTab>(initialTab ?? "details");
   const { data: usageInsight } = useAssetUsageInsight(gpt.id);
+  const hasScores = gpt.quality_score != null || gpt.adoption_score != null || gpt.risk_score != null;
+  const quadrant = gpt.quadrant_label ? QUADRANT_CONFIG[gpt.quadrant_label] : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -81,7 +245,7 @@ function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
           className="flex items-center gap-1 text-xs mb-3"
           style={{ color: "var(--c-text-4)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
-          ← Back to list
+          ← Back
         </button>
         <div className="flex items-start gap-2 mb-1">
           <h2 className="font-bold text-base leading-tight flex-1" style={{ color: "var(--c-text)" }}>
@@ -109,28 +273,44 @@ function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
       </div>
 
       {/* Tab switcher */}
-      <div className="flex border-b px-5" style={{ borderColor: "var(--c-border)" }}>
-        {(["details", "usage"] as const).map((tab) => (
+      <div className="flex border-b px-5 overflow-x-auto" style={{ borderColor: "var(--c-border)" }}>
+        {([
+          { id: "details", label: "Overview" },
+          { id: "usage",   label: "Usage" },
+          { id: "quality", label: "Quality" },
+          { id: "risk",    label: "Risk" },
+          { id: "journey", label: "Journey" },
+        ] as { id: DetailTab; label: string }[]).map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className="px-3 py-2 text-sm capitalize"
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="px-3 py-2 text-sm whitespace-nowrap flex-shrink-0"
             style={{
               background: "none",
               border: "none",
               cursor: "pointer",
-              borderBottom: activeTab === tab ? "2px solid var(--c-accent-blue)" : "2px solid transparent",
-              color: activeTab === tab ? "var(--c-accent-blue)" : "var(--c-text-3)",
+              borderBottom: activeTab === tab.id ? "2px solid var(--c-accent-blue)" : "2px solid transparent",
+              color: activeTab === tab.id ? "var(--c-accent-blue)" : "var(--c-text-3)",
               marginBottom: -1,
             }}
           >
-            {tab === "usage" ? "Usage" : "Details"}
-            {tab === "usage" && usageInsight && usageInsight.conversation_count > 0 && (
+            {tab.label}
+            {tab.id === "usage" && usageInsight && usageInsight.conversation_count > 0 && (
               <span
                 className="ml-1 text-xs px-1.5 py-0.5 rounded-full"
                 style={{ background: "var(--c-accent-blue)20", color: "var(--c-accent-blue)" }}
               >
                 {usageInsight.conversation_count}
+              </span>
+            )}
+            {tab.id === "quality" && gpt.quality_score != null && (
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#10b98120", color: "#10b981" }}>
+                {gpt.quality_score.toFixed(0)}
+              </span>
+            )}
+            {tab.id === "risk" && gpt.risk_score != null && gpt.risk_score >= 50 && (
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "#ef444420", color: "#ef4444" }}>
+                {gpt.risk_score.toFixed(0)}
               </span>
             )}
           </button>
@@ -265,6 +445,133 @@ function GPTDetail({ gpt, onBack }: { gpt: GPTItem; onBack: () => void }) {
                 )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Quality tab */}
+      {activeTab === "quality" && (
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {!hasScores ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-2">
+              <p className="text-sm" style={{ color: "var(--c-text-3)" }}>No scores yet.</p>
+              <p className="text-xs" style={{ color: "var(--c-text-4)" }}>Run the pipeline to assess this asset.</p>
+            </div>
+          ) : (
+            <>
+              {quadrant && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: quadrant.bg, border: `1px solid ${quadrant.color}40` }}>
+                  <span className="text-sm font-bold" style={{ color: quadrant.color }}>{quadrant.label}</span>
+                  {gpt.score_confidence && (
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.05)", color: "var(--c-text-4)" }}>
+                      {gpt.score_confidence} confidence
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <ScoreGauge label="Quality Score" value={gpt.quality_score} color="#3b82f6" rationale={gpt.quality_score_rationale}>
+                {gpt.quality_main_strength && (
+                  <div className="mt-2 text-xs">
+                    <span style={{ color: "#10b981" }}>✓ </span>
+                    <span style={{ color: "var(--c-text-3)" }}>{gpt.quality_main_strength}</span>
+                  </div>
+                )}
+                {gpt.quality_main_weakness && (
+                  <div className="mt-1 text-xs">
+                    <span style={{ color: "#f59e0b" }}>✗ </span>
+                    <span style={{ color: "var(--c-text-3)" }}>{gpt.quality_main_weakness}</span>
+                  </div>
+                )}
+              </ScoreGauge>
+
+              <ScoreGauge label="Adoption Score" value={gpt.adoption_score} color="#6366f1" rationale={gpt.adoption_score_rationale}>
+                {gpt.adoption_signal && (
+                  <div className="mt-2 text-xs">
+                    <span style={{ color: "#6366f1" }}>● </span>
+                    <span style={{ color: "var(--c-text-3)" }}>{gpt.adoption_signal}</span>
+                  </div>
+                )}
+                {gpt.adoption_barrier && (
+                  <div className="mt-1 text-xs">
+                    <span style={{ color: "#f59e0b" }}>↯ </span>
+                    <span style={{ color: "var(--c-text-3)" }}>{gpt.adoption_barrier}</span>
+                  </div>
+                )}
+              </ScoreGauge>
+
+              {gpt.top_action && (
+                <div className="rounded-lg p-3" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#3b82f6" }}>Recommended Action</p>
+                  <p className="text-sm" style={{ color: "var(--c-text-2)" }}>{gpt.top_action}</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Risk tab */}
+      {activeTab === "risk" && (
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {!hasScores ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-2">
+              <p className="text-sm" style={{ color: "var(--c-text-3)" }}>No risk assessment yet.</p>
+              <p className="text-xs" style={{ color: "var(--c-text-4)" }}>Run the pipeline to assess this asset.</p>
+            </div>
+          ) : (
+            <>
+              <ScoreGauge label="Risk Score" value={gpt.risk_score} color="#ef4444" rationale={gpt.risk_score_rationale}>
+                {gpt.risk_primary_driver && (
+                  <div className="mt-2 text-xs">
+                    <span style={{ color: "#ef4444" }}>⚠ Primary driver: </span>
+                    <span style={{ color: "var(--c-text-3)" }}>{gpt.risk_primary_driver}</span>
+                  </div>
+                )}
+                {gpt.risk_urgency && (
+                  <div className="mt-1 text-xs">
+                    <span style={{ color: "var(--c-text-4)" }}>Urgency: </span>
+                    <span style={{ color: gpt.risk_urgency === "high" ? "#ef4444" : gpt.risk_urgency === "medium" ? "#f59e0b" : "#10b981" }}>
+                      {gpt.risk_urgency}
+                    </span>
+                  </div>
+                )}
+              </ScoreGauge>
+
+              {/* Semantic risk flags */}
+              {riskFlags.length > 0 && (
+                <div className="rounded-lg p-3" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+                  <p className="text-xs font-medium mb-2" style={{ color: "var(--c-text-4)" }}>Risk Flags (semantic analysis)</p>
+                  <div className="flex flex-wrap gap-1">
+                    {riskFlags.map((f) => (
+                      <span key={f} className="text-xs px-2 py-0.5 rounded" style={{ background: "#1c0a00", color: "#f97316" }}>
+                        {f.replace(/_/g, " ")}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {gpt.risk_level && (
+                <div className="rounded-lg p-3" style={{ background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+                  <div className="flex items-center justify-between text-xs">
+                    <span style={{ color: "var(--c-text-4)" }}>Semantic Risk Level</span>
+                    {riskStyle && (
+                      <span className="px-2 py-0.5 rounded-full font-medium" style={{ background: riskStyle.bg, color: riskStyle.color }}>
+                        {gpt.risk_level}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Journey tab */}
+      {activeTab === "journey" && (
+        <div className="flex-1 overflow-y-auto p-5">
+          <JourneyTab gptId={gpt.id} />
         </div>
       )}
 
@@ -660,18 +967,23 @@ export interface DrawerFilter {
 }
 
 interface GPTDrawerProps {
-  filter: DrawerFilter | null;
+  // List mode (shows filterable list then detail on click)
+  filter?: DrawerFilter | null;
+  // Direct mode (opens single asset detail immediately)
+  gpt?: GPTItem | null;
   onClose: () => void;
+  initialTab?: DetailTab;
 }
 
-export default function GPTDrawer({ filter, onClose }: GPTDrawerProps) {
+export default function GPTDrawer({ filter, gpt: directGpt, onClose, initialTab }: GPTDrawerProps) {
   const [selected, setSelected] = useState<GPTItem | null>(null);
 
   useEffect(() => {
     setSelected(null);
   }, [filter]);
 
-  if (!filter) return null;
+  const isOpen = !!(filter || directGpt);
+  if (!isOpen) return null;
 
   return createPortal(
     <>
@@ -689,10 +1001,17 @@ export default function GPTDrawer({ filter, onClose }: GPTDrawerProps) {
           boxShadow: "-8px 0 32px var(--c-shadow)",
         }}
       >
-        {selected ? (
+        {directGpt ? (
+          // Direct mode: show detail with a close button
+          <GPTDetail
+            gpt={directGpt}
+            onBack={onClose}
+            initialTab={initialTab}
+          />
+        ) : selected ? (
           <GPTDetail gpt={selected} onBack={() => setSelected(null)} />
         ) : (
-          <GPTListPanel filter={filter} onSelect={setSelected} onClose={onClose} />
+          <GPTListPanel filter={filter!} onSelect={setSelected} onClose={onClose} />
         )}
       </div>
     </>,

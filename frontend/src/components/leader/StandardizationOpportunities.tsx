@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ClusterGroup, GPTItem } from "../../types";
 import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
 import AssetTypeBadge from "../ui/AssetTypeBadge";
@@ -6,54 +6,45 @@ import AssetTypeBadge from "../ui/AssetTypeBadge";
 const API = "/api/v1/clustering";
 
 function tier(n: number): { label: string; color: string; bg: string; border: string } {
-  if (n >= 5) return { label: "Certify", color: "#ef4444", bg: "#1c0a0a", border: "#7f1d1d" };
-  if (n >= 3) return { label: "Review", color: "#f59e0b", bg: "#1c1200", border: "#78350f" };
-  return { label: "Assess", color: "#6b7280", bg: "var(--c-bg)", border: "var(--c-border)" };
+  if (n >= 5) return { label: "High Signal", color: "#10b981", bg: "#0a1a0f", border: "#14532d" };
+  if (n >= 3) return { label: "Strong Signal", color: "#3b82f6", bg: "#0a1020", border: "#1d4ed8" };
+  return { label: "Emerging Signal", color: "#6b7280", bg: "var(--c-bg)", border: "var(--c-border)" };
 }
 
 interface StandardizationOpportunitiesProps { gpts: GPTItem[] }
 
 export default function StandardizationOpportunities({ gpts }: StandardizationOpportunitiesProps) {
   const [drawer, setDrawer] = useState<DrawerFilter | null>(null);
-  const [status, setStatus] = useState<"idle" | "running" | "completed">("idle");
+  const [status, setStatus] = useState<"loading" | "running" | "completed">("loading");
   const [clusters, setClusters] = useState<ClusterGroup[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
-  const runClustering = async () => {
-    setStatus("running");
-    setError(null);
-    setSelected(null);
-    try {
-      const runRes = await fetch(`${API}/run`, { method: "POST" });
-      if (!runRes.ok) {
-        const body = await runRes.json().catch(() => ({}));
-        throw new Error(body.detail || "Failed to start. Make sure the pipeline has run first.");
-      }
-      let attempts = 0;
-      const poll = async () => {
-        attempts++;
+  // Auto-load results on mount; poll if clustering is still running from the pipeline
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
         const statusRes = await fetch(`${API}/status`);
         const statusData = await statusRes.json();
-        if (statusData.status === "completed") {
-          const resultsRes = await fetch(`${API}/results`);
-          const results: ClusterGroup[] = await resultsRes.json();
-          setClusters(results);
-          if (results.length > 0) setSelected(results[0].cluster_id);
-          setStatus("completed");
-        } else if (statusData.status === "running" && attempts < 60) {
-          setTimeout(poll, 1500);
-        } else {
-          setStatus("idle");
-          setError("Analysis timed out. Try again.");
+        if (statusData.status === "running") {
+          setStatus("running");
+          setTimeout(load, 2000);
+          return;
         }
-      };
-      setTimeout(poll, 1000);
-    } catch (e) {
-      setStatus("idle");
-      setError(String(e));
-    }
-  };
+        const resultsRes = await fetch(`${API}/results`);
+        const results: ClusterGroup[] = await resultsRes.json();
+        if (cancelled) return;
+        setClusters(results);
+        if (results.length > 0) setSelected(results[0].cluster_id);
+        setStatus("completed");
+      } catch (e) {
+        if (!cancelled) { setError(String(e)); setStatus("completed"); }
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const gptById = useMemo(() => {
     const map: Record<string, GPTItem> = {};
@@ -77,46 +68,12 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
 
   const selectedCluster = clusters.find(c => c.cluster_id === selected) ?? null;
 
-  // ── Empty / loading states ──────────────────────────────────────────────
-  if (status === "idle" && clusters.length === 0) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <GPTDrawer filter={drawer} onClose={() => setDrawer(null)} />
-        <h1 className="text-xl font-bold mb-2" style={{ color: "var(--c-text)" }}>
-          Standardization Opportunities
-        </h1>
-        <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>
-          Groups AI assets built for the same purpose by different teams.
-          Each cluster is a candidate for a shared, certified solution.
-        </p>
-        <div
-          className="rounded-xl p-10 flex flex-col items-center gap-4 text-center"
-          style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
-        >
-          <div style={{ fontSize: 36 }}>◎</div>
-          <div className="font-medium" style={{ color: "var(--c-text)" }}>Demand Cluster Analysis</div>
-          <div className="text-sm max-w-sm" style={{ color: "var(--c-text-4)" }}>
-            Uses semantic similarity to surface duplicated effort across your org.
-            Run after a pipeline sync.
-          </div>
-          <button
-            onClick={runClustering}
-            className="mt-2 px-6 py-2.5 rounded-lg font-medium text-sm"
-            style={{ background: "#3b82f6", color: "#fff" }}
-          >
-            Detect Opportunities
-          </button>
-          {error && <div className="text-sm" style={{ color: "#ef4444" }}>{error}</div>}
-        </div>
-      </div>
-    );
-  }
-
-  if (status === "running") {
+  // ── Loading / running states ──────────────────────────────────────────────
+  if (status === "loading" || status === "running") {
     return (
       <div className="p-6 max-w-2xl mx-auto">
         <h1 className="text-xl font-bold mb-6" style={{ color: "var(--c-text)" }}>
-          Standardization Opportunities
+          Build Signals
         </h1>
         <div
           className="rounded-xl p-10 flex flex-col items-center gap-4"
@@ -127,8 +84,32 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
             style={{ borderColor: "#3b82f6", borderTopColor: "transparent" }}
           />
           <div className="text-sm" style={{ color: "var(--c-text-3)" }}>
-            Detecting standardization opportunities…
+            {status === "running" ? "Analyzing demand signals…" : "Loading…"}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── No results ─────────────────────────────────────────────────────────────
+  if (clusters.length === 0) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <GPTDrawer filter={drawer} onClose={() => setDrawer(null)} />
+        <h1 className="text-xl font-bold mb-2" style={{ color: "var(--c-text)" }}>
+          Build Signals
+        </h1>
+        <div
+          className="rounded-xl p-10 flex flex-col items-center gap-4 text-center"
+          style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
+        >
+          <div style={{ fontSize: 36 }}>📡</div>
+          <div className="font-medium" style={{ color: "var(--c-text)" }}>No overlapping demand detected</div>
+          <div className="text-sm max-w-sm" style={{ color: "var(--c-text-4)" }}>
+            Each area of your portfolio has a clear, distinct owner. This analysis runs automatically
+            after each pipeline sync.
+          </div>
+          {error && <div className="text-sm" style={{ color: "#ef4444" }}>{error}</div>}
         </div>
       </div>
     );
@@ -144,16 +125,12 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold" style={{ color: "var(--c-text)" }}>
-              Standardization Opportunities
+              Build Signals
             </h1>
           </div>
-          <button
-            onClick={runClustering}
-            className="text-xs px-3 py-1.5 rounded"
-            style={{ background: "var(--c-border)", color: "var(--c-text-3)" }}
-          >
-            Re-run
-          </button>
+          <p className="text-xs" style={{ color: "var(--c-text-5)" }}>
+            Updated on each pipeline sync
+          </p>
         </div>
 
         {/* Summary strip */}
@@ -162,9 +139,9 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
           style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
         >
           {[
-            { label: "Clusters", value: clusters.length },
-            { label: "Assets affected", value: totalAssets },
-            { label: "Estimated build effort", value: `~${Math.round(totalHours)}h` },
+            { label: "Demand clusters", value: clusters.length },
+            { label: "Assets in clusters", value: totalAssets },
+            { label: "Proven investment signal", value: `~${Math.round(totalHours)}h` },
           ].map(({ label, value }, i) => (
             <div key={label} className="px-5 py-3" style={i > 0 ? { borderLeft: "1px solid var(--c-border)" } : {}}>
               <div className="text-xs mb-0.5" style={{ color: "var(--c-text-5)" }}>{label}</div>
@@ -194,9 +171,9 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
           ) : (
             <>
               {[
-                { label: "Certify as standard", items: certify, t: tier(5) },
-                { label: "Review & consolidate", items: review, t: tier(3) },
-                { label: "Assess & decide", items: assess, t: tier(2) },
+                { label: "High signal — build now", items: certify, t: tier(5) },
+                { label: "Strong signal — prioritise", items: review, t: tier(3) },
+                { label: "Emerging signal — watch", items: assess, t: tier(2) },
               ].map(({ label, items, t }) =>
                 items.length === 0 ? null : (
                   <div key={label}>
@@ -337,14 +314,14 @@ function ClusterDetail({ cluster, gptById, onOpenGpt }: ClusterDetailProps) {
             className="px-2.5 py-1 rounded-full font-medium"
             style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)", color: "var(--c-text-3)" }}
           >
-            {n} similar assets
+            {n} independent builds
           </span>
           {cluster.estimated_wasted_hours && (
             <span
               className="px-2.5 py-1 rounded-full font-medium"
-              style={{ background: "#1c1200", border: "1px solid #78350f", color: "#f59e0b" }}
+              style={{ background: "#0a1a0f", border: "1px solid #14532d", color: "#10b981" }}
             >
-              ~{cluster.estimated_wasted_hours}h duplicated build effort
+              ~{cluster.estimated_wasted_hours}h of proven demand
             </span>
           )}
           {cluster.departments && cluster.departments.length > 0 && (
@@ -360,7 +337,7 @@ function ClusterDetail({ cluster, gptById, onOpenGpt }: ClusterDetailProps) {
               className="px-2.5 py-1 rounded-full capitalize"
               style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)", color: "var(--c-text-4)" }}
             >
-              Suggested: {cluster.recommended_action}
+              → {cluster.recommended_action}
             </span>
           )}
         </div>
@@ -375,7 +352,7 @@ function ClusterDetail({ cluster, gptById, onOpenGpt }: ClusterDetailProps) {
           className="px-4 py-2 text-xs font-semibold uppercase tracking-widest"
           style={{ background: "var(--c-surface)", borderBottom: "1px solid var(--c-border)", color: "var(--c-text-5)" }}
         >
-          Assets in cluster
+          Independent builds in this area
         </div>
         {cluster.gpt_names.map((name, i) => {
           const id = cluster.gpt_ids[i];

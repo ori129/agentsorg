@@ -21,6 +21,7 @@ function statusBadge(status: string) {
     completed: { label: "Completed", bg: "#10b98120", color: "#10b981" },
     running: { label: "Running", bg: "#f59e0b20", color: "#f59e0b" },
     budget_exceeded: { label: "Budget exceeded", bg: "#ef444420", color: "#ef4444" },
+    skipped: { label: "Skipped (Off)", bg: "#94a3b820", color: "#94a3b8" },
     error: { label: "Error", bg: "#ef444420", color: "#ef4444" },
   };
   const s = map[status] ?? {

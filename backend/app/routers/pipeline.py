@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 import json
 import re
 
@@ -9,17 +10,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.encryption import decrypt
-from app.models.models import Category, Configuration, GPT, PipelineLogEntry, SyncLog
+from app.models.models import AssetUsageInsight, Category, Configuration, GPT, GptScoreHistory, PipelineLogEntry, SyncLog, WorkflowAnalysisCache, WorkspaceRecommendation
 from app.schemas.schemas import (
     CategoryCount,
     GPTRead,
     GPTSearchResult,
+    GptScoreHistoryPoint,
     PipelineLogEntryRead,
     PipelineStatus,
     PipelineSummary,
+    PortfolioTrendPoint,
     SyncConfigPatch,
     SyncConfigRead,
     SyncLogRead,
+    WorkflowAssetRef,
+    WorkflowCoverageItem,
+    WorkspaceRecommendationRead,
 )
 from app.services.pipeline import get_pipeline_status, run_pipeline
 
@@ -185,6 +191,48 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
         for name, color, count in cat_result.all():
             categories_used.append(CategoryCount(name=name, count=count, color=color))
 
+    # Score stats — assets that have been assessed
+    scored_result = await db.execute(
+        select(GPT).where(GPT.quality_score.is_not(None))
+    )
+    scored = scored_result.scalars().all()
+    scores_assessed = len(scored)
+
+    avg_quality = sum(g.quality_score for g in scored) / scores_assessed if scores_assessed else None
+    avg_adoption = sum(g.adoption_score for g in scored if g.adoption_score is not None) / scores_assessed if scores_assessed else None
+    avg_risk = sum(g.risk_score for g in scored if g.risk_score is not None) / scores_assessed if scores_assessed else None
+
+    champions = sum(1 for g in scored if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) >= 60)
+    hidden_gems = sum(1 for g in scored if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) < 60)
+    scaled_risk = sum(1 for g in scored if (g.quality_score or 0) < 60 and (g.adoption_score or 0) >= 60)
+    retirement_candidates = sum(1 for g in scored if (g.quality_score or 0) < 60 and (g.adoption_score or 0) < 60)
+
+    # Ghost assets: shared with ≥5 users but zero conversations
+    ghost_result = await db.execute(
+        select(func.count(GPT.id)).where(
+            GPT.conversation_count == 0,
+            GPT.shared_user_count >= 5,
+        )
+    )
+    ghost_assets = ghost_result.scalar() or 0
+
+    # Workflow coverage counts from latest cache
+    wf_cache_result = await db.execute(
+        select(WorkflowAnalysisCache)
+        .order_by(WorkflowAnalysisCache.generated_at.desc())
+        .limit(1)
+    )
+    wf_cache = wf_cache_result.scalar_one_or_none()
+    workflows_covered = 0
+    workflow_gaps = 0
+    if wf_cache and wf_cache.workflow_items:
+        for wf in wf_cache.workflow_items:
+            if isinstance(wf, dict):
+                if wf.get("status") == "covered":
+                    workflows_covered += 1
+                elif wf.get("status") == "intent_gap":
+                    workflow_gaps += 1
+
     return PipelineSummary(
         total_gpts=last_sync.total_gpts_found if last_sync else 0,
         filtered_gpts=total,
@@ -194,7 +242,31 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
         project_count=project_count,
         categories_used=categories_used,
         last_sync=SyncLogRead.model_validate(last_sync) if last_sync else None,
+        scores_assessed=scores_assessed,
+        avg_quality_score=round(avg_quality, 1) if avg_quality is not None else None,
+        avg_adoption_score=round(avg_adoption, 1) if avg_adoption is not None else None,
+        avg_risk_score=round(avg_risk, 1) if avg_risk is not None else None,
+        champions=champions,
+        hidden_gems=hidden_gems,
+        scaled_risk=scaled_risk,
+        retirement_candidates=retirement_candidates,
+        ghost_assets=ghost_assets,
+        workflows_covered=workflows_covered,
+        workflow_gaps=workflow_gaps,
     )
+
+
+@router.get("/pipeline/recommendations", response_model=WorkspaceRecommendationRead)
+async def get_recommendations(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(WorkspaceRecommendation)
+        .order_by(WorkspaceRecommendation.generated_at.desc())
+        .limit(1)
+    )
+    rec = result.scalar_one_or_none()
+    if not rec:
+        raise HTTPException(status_code=404, detail="No recommendations generated yet. Run the pipeline first.")
+    return rec
 
 
 @router.get("/pipeline/gpts", response_model=list[GPTRead])
@@ -202,52 +274,10 @@ async def list_gpts(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(GPT).order_by(GPT.created_at.desc()))
     gpts = result.scalars().all()
 
-    # Build category lookup for names
     cat_result = await db.execute(select(Category))
     cat_lookup = {c.id: c.name for c in cat_result.scalars().all()}
 
-    out = []
-    for g in gpts:
-        out.append(
-            GPTRead(
-                id=g.id,
-                name=g.name,
-                description=g.description,
-                owner_email=g.owner_email,
-                builder_name=g.builder_name,
-                created_at=g.created_at,
-                visibility=g.visibility,
-                shared_user_count=g.shared_user_count,
-                tools=g.tools,
-                builder_categories=g.builder_categories,
-                conversation_starters=g.conversation_starters,
-                primary_category=cat_lookup.get(g.primary_category_id),
-                secondary_category=cat_lookup.get(g.secondary_category_id),
-                classification_confidence=g.classification_confidence,
-                llm_summary=g.llm_summary,
-                use_case_description=g.use_case_description,
-                instructions=g.instructions,
-                # Semantic enrichment
-                business_process=g.business_process,
-                risk_flags=g.risk_flags,
-                risk_level=g.risk_level,
-                sophistication_score=g.sophistication_score,
-                sophistication_rationale=g.sophistication_rationale,
-                prompting_quality_score=g.prompting_quality_score,
-                prompting_quality_rationale=g.prompting_quality_rationale,
-                prompting_quality_flags=g.prompting_quality_flags,
-                roi_potential_score=g.roi_potential_score,
-                roi_rationale=g.roi_rationale,
-                intended_audience=g.intended_audience,
-                integration_flags=g.integration_flags,
-                output_type=g.output_type,
-                adoption_friction_score=g.adoption_friction_score,
-                adoption_friction_rationale=g.adoption_friction_rationale,
-                semantic_enriched_at=g.semantic_enriched_at,
-                asset_type=g.asset_type,
-            )
-        )
-    return out
+    return [_gpt_to_read(g, cat_lookup) for g in gpts]
 
 
 def _gpt_to_read(g: GPT, cat_lookup: dict) -> GPTRead:
@@ -269,6 +299,8 @@ def _gpt_to_read(g: GPT, cat_lookup: dict) -> GPTRead:
         llm_summary=g.llm_summary,
         use_case_description=g.use_case_description,
         instructions=g.instructions,
+        asset_type=g.asset_type,
+        # Semantic enrichment
         business_process=g.business_process,
         risk_flags=g.risk_flags,
         risk_level=g.risk_level,
@@ -285,7 +317,27 @@ def _gpt_to_read(g: GPT, cat_lookup: dict) -> GPTRead:
         adoption_friction_score=g.adoption_friction_score,
         adoption_friction_rationale=g.adoption_friction_rationale,
         semantic_enriched_at=g.semantic_enriched_at,
-        asset_type=g.asset_type,
+        purpose_fingerprint=g.purpose_fingerprint,
+        # Conversation stats
+        conversation_count=g.conversation_count,
+        last_conversation_at=g.last_conversation_at,
+        # LLM-assessed composite scores
+        quality_score=g.quality_score,
+        quality_score_rationale=g.quality_score_rationale,
+        quality_main_strength=g.quality_main_strength,
+        quality_main_weakness=g.quality_main_weakness,
+        adoption_score=g.adoption_score,
+        adoption_score_rationale=g.adoption_score_rationale,
+        adoption_signal=g.adoption_signal,
+        adoption_barrier=g.adoption_barrier,
+        risk_score=g.risk_score,
+        risk_score_rationale=g.risk_score_rationale,
+        risk_primary_driver=g.risk_primary_driver,
+        risk_urgency=g.risk_urgency,
+        quadrant_label=g.quadrant_label,
+        top_action=g.top_action,
+        score_confidence=g.score_confidence,
+        scores_assessed_at=g.scores_assessed_at,
     )
 
 
@@ -527,3 +579,204 @@ async def patch_sync_config(body: SyncConfigPatch, db: AsyncSession = Depends(ge
     await db.commit()
     await db.refresh(config)
     return config
+
+
+@router.get("/pipeline/trend", response_model=list[PortfolioTrendPoint])
+async def get_portfolio_trend(db: AsyncSession = Depends(get_db)):
+    """Returns one data point per completed pipeline run with KPI snapshots.
+    Powers the Portfolio Health timeline chart.
+    """
+    result = await db.execute(
+        select(SyncLog)
+        .where(SyncLog.status == "completed")
+        .order_by(SyncLog.finished_at.asc())
+        .limit(50)
+    )
+    logs = result.scalars().all()
+    return [
+        PortfolioTrendPoint(
+            sync_log_id=sl.id,
+            synced_at=sl.finished_at,
+            avg_quality_score=sl.avg_quality_score,
+            avg_adoption_score=sl.avg_adoption_score,
+            avg_risk_score=sl.avg_risk_score,
+            champion_count=sl.champion_count or 0,
+            hidden_gem_count=sl.hidden_gem_count or 0,
+            scaled_risk_count=sl.scaled_risk_count or 0,
+            retirement_count=sl.retirement_count or 0,
+            ghost_asset_count=sl.ghost_asset_count or 0,
+            high_risk_count=sl.high_risk_count or 0,
+            total_asset_count=sl.total_asset_count or 0,
+        )
+        for sl in logs
+    ]
+
+
+def _fuzzy_match_workflow(topic: str, workflow_names: list[str], threshold: float = 0.52) -> str | None:
+    """Return the best-matching workflow name for a topic string, or None if no match."""
+    topic_lower = topic.lower()
+    best_ratio = 0.0
+    best_match = None
+    for wf in workflow_names:
+        # Bidirectional SequenceMatcher ratio
+        ratio = difflib.SequenceMatcher(None, topic_lower, wf.lower()).ratio()
+        # Keyword overlap fallback: count shared meaningful words
+        topic_words = set(re.findall(r"\b\w{4,}\b", topic_lower))
+        wf_words = set(re.findall(r"\b\w{4,}\b", wf.lower()))
+        overlap = topic_words & wf_words
+        keyword_boost = 0.15 * len(overlap) if overlap else 0.0
+        combined = ratio + keyword_boost
+        if combined > best_ratio:
+            best_ratio = combined
+            best_match = wf
+    return best_match if best_ratio >= threshold else None
+
+
+@router.get("/pipeline/workflows", response_model=list[WorkflowCoverageItem])
+async def get_workflow_coverage(db: AsyncSession = Depends(get_db)):
+    """Returns workflow coverage analysis: covered, ghost, and intent-gap workflows.
+
+    Three states per workflow:
+    - covered: asset(s) exist with this business_process + conversation activity
+    - ghost: asset(s) exist but zero conversation uptake
+    - intent_gap: conversation topics signal demand with no matching asset
+    """
+    # Load all GPTs with a business_process
+    gpt_result = await db.execute(
+        select(GPT).where(GPT.business_process.is_not(None))
+    )
+    gpts_with_bp = gpt_result.scalars().all()
+
+    # Group GPTs by canonical business_process
+    bp_to_assets: dict[str, list[GPT]] = {}
+    for g in gpts_with_bp:
+        bp = (g.business_process or "").strip()
+        if bp:
+            bp_to_assets.setdefault(bp, []).append(g)
+
+    # Load all AssetUsageInsight with top_topics
+    insight_result = await db.execute(
+        select(AssetUsageInsight).where(AssetUsageInsight.top_topics.is_not(None))
+    )
+    insights = insight_result.scalars().all()
+
+    # Aggregate all topics across all insights (deduplicated by topic name)
+    all_topics: dict[str, dict] = {}  # topic_name -> {topic, pct_sum, count, example_phrases}
+    for insight in insights:
+        for t in (insight.top_topics or []):
+            name = (t.get("topic") or "").strip()
+            if not name:
+                continue
+            if name not in all_topics:
+                all_topics[name] = {
+                    "topic": name,
+                    "pct_sum": 0.0,
+                    "count": 0,
+                    "example_phrases": t.get("example_phrases") or [],
+                }
+            all_topics[name]["pct_sum"] += t.get("pct", 0.0)
+            all_topics[name]["count"] += 1
+            # Collect unique example phrases
+            for ph in (t.get("example_phrases") or []):
+                if ph not in all_topics[name]["example_phrases"]:
+                    all_topics[name]["example_phrases"].append(ph)
+
+    known_workflows = list(bp_to_assets.keys())
+
+    # Map each topic to a known workflow (or flag as gap)
+    workflow_intent_signals: dict[str, list[dict]] = {bp: [] for bp in known_workflows}
+    gap_topics: dict[str, dict] = {}  # gap workflow name → aggregated topic data
+
+    for topic_name, topic_data in all_topics.items():
+        matched_wf = _fuzzy_match_workflow(topic_name, known_workflows)
+        if matched_wf:
+            workflow_intent_signals[matched_wf].append({
+                "topic": topic_name,
+                "pct": round(topic_data["pct_sum"] / max(topic_data["count"], 1), 1),
+                "example_phrases": topic_data["example_phrases"][:3],
+            })
+        else:
+            # This topic has no matching workflow asset — potential gap
+            gap_topics[topic_name] = topic_data
+
+    # Build result list: covered/ghost workflows first, then intent gaps
+    items: list[WorkflowCoverageItem] = []
+
+    for bp, assets in sorted(bp_to_assets.items()):
+        total_convs = sum(g.conversation_count or 0 for g in assets)
+        status = "covered" if total_convs > 0 else "ghost"
+        asset_refs = [
+            WorkflowAssetRef(
+                id=g.id,
+                name=g.name,
+                conversation_count=g.conversation_count or 0,
+                quadrant_label=g.quadrant_label,
+            )
+            for g in sorted(assets, key=lambda g: g.conversation_count or 0, reverse=True)
+        ]
+        signals = workflow_intent_signals.get(bp, [])
+        items.append(WorkflowCoverageItem(
+            name=bp,
+            status=status,
+            asset_count=len(assets),
+            conversation_count=total_convs,
+            assets=asset_refs,
+            intent_signals=signals,
+            example_phrases=[],
+        ))
+
+    # Deduplicate gap topics: skip if they weakly match a known workflow (lower threshold)
+    for topic_name, topic_data in gap_topics.items():
+        # Skip very generic topics
+        if topic_name.lower() in {"general assistance", "summarization", "research", "documentation"}:
+            continue
+        all_phrases = topic_data["example_phrases"][:4]
+        items.append(WorkflowCoverageItem(
+            name=topic_name,
+            status="intent_gap",
+            asset_count=0,
+            conversation_count=0,
+            assets=[],
+            intent_signals=[{
+                "topic": topic_name,
+                "pct": round(topic_data["pct_sum"] / max(topic_data["count"], 1), 1),
+                "example_phrases": all_phrases,
+            }],
+            example_phrases=all_phrases,
+        ))
+
+    # Pull latest cached LLM reasoning and inject into items
+    cache_result = await db.execute(
+        select(WorkflowAnalysisCache)
+        .order_by(WorkflowAnalysisCache.generated_at.desc())
+        .limit(1)
+    )
+    cache = cache_result.scalar_one_or_none()
+    if cache and cache.workflow_items:
+        reasoning_map = {
+            entry["name"]: entry
+            for entry in cache.workflow_items
+            if isinstance(entry, dict) and "name" in entry
+        }
+        for item in items:
+            rec = reasoning_map.get(item.name)
+            if rec:
+                item.reasoning = rec.get("reasoning")
+                item.priority_action = rec.get("priority_action")
+                item.priority_level = rec.get("priority_level")
+
+    # Sort: covered → ghost → intent_gap, then by conversation_count desc within each
+    status_order = {"covered": 0, "ghost": 1, "intent_gap": 2}
+    items.sort(key=lambda x: (status_order[x.status], -x.conversation_count))
+    return items
+
+
+@router.get("/pipeline/gpt/{gpt_id}/history", response_model=list[GptScoreHistoryPoint])
+async def get_gpt_score_history(gpt_id: str, db: AsyncSession = Depends(get_db)):
+    """Returns per-asset score history for the longitudinal asset journey view."""
+    result = await db.execute(
+        select(GptScoreHistory)
+        .where(GptScoreHistory.gpt_id == gpt_id)
+        .order_by(GptScoreHistory.synced_at.asc())
+    )
+    return result.scalars().all()

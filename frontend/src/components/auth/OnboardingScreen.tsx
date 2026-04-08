@@ -19,17 +19,16 @@ export default function OnboardingScreen({ onDemo, onProduction }: Props) {
   const handleTryDemo = async () => {
     setPhase("loading");
     try {
+      // Backend auto-seeds categories + triggers asset pipeline + auto-triggers conversation pipeline
       await api.updateDemoState({ enabled: true, size: "medium" });
-      await api.seedCategories();
-      await api.runPipeline();
 
-      // Wait for the pipeline to actually start (running=true) before polling for completion
+      // Poll until pipeline starts then finishes
       let started = false;
       pollRef.current = setInterval(async () => {
         try {
           const status = await api.getPipelineStatus();
           if (!started && status.running) {
-            started = true;   // pipeline confirmed started
+            started = true;
           }
           if (started && !status.running) {
             clearInterval(pollRef.current!);

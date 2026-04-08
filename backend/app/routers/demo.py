@@ -1,11 +1,14 @@
+import asyncio
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.models import SyncLog
+from app.models.models import Category, SyncLog
 from app.services.demo_state import SIZE_MAP, get_demo_state, set_demo_state
+from app.services.pipeline import get_pipeline_status, run_pipeline
 
 router = APIRouter(tags=["demo"])
 
@@ -55,6 +58,25 @@ async def get_demo(db: AsyncSession = Depends(get_db)):
 async def update_demo(body: DemoStateUpdate, db: AsyncSession = Depends(get_db)):
     state = set_demo_state(body.enabled, body.size)
     was_demo = await _last_sync_was_demo(db)
+
+    # Auto-run everything when demo mode is first enabled and no data exists yet.
+    # Seed categories + asset pipeline + conversation pipeline run automatically —
+    # the user never has to visit Sync.
+    if body.enabled and not was_demo:
+        # Seed default categories if none exist
+        from app.routers.categories import DEFAULT_CATEGORIES
+
+        cat_count_result = await db.execute(select(func.count()).select_from(Category))
+        if cat_count_result.scalar_one() == 0:
+            for i, cat_data in enumerate(DEFAULT_CATEGORIES):
+                db.add(Category(**cat_data, sort_order=i))
+            await db.commit()
+
+        # Launch asset pipeline (conversation pipeline auto-triggers at end — see pipeline.py)
+        status = get_pipeline_status()
+        if not status["running"]:
+            asyncio.create_task(run_pipeline())
+
     return DemoStateRead(
         enabled=state["enabled"],
         size=state["size"],
