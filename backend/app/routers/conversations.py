@@ -193,8 +193,10 @@ async def get_estimate(
     since = now - timedelta(days=date_range_days)
 
     # Count events in range
-    q = select(func.count()).select_from(ConversationEvent).where(
-        ConversationEvent.created_at >= since
+    q = (
+        select(func.count())
+        .select_from(ConversationEvent)
+        .where(ConversationEvent.created_at >= since)
     )
     if asset_ids:
         q = q.where(ConversationEvent.asset_id.in_(asset_ids))
@@ -287,7 +289,6 @@ async def get_asset_insight(
     # Week-over-week: find prior period row (±1 day tolerance)
     if insight.date_range_start and insight.date_range_end:
         prior_end = insight.date_range_start
-        prior_start = prior_end - (insight.date_range_end - insight.date_range_start)
         prior_result = await db.execute(
             select(AssetUsageInsight)
             .where(AssetUsageInsight.asset_id == asset_id)
@@ -305,9 +306,7 @@ async def get_asset_insight(
             prior_count = prior.conversation_count or 0
             current_count = insight.conversation_count or 0
             insight.__dict__["prior_conversation_count"] = prior_count
-            insight.__dict__["conversation_count_delta"] = (
-                current_count - prior_count
-            )
+            insight.__dict__["conversation_count_delta"] = current_count - prior_count
 
     return insight
 
@@ -395,7 +394,9 @@ async def get_overview(
     top_assets_result = await db.execute(
         select(
             ConversationEvent.asset_id,
-            func.count(func.distinct(ConversationEvent.conversation_id)).label("conv_count"),
+            func.count(func.distinct(ConversationEvent.conversation_id)).label(
+                "conv_count"
+            ),
         )
         .where(ConversationEvent.created_at >= since)
         .where(ConversationEvent.asset_id.isnot(None))
@@ -424,9 +425,13 @@ async def get_overview(
         .where(ConversationEvent.created_at >= since)
         .where(ConversationEvent.asset_id.isnot(None))
     )
-    active_id_set = {row[0] for row in active_ids_result.fetchall() if row[0] is not None}
+    active_id_set = {
+        row[0] for row in active_ids_result.fetchall() if row[0] is not None
+    }
     all_gpt_ids_result = await db.execute(select(GPT.id))
-    ghost_asset_ids = [row[0] for row in all_gpt_ids_result.fetchall() if row[0] not in active_id_set]
+    ghost_asset_ids = [
+        row[0] for row in all_gpt_ids_result.fetchall() if row[0] not in active_id_set
+    ]
 
     # Knowledge gap signals — assets that have non-null knowledge_gap_signals
     gaps_result = await db.execute(

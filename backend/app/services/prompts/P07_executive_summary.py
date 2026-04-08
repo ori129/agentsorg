@@ -8,7 +8,9 @@ Results stored in workspace_recommendations.executive_summary (TEXT).
 Shown at the top of the Home page dashboard.
 """
 
-SYSTEM = "You are an AI transformation advisor writing a board-level executive briefing."
+SYSTEM = (
+    "You are an AI transformation advisor writing a board-level executive briefing."
+)
 
 USER = """Write a concise executive summary of this organisation's AI transformation status.
 

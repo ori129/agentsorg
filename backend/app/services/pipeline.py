@@ -171,7 +171,12 @@ def _seed_demo_clusters(scored_gpts: list) -> None:
             cluster_id="demo-cluster-1",
             theme="Sales Pipeline Assistant",
             gpt_ids=_pick(buckets[0], 4),
-            gpt_names=["Sales Pipeline GPT", "Deal Tracker Assistant", "Revenue Forecast Bot", "Pipeline Review AI"],
+            gpt_names=[
+                "Sales Pipeline GPT",
+                "Deal Tracker Assistant",
+                "Revenue Forecast Bot",
+                "Pipeline Review AI",
+            ],
             estimated_wasted_hours=34.0,
             business_process="Sales Pipeline Management",
             departments=["Sales", "Revenue Operations"],
@@ -197,7 +202,13 @@ def _seed_demo_clusters(scored_gpts: list) -> None:
             cluster_id="demo-cluster-3",
             theme="Meeting Summary Generator",
             gpt_ids=_pick(buckets[2], 5),
-            gpt_names=["Meeting Recap GPT", "Call Summary Bot", "Notes Summariser", "Meeting Minutes AI", "Post-Call Summary Tool"],
+            gpt_names=[
+                "Meeting Recap GPT",
+                "Call Summary Bot",
+                "Notes Summariser",
+                "Meeting Minutes AI",
+                "Post-Call Summary Tool",
+            ],
             estimated_wasted_hours=47.0,
             business_process="Meeting Documentation",
             departments=["Engineering", "Sales", "HR", "Marketing", "Finance"],
@@ -210,7 +221,11 @@ def _seed_demo_clusters(scored_gpts: list) -> None:
             cluster_id="demo-cluster-4",
             theme="Customer Email Drafter",
             gpt_ids=_pick(buckets[3], 3),
-            gpt_names=["Customer Email GPT", "Client Outreach Assistant", "Sales Email Writer"],
+            gpt_names=[
+                "Customer Email GPT",
+                "Client Outreach Assistant",
+                "Sales Email Writer",
+            ],
             estimated_wasted_hours=18.0,
             business_process="Customer Communication",
             departments=["Sales", "Customer Success"],
@@ -242,7 +257,9 @@ def _seed_demo_clusters(scored_gpts: list) -> None:
     logger.info("Demo clustering results seeded (%d clusters).", len(valid))
 
 
-async def _backfill_demo_history(db: AsyncSession, latest_sync: SyncLog, scored_gpts: list) -> None:
+async def _backfill_demo_history(
+    db: AsyncSession, latest_sync: SyncLog, scored_gpts: list
+) -> None:
     """Insert 3 backdated SyncLog + GptScoreHistory rows for demo mode.
 
     Simulates syncs at roughly -90, -60, and -30 days relative to today,
@@ -263,8 +280,8 @@ async def _backfill_demo_history(db: AsyncSession, latest_sync: SyncLog, scored_
     # Positive delta on risk = higher risk in the past (risk improved over time)
     STEPS = [
         (90, -15, -12, +14),  # oldest
-        (60, -9,  -7,  +8),
-        (30, -4,  -3,  +3),
+        (60, -9, -7, +8),
+        (30, -4, -3, +3),
     ]
 
     for days_ago, q_delta, a_delta, r_delta in STEPS:
@@ -290,9 +307,15 @@ async def _backfill_demo_history(db: AsyncSession, latest_sync: SyncLog, scored_
         champ = hgem = srisk = retire = ghost_c = high_r = 0
 
         for g in scored_gpts:
-            q = max(0.0, min(100.0, (g.quality_score or 50) + q_delta + rng.uniform(-4, 4)))
-            a = max(0.0, min(100.0, (g.adoption_score or 50) + a_delta + rng.uniform(-4, 4)))
-            r = max(0.0, min(100.0, (g.risk_score or 30) + r_delta + rng.uniform(-4, 4)))
+            q = max(
+                0.0, min(100.0, (g.quality_score or 50) + q_delta + rng.uniform(-4, 4))
+            )
+            a = max(
+                0.0, min(100.0, (g.adoption_score or 50) + a_delta + rng.uniform(-4, 4))
+            )
+            r = max(
+                0.0, min(100.0, (g.risk_score or 30) + r_delta + rng.uniform(-4, 4))
+            )
             q_scores.append(q)
             a_scores.append(a)
             r_scores.append(r)
@@ -307,8 +330,12 @@ async def _backfill_demo_history(db: AsyncSession, latest_sync: SyncLog, scored_
             if r >= 60:
                 high_r += 1
 
-        hist_sync.avg_quality_score = sum(q_scores) / len(q_scores) if q_scores else None
-        hist_sync.avg_adoption_score = sum(a_scores) / len(a_scores) if a_scores else None
+        hist_sync.avg_quality_score = (
+            sum(q_scores) / len(q_scores) if q_scores else None
+        )
+        hist_sync.avg_adoption_score = (
+            sum(a_scores) / len(a_scores) if a_scores else None
+        )
         hist_sync.avg_risk_score = sum(r_scores) / len(r_scores) if r_scores else None
         hist_sync.champion_count = champ
         hist_sync.hidden_gem_count = hgem
@@ -324,9 +351,16 @@ async def _backfill_demo_history(db: AsyncSession, latest_sync: SyncLog, scored_
         # Per-asset GptScoreHistory rows for this backdated sync
         rng2 = random.Random(42 + days_ago)
         for g in scored_gpts:
-            q = max(0.0, min(100.0, (g.quality_score or 50) + q_delta + rng2.uniform(-4, 4)))
-            a = max(0.0, min(100.0, (g.adoption_score or 50) + a_delta + rng2.uniform(-4, 4)))
-            r = max(0.0, min(100.0, (g.risk_score or 30) + r_delta + rng2.uniform(-4, 4)))
+            q = max(
+                0.0, min(100.0, (g.quality_score or 50) + q_delta + rng2.uniform(-4, 4))
+            )
+            a = max(
+                0.0,
+                min(100.0, (g.adoption_score or 50) + a_delta + rng2.uniform(-4, 4)),
+            )
+            r = max(
+                0.0, min(100.0, (g.risk_score or 30) + r_delta + rng2.uniform(-4, 4))
+            )
             if q >= 60 and a >= 60:
                 qlabel = "champion"
             elif q >= 60:
@@ -335,15 +369,17 @@ async def _backfill_demo_history(db: AsyncSession, latest_sync: SyncLog, scored_
                 qlabel = "scaled_risk"
             else:
                 qlabel = "retirement_candidate"
-            db.add(GptScoreHistory(
-                gpt_id=g.id,
-                sync_log_id=hist_sync.id,
-                synced_at=sync_dt,
-                quality_score=round(q, 1),
-                adoption_score=round(a, 1),
-                risk_score=round(r, 1),
-                quadrant_label=qlabel,
-            ))
+            db.add(
+                GptScoreHistory(
+                    gpt_id=g.id,
+                    sync_log_id=hist_sync.id,
+                    synced_at=sync_dt,
+                    quality_score=round(q, 1),
+                    adoption_score=round(a, 1),
+                    risk_score=round(r, 1),
+                    quadrant_label=qlabel,
+                )
+            )
 
     await db.commit()
     logger.info("Demo history backfill complete: 3 backdated syncs inserted.")
@@ -894,8 +930,10 @@ async def _execute_pipeline(db: AsyncSession):
 
         if to_score:
             await _log(
-                db, sync_log.id, "info",
-                f"Scoring {len(to_score)} assets ({len(all_stored) - len(to_score)} unchanged)"
+                db,
+                sync_log.id,
+                "info",
+                f"Scoring {len(to_score)} assets ({len(all_stored) - len(to_score)} unchanged)",
             )
             try:
                 if demo:
@@ -904,19 +942,30 @@ async def _execute_pipeline(db: AsyncSession):
                     score_tokens_in = score_tokens_out = 0
                 else:
                     openai_key_dec = decrypt(config.openai_api_key)
-                    assessor = ScoreAssessor(openai_key_dec, config.classification_model)
-                    score_results, score_tokens_in, score_tokens_out = await assessor.assess_batch(to_score)
+                    assessor = ScoreAssessor(
+                        openai_key_dec, config.classification_model
+                    )
+                    (
+                        score_results,
+                        score_tokens_in,
+                        score_tokens_out,
+                    ) = await assessor.assess_batch(to_score)
 
                 tokens_input += score_tokens_in
                 tokens_output += score_tokens_out
 
                 from datetime import datetime as _dt2
+
                 for g, scores in zip(to_score, score_results):
                     if not scores:
                         continue
                     sat_raw = scores.get("scores_assessed_at")
                     try:
-                        sat = _dt2.fromisoformat(sat_raw) if sat_raw else datetime.now(timezone.utc)
+                        sat = (
+                            _dt2.fromisoformat(sat_raw)
+                            if sat_raw
+                            else datetime.now(timezone.utc)
+                        )
                     except Exception:
                         sat = datetime.now(timezone.utc)
                     # Use explicit UPDATE to avoid SQLAlchemy session state issues with
@@ -926,11 +975,15 @@ async def _execute_pipeline(db: AsyncSession):
                         .where(GPT.id == g.id)
                         .values(
                             quality_score=scores.get("quality_score"),
-                            quality_score_rationale=scores.get("quality_score_rationale"),
+                            quality_score_rationale=scores.get(
+                                "quality_score_rationale"
+                            ),
                             quality_main_strength=scores.get("quality_main_strength"),
                             quality_main_weakness=scores.get("quality_main_weakness"),
                             adoption_score=scores.get("adoption_score"),
-                            adoption_score_rationale=scores.get("adoption_score_rationale"),
+                            adoption_score_rationale=scores.get(
+                                "adoption_score_rationale"
+                            ),
                             adoption_signal=scores.get("adoption_signal"),
                             adoption_barrier=scores.get("adoption_barrier"),
                             risk_score=scores.get("risk_score"),
@@ -947,25 +1000,38 @@ async def _execute_pipeline(db: AsyncSession):
                 await db.commit()
                 await _log(db, sync_log.id, "info", f"Scored {len(to_score)} assets")
             except Exception as e:
-                await _log(db, sync_log.id, "warn", f"Score assessment failed (non-fatal): {e}")
+                await _log(
+                    db, sync_log.id, "warn", f"Score assessment failed (non-fatal): {e}"
+                )
         else:
-            await _log(db, sync_log.id, "info", "All asset scores are fresh — skipping reassessment")
+            await _log(
+                db,
+                sync_log.id,
+                "info",
+                "All asset scores are fresh — skipping reassessment",
+            )
 
     _current_status["progress"] = 96.0
 
     # ── Stage 8: Workspace Priority Actions + Executive Summary ────────────────
     if classification_enabled and has_openai_key:
-        await _log(db, sync_log.id, "info", "Stage 8: Generating workspace recommendations...")
+        await _log(
+            db, sync_log.id, "info", "Stage 8: Generating workspace recommendations..."
+        )
         try:
             if demo:
                 mock_assessor2 = MockScoreAssessor()
                 from sqlalchemy.orm import selectinload as _sil
+
                 _all_gpts_result2 = await db.execute(
                     select(GPT).options(_sil(GPT.primary_category))
                 )
                 _all_for_recs = _all_gpts_result2.scalars().all()
-                recs, exec_summary = mock_assessor2.generate_workspace_recommendations(_all_for_recs)
+                recs, exec_summary = mock_assessor2.generate_workspace_recommendations(
+                    _all_for_recs
+                )
                 from app.models.models import WorkspaceRecommendation
+
                 ws_rec = WorkspaceRecommendation(
                     sync_log_id=sync_log.id,
                     recommendations=recs,
@@ -976,15 +1042,27 @@ async def _execute_pipeline(db: AsyncSession):
             else:
                 openai_key_dec = decrypt(config.openai_api_key)
                 assessor2 = ScoreAssessor(openai_key_dec, config.classification_model)
-                recs, exec_summary, ws_pt, ws_ct = await assessor2.generate_workspace_recommendations(
+                (
+                    recs,
+                    exec_summary,
+                    ws_pt,
+                    ws_ct,
+                ) = await assessor2.generate_workspace_recommendations(
                     db, sync_log_id=sync_log.id
                 )
                 tokens_input += ws_pt
                 tokens_output += ws_ct
                 await db.commit()
-            await _log(db, sync_log.id, "info", f"Generated {len(recs)} priority actions")
+            await _log(
+                db, sync_log.id, "info", f"Generated {len(recs)} priority actions"
+            )
         except Exception as e:
-            await _log(db, sync_log.id, "warn", f"Workspace recommendations failed (non-fatal): {e}")
+            await _log(
+                db,
+                sync_log.id,
+                "warn",
+                f"Workspace recommendations failed (non-fatal): {e}",
+            )
 
     # Finalize — write token consumption, cost, and KPI snapshots
     sync_log.status = "completed"
@@ -1007,30 +1085,54 @@ async def _execute_pipeline(db: AsyncSession):
     if scored_gpts:
         # Append one history row per scored asset
         for g in scored_gpts:
-            db.add(GptScoreHistory(
-                gpt_id=g.id,
-                sync_log_id=sync_log.id,
-                synced_at=sync_log.finished_at,
-                quality_score=g.quality_score,
-                adoption_score=g.adoption_score,
-                risk_score=g.risk_score,
-                quadrant_label=g.quadrant_label,
-            ))
+            db.add(
+                GptScoreHistory(
+                    gpt_id=g.id,
+                    sync_log_id=sync_log.id,
+                    synced_at=sync_log.finished_at,
+                    quality_score=g.quality_score,
+                    adoption_score=g.adoption_score,
+                    risk_score=g.risk_score,
+                    quadrant_label=g.quadrant_label,
+                )
+            )
 
         # Compute aggregate KPI snapshot for this sync
-        quality_scores = [g.quality_score for g in scored_gpts if g.quality_score is not None]
-        adoption_scores = [g.adoption_score for g in scored_gpts if g.adoption_score is not None]
+        quality_scores = [
+            g.quality_score for g in scored_gpts if g.quality_score is not None
+        ]
+        adoption_scores = [
+            g.adoption_score for g in scored_gpts if g.adoption_score is not None
+        ]
         risk_scores = [g.risk_score for g in scored_gpts if g.risk_score is not None]
 
-        sync_log.avg_quality_score = sum(quality_scores) / len(quality_scores) if quality_scores else None
-        sync_log.avg_adoption_score = sum(adoption_scores) / len(adoption_scores) if adoption_scores else None
-        sync_log.avg_risk_score = sum(risk_scores) / len(risk_scores) if risk_scores else None
-        sync_log.champion_count = sum(1 for g in scored_gpts if g.quadrant_label == "champion")
-        sync_log.hidden_gem_count = sum(1 for g in scored_gpts if g.quadrant_label == "hidden_gem")
-        sync_log.scaled_risk_count = sum(1 for g in scored_gpts if g.quadrant_label == "scaled_risk")
-        sync_log.retirement_count = sum(1 for g in scored_gpts if g.quadrant_label == "retirement_candidate")
-        sync_log.ghost_asset_count = sum(1 for g in scored_gpts if g.quadrant_label == "ghost")
-        sync_log.high_risk_count = sum(1 for g in scored_gpts if g.risk_level in ("high", "critical"))
+        sync_log.avg_quality_score = (
+            sum(quality_scores) / len(quality_scores) if quality_scores else None
+        )
+        sync_log.avg_adoption_score = (
+            sum(adoption_scores) / len(adoption_scores) if adoption_scores else None
+        )
+        sync_log.avg_risk_score = (
+            sum(risk_scores) / len(risk_scores) if risk_scores else None
+        )
+        sync_log.champion_count = sum(
+            1 for g in scored_gpts if g.quadrant_label == "champion"
+        )
+        sync_log.hidden_gem_count = sum(
+            1 for g in scored_gpts if g.quadrant_label == "hidden_gem"
+        )
+        sync_log.scaled_risk_count = sum(
+            1 for g in scored_gpts if g.quadrant_label == "scaled_risk"
+        )
+        sync_log.retirement_count = sum(
+            1 for g in scored_gpts if g.quadrant_label == "retirement_candidate"
+        )
+        sync_log.ghost_asset_count = sum(
+            1 for g in scored_gpts if g.quadrant_label == "ghost"
+        )
+        sync_log.high_risk_count = sum(
+            1 for g in scored_gpts if g.risk_level in ("high", "critical")
+        )
         sync_log.total_asset_count = len(scored_gpts)
 
     await db.commit()
@@ -1041,14 +1143,16 @@ async def _execute_pipeline(db: AsyncSession):
     # meaningful multi-sync data to display immediately.
     if demo and scored_gpts:
         existing_count_result = await db.execute(
-            select(func.count()).select_from(SyncLog).where(SyncLog.status == "completed")
+            select(func.count())
+            .select_from(SyncLog)
+            .where(SyncLog.status == "completed")
         )
         existing_count = existing_count_result.scalar_one()
         # Backfill if fewer than 4 completed syncs exist and no backfill has been written yet
         backfill_exists_result = await db.execute(
-            select(func.count()).select_from(SyncLog).where(
-                SyncLog.configuration_snapshot.op("->>")("backfill") == "true"
-            )
+            select(func.count())
+            .select_from(SyncLog)
+            .where(SyncLog.configuration_snapshot.op("->>")("backfill") == "true")
         )
         backfill_exists = backfill_exists_result.scalar_one() > 0
         if existing_count < 4 and not backfill_exists:
@@ -1092,6 +1196,7 @@ async def _execute_pipeline(db: AsyncSession):
 
             async def _auto_conversation():
                 from app.database import async_session as _AsyncSession
+
                 async with _AsyncSession() as _db:
                     mock = MockConversationPipeline(privacy_level=3, date_range_days=30)
                     await mock.run(_db)

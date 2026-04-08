@@ -10,7 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.encryption import decrypt
-from app.models.models import AssetUsageInsight, Category, Configuration, GPT, GptScoreHistory, PipelineLogEntry, SyncLog, WorkflowAnalysisCache, WorkspaceRecommendation
+from app.models.models import (
+    AssetUsageInsight,
+    Category,
+    Configuration,
+    GPT,
+    GptScoreHistory,
+    PipelineLogEntry,
+    SyncLog,
+    WorkflowAnalysisCache,
+    WorkspaceRecommendation,
+)
 from app.schemas.schemas import (
     CategoryCount,
     GPTRead,
@@ -192,20 +202,47 @@ async def get_summary(db: AsyncSession = Depends(get_db)):
             categories_used.append(CategoryCount(name=name, count=count, color=color))
 
     # Score stats — assets that have been assessed
-    scored_result = await db.execute(
-        select(GPT).where(GPT.quality_score.is_not(None))
-    )
+    scored_result = await db.execute(select(GPT).where(GPT.quality_score.is_not(None)))
     scored = scored_result.scalars().all()
     scores_assessed = len(scored)
 
-    avg_quality = sum(g.quality_score for g in scored) / scores_assessed if scores_assessed else None
-    avg_adoption = sum(g.adoption_score for g in scored if g.adoption_score is not None) / scores_assessed if scores_assessed else None
-    avg_risk = sum(g.risk_score for g in scored if g.risk_score is not None) / scores_assessed if scores_assessed else None
+    avg_quality = (
+        sum(g.quality_score for g in scored) / scores_assessed
+        if scores_assessed
+        else None
+    )
+    avg_adoption = (
+        sum(g.adoption_score for g in scored if g.adoption_score is not None)
+        / scores_assessed
+        if scores_assessed
+        else None
+    )
+    avg_risk = (
+        sum(g.risk_score for g in scored if g.risk_score is not None) / scores_assessed
+        if scores_assessed
+        else None
+    )
 
-    champions = sum(1 for g in scored if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) >= 60)
-    hidden_gems = sum(1 for g in scored if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) < 60)
-    scaled_risk = sum(1 for g in scored if (g.quality_score or 0) < 60 and (g.adoption_score or 0) >= 60)
-    retirement_candidates = sum(1 for g in scored if (g.quality_score or 0) < 60 and (g.adoption_score or 0) < 60)
+    champions = sum(
+        1
+        for g in scored
+        if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) >= 60
+    )
+    hidden_gems = sum(
+        1
+        for g in scored
+        if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) < 60
+    )
+    scaled_risk = sum(
+        1
+        for g in scored
+        if (g.quality_score or 0) < 60 and (g.adoption_score or 0) >= 60
+    )
+    retirement_candidates = sum(
+        1
+        for g in scored
+        if (g.quality_score or 0) < 60 and (g.adoption_score or 0) < 60
+    )
 
     # Ghost assets: shared with ≥5 users but zero conversations
     ghost_result = await db.execute(
@@ -265,7 +302,10 @@ async def get_recommendations(db: AsyncSession = Depends(get_db)):
     )
     rec = result.scalar_one_or_none()
     if not rec:
-        raise HTTPException(status_code=404, detail="No recommendations generated yet. Run the pipeline first.")
+        raise HTTPException(
+            status_code=404,
+            detail="No recommendations generated yet. Run the pipeline first.",
+        )
     return rec
 
 
@@ -612,7 +652,9 @@ async def get_portfolio_trend(db: AsyncSession = Depends(get_db)):
     ]
 
 
-def _fuzzy_match_workflow(topic: str, workflow_names: list[str], threshold: float = 0.52) -> str | None:
+def _fuzzy_match_workflow(
+    topic: str, workflow_names: list[str], threshold: float = 0.52
+) -> str | None:
     """Return the best-matching workflow name for a topic string, or None if no match."""
     topic_lower = topic.lower()
     best_ratio = 0.0
@@ -642,9 +684,7 @@ async def get_workflow_coverage(db: AsyncSession = Depends(get_db)):
     - intent_gap: conversation topics signal demand with no matching asset
     """
     # Load all GPTs with a business_process
-    gpt_result = await db.execute(
-        select(GPT).where(GPT.business_process.is_not(None))
-    )
+    gpt_result = await db.execute(select(GPT).where(GPT.business_process.is_not(None)))
     gpts_with_bp = gpt_result.scalars().all()
 
     # Group GPTs by canonical business_process
@@ -661,9 +701,11 @@ async def get_workflow_coverage(db: AsyncSession = Depends(get_db)):
     insights = insight_result.scalars().all()
 
     # Aggregate all topics across all insights (deduplicated by topic name)
-    all_topics: dict[str, dict] = {}  # topic_name -> {topic, pct_sum, count, example_phrases}
+    all_topics: dict[
+        str, dict
+    ] = {}  # topic_name -> {topic, pct_sum, count, example_phrases}
     for insight in insights:
-        for t in (insight.top_topics or []):
+        for t in insight.top_topics or []:
             name = (t.get("topic") or "").strip()
             if not name:
                 continue
@@ -677,7 +719,7 @@ async def get_workflow_coverage(db: AsyncSession = Depends(get_db)):
             all_topics[name]["pct_sum"] += t.get("pct", 0.0)
             all_topics[name]["count"] += 1
             # Collect unique example phrases
-            for ph in (t.get("example_phrases") or []):
+            for ph in t.get("example_phrases") or []:
                 if ph not in all_topics[name]["example_phrases"]:
                     all_topics[name]["example_phrases"].append(ph)
 
@@ -690,11 +732,15 @@ async def get_workflow_coverage(db: AsyncSession = Depends(get_db)):
     for topic_name, topic_data in all_topics.items():
         matched_wf = _fuzzy_match_workflow(topic_name, known_workflows)
         if matched_wf:
-            workflow_intent_signals[matched_wf].append({
-                "topic": topic_name,
-                "pct": round(topic_data["pct_sum"] / max(topic_data["count"], 1), 1),
-                "example_phrases": topic_data["example_phrases"][:3],
-            })
+            workflow_intent_signals[matched_wf].append(
+                {
+                    "topic": topic_name,
+                    "pct": round(
+                        topic_data["pct_sum"] / max(topic_data["count"], 1), 1
+                    ),
+                    "example_phrases": topic_data["example_phrases"][:3],
+                }
+            )
         else:
             # This topic has no matching workflow asset — potential gap
             gap_topics[topic_name] = topic_data
@@ -712,38 +758,53 @@ async def get_workflow_coverage(db: AsyncSession = Depends(get_db)):
                 conversation_count=g.conversation_count or 0,
                 quadrant_label=g.quadrant_label,
             )
-            for g in sorted(assets, key=lambda g: g.conversation_count or 0, reverse=True)
+            for g in sorted(
+                assets, key=lambda g: g.conversation_count or 0, reverse=True
+            )
         ]
         signals = workflow_intent_signals.get(bp, [])
-        items.append(WorkflowCoverageItem(
-            name=bp,
-            status=status,
-            asset_count=len(assets),
-            conversation_count=total_convs,
-            assets=asset_refs,
-            intent_signals=signals,
-            example_phrases=[],
-        ))
+        items.append(
+            WorkflowCoverageItem(
+                name=bp,
+                status=status,
+                asset_count=len(assets),
+                conversation_count=total_convs,
+                assets=asset_refs,
+                intent_signals=signals,
+                example_phrases=[],
+            )
+        )
 
     # Deduplicate gap topics: skip if they weakly match a known workflow (lower threshold)
     for topic_name, topic_data in gap_topics.items():
         # Skip very generic topics
-        if topic_name.lower() in {"general assistance", "summarization", "research", "documentation"}:
+        if topic_name.lower() in {
+            "general assistance",
+            "summarization",
+            "research",
+            "documentation",
+        }:
             continue
         all_phrases = topic_data["example_phrases"][:4]
-        items.append(WorkflowCoverageItem(
-            name=topic_name,
-            status="intent_gap",
-            asset_count=0,
-            conversation_count=0,
-            assets=[],
-            intent_signals=[{
-                "topic": topic_name,
-                "pct": round(topic_data["pct_sum"] / max(topic_data["count"], 1), 1),
-                "example_phrases": all_phrases,
-            }],
-            example_phrases=all_phrases,
-        ))
+        items.append(
+            WorkflowCoverageItem(
+                name=topic_name,
+                status="intent_gap",
+                asset_count=0,
+                conversation_count=0,
+                assets=[],
+                intent_signals=[
+                    {
+                        "topic": topic_name,
+                        "pct": round(
+                            topic_data["pct_sum"] / max(topic_data["count"], 1), 1
+                        ),
+                        "example_phrases": all_phrases,
+                    }
+                ],
+                example_phrases=all_phrases,
+            )
+        )
 
     # Pull latest cached LLM reasoning and inject into items
     cache_result = await db.execute(

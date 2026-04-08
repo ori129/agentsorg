@@ -109,6 +109,7 @@ class SyncLogRead(BaseModel):
 
 class PortfolioTrendPoint(BaseModel):
     """One data point per pipeline run for the Portfolio Health timeline chart."""
+
     sync_log_id: int
     synced_at: datetime
     avg_quality_score: float | None
@@ -127,6 +128,7 @@ class PortfolioTrendPoint(BaseModel):
 
 class GptScoreHistoryPoint(BaseModel):
     """One per-asset score snapshot for the longitudinal asset journey view."""
+
     id: int
     gpt_id: str
     sync_log_id: int | None
@@ -197,6 +199,7 @@ class WorkflowAssetRef(BaseModel):
 
 class WorkflowCoverageItem(BaseModel):
     """One canonical business workflow and its coverage status."""
+
     name: str
     status: str  # "covered" | "ghost" | "intent_gap"
     asset_count: int
@@ -559,12 +562,14 @@ class ConversationOverview(BaseModel):
     active_users: int
     active_assets: int
     ghost_assets: int
-    top_assets: list[dict]           # [{asset_id, conversation_count, avg_messages}]
+    top_assets: list[dict]  # [{asset_id, conversation_count, avg_messages}]
     drift_alerts: int
     drift_asset_ids: list[str]
-    drift_details: list[dict]        # [{asset_id, drift_alert}]
-    ghost_asset_ids: list[str]       # IDs of ghost assets (zero conversations)
-    knowledge_gap_assets: list[dict] # [{asset_id, signals: [{topic, frequency, example_question}]}]
+    drift_details: list[dict]  # [{asset_id, drift_alert}]
+    ghost_asset_ids: list[str]  # IDs of ghost assets (zero conversations)
+    knowledge_gap_assets: list[
+        dict
+    ]  # [{asset_id, signals: [{topic, frequency, example_question}]}]
     date_range_days: int
 
 

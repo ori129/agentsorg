@@ -23,12 +23,20 @@ from app.services.prompts import P13_workflow_intelligence
 logger = logging.getLogger(__name__)
 
 _GENERIC_TOPICS = {
-    "general assistance", "summarization", "research", "documentation",
-    "help", "analysis", "questions", "information",
+    "general assistance",
+    "summarization",
+    "research",
+    "documentation",
+    "help",
+    "analysis",
+    "questions",
+    "information",
 }
 
 
-def _fuzzy_match(topic: str, workflow_names: list[str], threshold: float = 0.52) -> str | None:
+def _fuzzy_match(
+    topic: str, workflow_names: list[str], threshold: float = 0.52
+) -> str | None:
     topic_lower = topic.lower()
     best_ratio = 0.0
     best_match = None
@@ -46,7 +54,6 @@ def _fuzzy_match(topic: str, workflow_names: list[str], threshold: float = 0.52)
 
 async def _build_coverage_data(db: AsyncSession) -> list[dict]:
     """Aggregate workflow coverage from DB — same logic as the router endpoint."""
-    from app.schemas.schemas import WorkflowAssetRef  # local import to avoid circular
 
     # All GPTs with a business_process
     gpt_result = await db.execute(select(GPT).where(GPT.business_process.is_not(None)))
@@ -67,7 +74,7 @@ async def _build_coverage_data(db: AsyncSession) -> list[dict]:
     # Aggregate topics across all insights
     all_topics: dict[str, dict] = {}
     for insight in insights:
-        for t in (insight.top_topics or []):
+        for t in insight.top_topics or []:
             name = (t.get("topic") or "").strip()
             if not name:
                 continue
@@ -80,7 +87,7 @@ async def _build_coverage_data(db: AsyncSession) -> list[dict]:
                 }
             all_topics[name]["pct_sum"] += t.get("pct", 0.0)
             all_topics[name]["count"] += 1
-            for ph in (t.get("example_phrases") or []):
+            for ph in t.get("example_phrases") or []:
                 if ph not in all_topics[name]["example_phrases"]:
                     all_topics[name]["example_phrases"].append(ph)
 
@@ -91,11 +98,15 @@ async def _build_coverage_data(db: AsyncSession) -> list[dict]:
     for topic_name, topic_data in all_topics.items():
         matched = _fuzzy_match(topic_name, known_workflows)
         if matched:
-            workflow_intent_signals[matched].append({
-                "topic": topic_name,
-                "pct": round(topic_data["pct_sum"] / max(topic_data["count"], 1), 1),
-                "example_phrases": topic_data["example_phrases"][:3],
-            })
+            workflow_intent_signals[matched].append(
+                {
+                    "topic": topic_name,
+                    "pct": round(
+                        topic_data["pct_sum"] / max(topic_data["count"], 1), 1
+                    ),
+                    "example_phrases": topic_data["example_phrases"][:3],
+                }
+            )
         else:
             gap_topics[topic_name] = topic_data
 
@@ -103,39 +114,52 @@ async def _build_coverage_data(db: AsyncSession) -> list[dict]:
 
     for bp, assets in sorted(bp_to_assets.items()):
         total_convs = sum(g.conversation_count or 0 for g in assets)
-        items.append({
-            "name": bp,
-            "status": "covered" if total_convs > 0 else "ghost",
-            "asset_count": len(assets),
-            "conversation_count": total_convs,
-            "assets": [
-                {"id": g.id, "name": g.name, "conversation_count": g.conversation_count or 0, "quadrant_label": g.quadrant_label}
-                for g in sorted(assets, key=lambda g: g.conversation_count or 0, reverse=True)
-            ],
-            "intent_signals": workflow_intent_signals.get(bp, []),
-            "example_phrases": [],
-            "reasoning": None,
-            "priority_action": None,
-            "priority_level": None,
-        })
+        items.append(
+            {
+                "name": bp,
+                "status": "covered" if total_convs > 0 else "ghost",
+                "asset_count": len(assets),
+                "conversation_count": total_convs,
+                "assets": [
+                    {
+                        "id": g.id,
+                        "name": g.name,
+                        "conversation_count": g.conversation_count or 0,
+                        "quadrant_label": g.quadrant_label,
+                    }
+                    for g in sorted(
+                        assets, key=lambda g: g.conversation_count or 0, reverse=True
+                    )
+                ],
+                "intent_signals": workflow_intent_signals.get(bp, []),
+                "example_phrases": [],
+                "reasoning": None,
+                "priority_action": None,
+                "priority_level": None,
+            }
+        )
 
     for topic_name, topic_data in gap_topics.items():
         if topic_name.lower() in _GENERIC_TOPICS:
             continue
         avg_pct = round(topic_data["pct_sum"] / max(topic_data["count"], 1), 1)
         phrases = topic_data["example_phrases"][:4]
-        items.append({
-            "name": topic_name,
-            "status": "intent_gap",
-            "asset_count": 0,
-            "conversation_count": 0,
-            "assets": [],
-            "intent_signals": [{"topic": topic_name, "pct": avg_pct, "example_phrases": phrases}],
-            "example_phrases": phrases,
-            "reasoning": None,
-            "priority_action": None,
-            "priority_level": None,
-        })
+        items.append(
+            {
+                "name": topic_name,
+                "status": "intent_gap",
+                "asset_count": 0,
+                "conversation_count": 0,
+                "assets": [],
+                "intent_signals": [
+                    {"topic": topic_name, "pct": avg_pct, "example_phrases": phrases}
+                ],
+                "example_phrases": phrases,
+                "reasoning": None,
+                "priority_action": None,
+                "priority_level": None,
+            }
+        )
 
     status_order = {"covered": 0, "ghost": 1, "intent_gap": 2}
     items.sort(key=lambda x: (status_order[x["status"]], -x["conversation_count"]))
@@ -208,5 +232,7 @@ class WorkflowAnalyzer:
         db.add(cache_row)
         await db.commit()
 
-        logger.info(f"Workflow analysis: {len(items)} workflows analyzed, {tokens_in + tokens_out} tokens")
+        logger.info(
+            f"Workflow analysis: {len(items)} workflows analyzed, {tokens_in + tokens_out} tokens"
+        )
         return items, tokens_in, tokens_out

@@ -14,13 +14,11 @@ Tests for the Phase 1 (Monday Command Center) score assessment:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 
-from app.models.models import GPT, Configuration, SyncLog
+from app.models.models import GPT, Configuration
 from app.services.mock_score_assessor import MockScoreAssessor
 from app.services.score_assessor import needs_reassessment
 
@@ -66,7 +64,9 @@ def _make_config(db_session) -> Configuration:
 
 def test_TS1_mock_assessor_deterministic():
     """MockScoreAssessor returns identical results on repeated calls (seed=42)."""
-    gpt = _make_gpt(instructions="You are a detailed financial reporting assistant. " * 10)
+    gpt = _make_gpt(
+        instructions="You are a detailed financial reporting assistant. " * 10
+    )
 
     assessor = MockScoreAssessor()
     results_a = assessor.assess_batch([gpt])
@@ -131,6 +131,7 @@ def test_TS3b_needs_reassessment_fresh():
 def test_TS3c_needs_reassessment_stale_enrichment():
     """Asset re-enriched after scoring needs reassessment."""
     from datetime import timedelta
+
     now = datetime.now(timezone.utc)
     gpt = _make_gpt(
         scores_assessed_at=now - timedelta(hours=1),
@@ -142,6 +143,7 @@ def test_TS3c_needs_reassessment_stale_enrichment():
 def test_TS3d_needs_reassessment_new_conversation():
     """Asset with new conversation after scoring needs reassessment."""
     from datetime import timedelta
+
     now = datetime.now(timezone.utc)
     gpt = _make_gpt(
         scores_assessed_at=now - timedelta(hours=1),
@@ -157,11 +159,20 @@ def test_TS3d_needs_reassessment_new_conversation():
 def test_TS4_score_dict_has_all_required_keys():
     """MockScoreAssessor returns all required score fields."""
     required = {
-        "quality_score", "quality_score_rationale", "quality_main_strength",
-        "adoption_score", "adoption_score_rationale", "adoption_signal",
-        "risk_score", "risk_score_rationale", "risk_primary_driver",
-        "risk_urgency", "quadrant_label", "top_action",
-        "score_confidence", "scores_assessed_at",
+        "quality_score",
+        "quality_score_rationale",
+        "quality_main_strength",
+        "adoption_score",
+        "adoption_score_rationale",
+        "adoption_signal",
+        "risk_score",
+        "risk_score_rationale",
+        "risk_primary_driver",
+        "risk_urgency",
+        "quadrant_label",
+        "top_action",
+        "score_confidence",
+        "scores_assessed_at",
     }
     gpt = _make_gpt(sophistication_score=2, instructions="Medium instructions. " * 5)
     assessor = MockScoreAssessor()
@@ -190,7 +201,9 @@ def test_TS4b_quadrant_label_consistent_with_scores():
         elif q < 60 and a >= 60:
             assert label == "scaled_risk", f"Should be scaled_risk: q={q}, a={a}"
         else:
-            assert label == "retirement_candidate", f"Should be retirement_candidate: q={q}, a={a}"
+            assert label == "retirement_candidate", (
+                f"Should be retirement_candidate: q={q}, a={a}"
+            )
 
 
 # ── T_S5: /pipeline/gpts returns score fields ─────────────────────────────────
@@ -244,18 +257,48 @@ async def test_TS5_pipeline_gpts_returns_score_fields(client: AsyncClient, db_se
 async def test_TS6_pipeline_summary_quadrant_counts(client: AsyncClient, db_session):
     """GET /pipeline/summary includes scores_assessed, champions, hidden_gems, etc."""
     gpts = [
-        GPT(id="g-c1", name="Champion", quality_score=75.0, adoption_score=70.0,
-            quadrant_label="champion", asset_type="gpt", shared_user_count=0,
-            conversation_count=0, scores_assessed_at=datetime.now(timezone.utc)),
-        GPT(id="g-h1", name="Hidden Gem", quality_score=65.0, adoption_score=30.0,
-            quadrant_label="hidden_gem", asset_type="gpt", shared_user_count=0,
-            conversation_count=0, scores_assessed_at=datetime.now(timezone.utc)),
-        GPT(id="g-r1", name="Retirement", quality_score=20.0, adoption_score=5.0,
-            quadrant_label="retirement_candidate", asset_type="gpt", shared_user_count=0,
-            conversation_count=0, scores_assessed_at=datetime.now(timezone.utc)),
+        GPT(
+            id="g-c1",
+            name="Champion",
+            quality_score=75.0,
+            adoption_score=70.0,
+            quadrant_label="champion",
+            asset_type="gpt",
+            shared_user_count=0,
+            conversation_count=0,
+            scores_assessed_at=datetime.now(timezone.utc),
+        ),
+        GPT(
+            id="g-h1",
+            name="Hidden Gem",
+            quality_score=65.0,
+            adoption_score=30.0,
+            quadrant_label="hidden_gem",
+            asset_type="gpt",
+            shared_user_count=0,
+            conversation_count=0,
+            scores_assessed_at=datetime.now(timezone.utc),
+        ),
+        GPT(
+            id="g-r1",
+            name="Retirement",
+            quality_score=20.0,
+            adoption_score=5.0,
+            quadrant_label="retirement_candidate",
+            asset_type="gpt",
+            shared_user_count=0,
+            conversation_count=0,
+            scores_assessed_at=datetime.now(timezone.utc),
+        ),
         # Ghost: shared but 0 conversations
-        GPT(id="g-ghost", name="Ghost", quality_score=None, asset_type="gpt",
-            shared_user_count=10, conversation_count=0),
+        GPT(
+            id="g-ghost",
+            name="Ghost",
+            quality_score=None,
+            asset_type="gpt",
+            shared_user_count=10,
+            conversation_count=0,
+        ),
     ]
     for g in gpts:
         db_session.add(g)
@@ -292,9 +335,16 @@ async def test_TS8_recommendations_returns_data(client: AsyncClient, db_session)
     from app.models.models import WorkspaceRecommendation
 
     actions = [
-        {"priority": 1, "category": "risk", "title": "Fix risk",
-         "description": "Address top risk assets immediately.",
-         "impact": "high", "effort": "low", "asset_ids": [], "reasoning": "top risk"},
+        {
+            "priority": 1,
+            "category": "risk",
+            "title": "Fix risk",
+            "description": "Address top risk assets immediately.",
+            "impact": "high",
+            "effort": "low",
+            "asset_ids": [],
+            "reasoning": "top risk",
+        },
     ]
     rec = WorkspaceRecommendation(
         sync_log_id=None,

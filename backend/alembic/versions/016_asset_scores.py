@@ -18,12 +18,16 @@ depends_on = None
 def upgrade() -> None:
     # ── LLM-assessed composite scores on gpts ────────────────────────────────
     op.add_column("gpts", sa.Column("quality_score", sa.Float(), nullable=True))
-    op.add_column("gpts", sa.Column("quality_score_rationale", sa.Text(), nullable=True))
+    op.add_column(
+        "gpts", sa.Column("quality_score_rationale", sa.Text(), nullable=True)
+    )
     op.add_column("gpts", sa.Column("quality_main_strength", sa.Text(), nullable=True))
     op.add_column("gpts", sa.Column("quality_main_weakness", sa.Text(), nullable=True))
 
     op.add_column("gpts", sa.Column("adoption_score", sa.Float(), nullable=True))
-    op.add_column("gpts", sa.Column("adoption_score_rationale", sa.Text(), nullable=True))
+    op.add_column(
+        "gpts", sa.Column("adoption_score_rationale", sa.Text(), nullable=True)
+    )
     op.add_column("gpts", sa.Column("adoption_signal", sa.Text(), nullable=True))
     op.add_column("gpts", sa.Column("adoption_barrier", sa.Text(), nullable=True))
 
@@ -32,7 +36,9 @@ def upgrade() -> None:
     op.add_column("gpts", sa.Column("risk_primary_driver", sa.Text(), nullable=True))
     op.add_column(
         "gpts",
-        sa.Column("risk_urgency", sa.String(10), nullable=True),  # low|medium|high|critical
+        sa.Column(
+            "risk_urgency", sa.String(10), nullable=True
+        ),  # low|medium|high|critical
     )
 
     op.add_column(
@@ -41,7 +47,9 @@ def upgrade() -> None:
         # champion|hidden_gem|scaled_risk|retirement_candidate
     )
     op.add_column("gpts", sa.Column("top_action", sa.Text(), nullable=True))
-    op.add_column("gpts", sa.Column("score_confidence", sa.String(10), nullable=True))  # low|medium|high
+    op.add_column(
+        "gpts", sa.Column("score_confidence", sa.String(10), nullable=True)
+    )  # low|medium|high
     op.add_column(
         "gpts",
         sa.Column("scores_assessed_at", sa.DateTime(timezone=True), nullable=True),
@@ -115,10 +123,21 @@ def downgrade() -> None:
     op.drop_table("workspace_recommendations")
 
     for col in [
-        "scores_assessed_at", "score_confidence", "top_action", "quadrant_label",
-        "risk_urgency", "risk_primary_driver", "risk_score_rationale", "risk_score",
-        "adoption_barrier", "adoption_signal", "adoption_score_rationale", "adoption_score",
-        "quality_main_weakness", "quality_main_strength",
-        "quality_score_rationale", "quality_score",
+        "scores_assessed_at",
+        "score_confidence",
+        "top_action",
+        "quadrant_label",
+        "risk_urgency",
+        "risk_primary_driver",
+        "risk_score_rationale",
+        "risk_score",
+        "adoption_barrier",
+        "adoption_signal",
+        "adoption_score_rationale",
+        "adoption_score",
+        "quality_main_weakness",
+        "quality_main_strength",
+        "quality_score_rationale",
+        "quality_score",
     ]:
         op.drop_column("gpts", col)

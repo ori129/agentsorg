@@ -171,9 +171,13 @@ class GPT(Base):
     risk_score: Mapped[float | None] = mapped_column(Float)
     risk_score_rationale: Mapped[str | None] = mapped_column(Text)
     risk_primary_driver: Mapped[str | None] = mapped_column(Text)
-    risk_urgency: Mapped[str | None] = mapped_column(String(10))  # low|medium|high|critical
+    risk_urgency: Mapped[str | None] = mapped_column(
+        String(10)
+    )  # low|medium|high|critical
 
-    quadrant_label: Mapped[str | None] = mapped_column(String(30))  # champion|hidden_gem|scaled_risk|retirement_candidate
+    quadrant_label: Mapped[str | None] = mapped_column(
+        String(30)
+    )  # champion|hidden_gem|scaled_risk|retirement_candidate
     top_action: Mapped[str | None] = mapped_column(Text)
     score_confidence: Mapped[str | None] = mapped_column(String(10))  # low|medium|high
     scores_assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -409,7 +413,9 @@ class WorkspaceRecommendation(Base):
     sync_log_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("sync_logs.id", ondelete="SET NULL"), nullable=True
     )
-    recommendations: Mapped[list] = mapped_column(JSONB, nullable=False)  # list[PriorityAction]
+    recommendations: Mapped[list] = mapped_column(
+        JSONB, nullable=False
+    )  # list[PriorityAction]
     executive_summary: Mapped[str | None] = mapped_column(Text)
 
 
@@ -472,7 +478,9 @@ class WorkflowAnalysisCache(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     conversation_sync_log_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("conversation_sync_logs.id", ondelete="SET NULL"), nullable=True
+        Integer,
+        ForeignKey("conversation_sync_logs.id", ondelete="SET NULL"),
+        nullable=True,
     )
     # list[{name, status, reasoning, priority_action, priority_level}]
     workflow_items: Mapped[list] = mapped_column(JSONB, nullable=False)

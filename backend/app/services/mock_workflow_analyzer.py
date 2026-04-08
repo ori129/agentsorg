@@ -42,9 +42,18 @@ _COVERED_REASONING = {
 
 _COVERED_ACTIONS = {
     "Sales Pipeline Management": ("Monitor quality and refresh quarterly", "low"),
-    "HR Policy & Compliance": ("Expand scope to cover offboarding and IT access", "medium"),
-    "Meeting Documentation": ("Consolidate five assets into one org-wide standard", "high"),
-    "Customer Communication": ("Unify tone guidelines across department variants", "medium"),
+    "HR Policy & Compliance": (
+        "Expand scope to cover offboarding and IT access",
+        "medium",
+    ),
+    "Meeting Documentation": (
+        "Consolidate five assets into one org-wide standard",
+        "high",
+    ),
+    "Customer Communication": (
+        "Unify tone guidelines across department variants",
+        "medium",
+    ),
     "Data Analysis": ("Merge and add schema context files", "medium"),
 }
 
@@ -93,7 +102,10 @@ _GAP_ACTIONS = {
     "Performance Review Prep": ("Build a Performance Review Prep GPT", "medium"),
     "Vendor Contract Review": ("Build a Vendor Contract Review GPT", "high"),
     "IT Access Provisioning": ("Build an IT Access Request intake GPT", "medium"),
-    "Employee Offboarding Process": ("Build an Employee Offboarding checklist GPT", "medium"),
+    "Employee Offboarding Process": (
+        "Build an Employee Offboarding checklist GPT",
+        "medium",
+    ),
 }
 
 _DEFAULT_GAP_REASONING = (
@@ -140,7 +152,9 @@ class MockWorkflowAnalyzer:
                     item["priority_action"], item["priority_level"] = _GAP_ACTIONS[name]
                 else:
                     item["reasoning"] = _DEFAULT_GAP_REASONING.format(name=name)
-                    item["priority_action"], item["priority_level"] = _DEFAULT_GAP_ACTION
+                    item["priority_action"], item["priority_level"] = (
+                        _DEFAULT_GAP_ACTION
+                    )
 
         # Persist mock analysis
         cache_row = WorkflowAnalysisCache(

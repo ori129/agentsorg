@@ -25,11 +25,16 @@ import logging
 from datetime import datetime, timezone
 
 from openai import AsyncOpenAI
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.models import GPT, WorkspaceRecommendation
-from app.services.prompts import P01_asset_profile, P04_asset_scores, P06_priority_actions, P07_executive_summary
+from app.services.prompts import (
+    P01_asset_profile,
+    P04_asset_scores,
+    P06_priority_actions,
+    P07_executive_summary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +115,7 @@ class ScoreAssessor:
                 logger.warning(f"Score assessment failed for '{g.name}': {exc}")
                 return {}, 0, 0
 
-    async def assess_batch(
-        self, gpts: list[GPT]
-    ) -> tuple[list[dict], int, int]:
+    async def assess_batch(self, gpts: list[GPT]) -> tuple[list[dict], int, int]:
         """Assess all assets concurrently. Returns (results_list, total_pt, total_ct)."""
         tasks = [self.assess_asset(g) for g in gpts]
         raw = await asyncio.gather(*tasks, return_exceptions=True)
@@ -155,44 +158,51 @@ class ScoreAssessor:
         total = len(all_gpts)
 
         champions = sum(
-            1 for g in scored
+            1
+            for g in scored
             if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) >= 60
         )
         hidden_gems = sum(
-            1 for g in scored
+            1
+            for g in scored
             if (g.quality_score or 0) >= 60 and (g.adoption_score or 0) < 60
         )
         scaled_risk = sum(
-            1 for g in scored
+            1
+            for g in scored
             if (g.quality_score or 0) < 60 and (g.adoption_score or 0) >= 60
         )
         retirement = sum(
-            1 for g in scored
+            1
+            for g in scored
             if (g.quality_score or 0) < 60 and (g.adoption_score or 0) < 60
         )
         ghost = sum(
-            1 for g in all_gpts
+            1
+            for g in all_gpts
             if g.conversation_count == 0 and (g.shared_user_count or 0) >= 5
         )
-        high_risk = sum(
-            1 for g in scored if (g.risk_score or 0) >= 60
-        )
+        high_risk = sum(1 for g in scored if (g.risk_score or 0) >= 60)
         no_guardrails = sum(
-            1 for g in all_gpts
+            1
+            for g in all_gpts
             if g.risk_flags and "no_guardrails" in (g.risk_flags or [])
         )
 
         avg_quality = (
             sum(g.quality_score for g in scored if g.quality_score) / len(scored)
-            if scored else 0.0
+            if scored
+            else 0.0
         )
         avg_adoption = (
             sum(g.adoption_score for g in scored if g.adoption_score) / len(scored)
-            if scored else 0.0
+            if scored
+            else 0.0
         )
         avg_risk = (
             sum(g.risk_score for g in scored if g.risk_score) / len(scored)
-            if scored else 0.0
+            if scored
+            else 0.0
         )
 
         portfolio_summary = (
@@ -212,14 +222,17 @@ class ScoreAssessor:
                 -(g.risk_score or 0),
             ),
         )[:10]
-        top_assets_block = "\n".join(
-            f'  - "{g.name}" [{g.quadrant_label or "?"}] '
-            f'Q={g.quality_score:.0f} A={g.adoption_score:.0f} R={g.risk_score:.0f} '
-            f'convos={g.conversation_count} shared={g.shared_user_count}'
-            f'{" | " + g.top_action if g.top_action else ""}'
-            for g in attention_assets
-            if g.quality_score is not None
-        ) or "  (no scored assets yet)"
+        top_assets_block = (
+            "\n".join(
+                f'  - "{g.name}" [{g.quadrant_label or "?"}] '
+                f"Q={g.quality_score:.0f} A={g.adoption_score:.0f} R={g.risk_score:.0f} "
+                f"convos={g.conversation_count} shared={g.shared_user_count}"
+                f"{' | ' + g.top_action if g.top_action else ''}"
+                for g in attention_assets
+                if g.quality_score is not None
+            )
+            or "  (no scored assets yet)"
+        )
 
         learning_signals = "(No conversation data available)"
         # Could be extended with AssetUsageInsight data in future
@@ -277,9 +290,10 @@ class ScoreAssessor:
             logger.warning(f"Priority actions generation failed: {exc}")
 
         # P07 — Executive summary
-        top_actions_summary = "; ".join(
-            r.get("title", "") for r in recommendations[:3]
-        ) or "No actions generated"
+        top_actions_summary = (
+            "; ".join(r.get("title", "") for r in recommendations[:3])
+            or "No actions generated"
+        )
 
         pcts = {
             "champions_pct": round(champions / max(len(scored), 1) * 100),

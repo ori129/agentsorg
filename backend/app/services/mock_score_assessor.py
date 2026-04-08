@@ -152,7 +152,11 @@ class MockScoreAssessor:
             adoption_signal = f"Shared with {g.shared_user_count or rng.randint(5, 20)} users but limited conversation volume suggests discoverability gap."
             adoption_barrier = "Asset requires domain context that users may not know to provide — add conversation starters."
             risk_rationale = "Moderate risk profile with some business data referenced but primarily internal use."
-            risk_driver = "Business data mentioned in instructions without explicit handling guidelines." if risk > 35 else "No significant risk factors identified."
+            risk_driver = (
+                "Business data mentioned in instructions without explicit handling guidelines."
+                if risk > 35
+                else "No significant risk factors identified."
+            )
             risk_urgency = "medium" if risk > 40 else "low"
             top_action = "Add 3 conversation starters and promote to the intended audience team via a demo."
         else:
@@ -196,7 +200,11 @@ class MockScoreAssessor:
             "risk_urgency": risk_urgency,
             "quadrant_label": quadrant,
             "top_action": top_action,
-            "score_confidence": "high" if tier == 3 else "medium" if tier == 2 else "low",
+            "score_confidence": "high"
+            if tier == 3
+            else "medium"
+            if tier == 2
+            else "low",
             "scores_assessed_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -232,7 +240,9 @@ class MockScoreAssessor:
             src = pool if pool else fallback
             return [g.id for g in src[:n]]
 
-        scored = [g for g in gpts if g.quality_score is not None and g.risk_score is not None]
+        scored = [
+            g for g in gpts if g.quality_score is not None and g.risk_score is not None
+        ]
 
         # ── Action 1: Review Finance GPT guardrails ──────────────────────────
         # Finance category assets with highest risk scores (up to 3)
@@ -246,17 +256,22 @@ class MockScoreAssessor:
 
         # ── Action 2: Promote Contract Review GPT to Legal team ──────────────
         # Legal & Compliance hidden gems: high quality, low adoption
-        legal = [
-            g for g in scored
-            if "legal" in _cat(g) or "compliance" in _cat(g)
-        ]
+        legal = [g for g in scored if "legal" in _cat(g) or "compliance" in _cat(g)]
         legal_gems = sorted(
-            [g for g in legal if (g.quality_score or 0) >= 55 and (g.adoption_score or 100) < 50],
+            [
+                g
+                for g in legal
+                if (g.quality_score or 0) >= 55 and (g.adoption_score or 100) < 50
+            ],
             key=lambda g: g.quality_score,  # type: ignore[arg-type]
             reverse=True,
         )
         all_gems = sorted(
-            [g for g in scored if (g.quality_score or 0) >= 55 and (g.adoption_score or 100) < 50],
+            [
+                g
+                for g in scored
+                if (g.quality_score or 0) >= 55 and (g.adoption_score or 100) < 50
+            ],
             key=lambda g: g.quality_score,  # type: ignore[arg-type]
             reverse=True,
         )
@@ -274,7 +289,8 @@ class MockScoreAssessor:
         # ── Action 4: Audit 3 GPTs flagged for customer data exposure ────────
         # Customer Support or high-risk assets with medium+ urgency
         customer = [
-            g for g in scored
+            g
+            for g in scored
             if "customer" in _cat(g) or "support" in _cat(g) or "sales" in _cat(g)
         ]
         customer_risky = sorted(
@@ -286,14 +302,12 @@ class MockScoreAssessor:
 
         # ── Action 5: Run prompt engineering workshop for Marketing team ──────
         # Sales & Marketing assets with lowest quality scores
-        marketing = [
-            g for g in scored
-            if "sales" in _cat(g) or "marketing" in _cat(g)
-        ]
+        marketing = [g for g in scored if "sales" in _cat(g) or "marketing" in _cat(g)]
         marketing_low = sorted(marketing, key=lambda g: g.quality_score)  # type: ignore[arg-type]
         learning_ids = _pick(marketing_low, 4, all_by_quality_asc)
 
         import copy
+
         actions = copy.deepcopy(MOCK_PRIORITY_ACTIONS)
         actions[0]["asset_ids"] = risk_ids
         actions[1]["asset_ids"] = gem_ids

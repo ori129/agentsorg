@@ -16,11 +16,10 @@ import os
 from datetime import datetime, timezone
 
 import numpy as np
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import async_session, get_db
+from app.database import async_session
 from app.models.models import ClusterCache
 from app.schemas.schemas import (
     ClusterActionRequest,
@@ -66,8 +65,7 @@ async def _validate_cluster_with_openai(
 ) -> tuple[bool, str, float]:
     """Returns (is_genuine, explanation, confidence). Falls back gracefully on error."""
     tools_block = "\n".join(
-        f"- {name}: {fp or '(no fingerprint)'}"
-        for name, fp in zip(names, fingerprints)
+        f"- {name}: {fp or '(no fingerprint)'}" for name, fp in zip(names, fingerprints)
     )
     try:
         response = await client.chat.completions.create(
@@ -75,7 +73,12 @@ async def _validate_cluster_with_openai(
             max_tokens=256,
             messages=[
                 {"role": "system", "content": _VALIDATE_SYSTEM},
-                {"role": "user", "content": _VALIDATE_USER.format(n=len(names), tools_block=tools_block)},
+                {
+                    "role": "user",
+                    "content": _VALIDATE_USER.format(
+                        n=len(names), tools_block=tools_block
+                    ),
+                },
             ],
             response_format={"type": "json_object"},
         )
@@ -129,7 +132,9 @@ def _centroid_clusters(
     """
     N = len(embeddings)
     # Precompute full pairwise similarity matrix (N×N, float32 ~1MB for 512 assets)
-    sim_matrix = embeddings @ embeddings.T  # cosine sim since embeddings are L2-normalised
+    sim_matrix = (
+        embeddings @ embeddings.T
+    )  # cosine sim since embeddings are L2-normalised
 
     assigned: set[int] = set()
     clusters: list[set[int]] = []
@@ -141,7 +146,9 @@ def _centroid_clusters(
         # Initial candidates: all unassigned assets similar to seed
         row = sim_matrix[seed]
         candidates: set[int] = {
-            int(j) for j in np.where(row >= threshold)[0] if j != seed and j not in assigned
+            int(j)
+            for j in np.where(row >= threshold)[0]
+            if j != seed and j not in assigned
         }
 
         if not candidates:
@@ -204,7 +211,9 @@ async def _run_clustering_task(openai_api_key: str | None = None):
             gpt_primary_category = {r[0]: r[6] for r in rows}
             gpt_fingerprint = {r[0]: r[7] for r in rows}
 
-            fingerprint_coverage = sum(1 for v in gpt_fingerprint.values() if v) / max(len(ids), 1)
+            fingerprint_coverage = sum(1 for v in gpt_fingerprint.values() if v) / max(
+                len(ids), 1
+            )
             logger.info(f"Fingerprint coverage: {fingerprint_coverage:.0%}")
 
             # Parse embeddings (pgvector returns as JSON string "[0.1,0.2,...]")
@@ -219,6 +228,7 @@ async def _run_clustering_task(openai_api_key: str | None = None):
 
             # Group by primary_category, cluster within each bucket
             from collections import defaultdict
+
             category_buckets: dict[str, list[int]] = defaultdict(list)
             for i, asset_id in enumerate(ids):
                 cat = gpt_primary_category.get(asset_id) or "Uncategorized"
@@ -229,13 +239,17 @@ async def _run_clustering_task(openai_api_key: str | None = None):
                 if len(bucket_indices) < 2:
                     continue
                 bucket_embeddings = embeddings[bucket_indices]
-                local_to_global = {local: global_ for local, global_ in enumerate(bucket_indices)}
+                local_to_global = {
+                    local: global_ for local, global_ in enumerate(bucket_indices)
+                }
                 seed_order = sorted(
                     range(len(bucket_indices)),
                     key=lambda i: gpt_sophistication.get(ids[bucket_indices[i]], 0),
                     reverse=True,
                 )
-                local_clusters = _centroid_clusters(bucket_embeddings, SIMILARITY_THRESHOLD, seed_order)
+                local_clusters = _centroid_clusters(
+                    bucket_embeddings, SIMILARITY_THRESHOLD, seed_order
+                )
                 for local_cluster in local_clusters:
                     all_clusters.append({local_to_global[i] for i in local_cluster})
 
@@ -246,46 +260,64 @@ async def _run_clustering_task(openai_api_key: str | None = None):
                 c_indices = list(cluster_set)
                 c_ids = [ids[i] for i in c_indices]
                 n = len(c_ids)
-                candidate_id = max(c_ids, key=lambda cid: gpt_sophistication.get(cid, 0))
+                candidate_id = max(
+                    c_ids, key=lambda cid: gpt_sophistication.get(cid, 0)
+                )
                 c_ids.remove(candidate_id)
                 c_ids.insert(0, candidate_id)
                 c_indices = [ids.index(cid) for cid in c_ids]
                 c_names = [id_to_name.get(cid, cid) for cid in c_ids]
-                bp_values = [gpt_business_process[cid] for cid in c_ids if gpt_business_process.get(cid)]
+                bp_values = [
+                    gpt_business_process[cid]
+                    for cid in c_ids
+                    if gpt_business_process.get(cid)
+                ]
                 business_process = _majority(bp_values)
                 theme = (
                     business_process
-                    or _majority([gpt_primary_category[cid] for cid in c_ids if gpt_primary_category.get(cid)])
+                    or _majority(
+                        [
+                            gpt_primary_category[cid]
+                            for cid in c_ids
+                            if gpt_primary_category.get(cid)
+                        ]
+                    )
                     or "similar purpose assets"
                 )
-                domains = list({
-                    _extract_domain(gpt_owner_email.get(cid))
-                    for cid in c_ids
-                    if _extract_domain(gpt_owner_email.get(cid))
-                })[:5]
+                domains = list(
+                    {
+                        _extract_domain(gpt_owner_email.get(cid))
+                        for cid in c_ids
+                        if _extract_domain(gpt_owner_email.get(cid))
+                    }
+                )[:5]
                 sub = embeddings[c_indices]
                 pairwise = sub @ sub.T
                 mask = np.triu(np.ones_like(pairwise, dtype=bool), k=1)
-                avg_sim = float(pairwise[mask].mean()) if mask.any() else SIMILARITY_THRESHOLD
+                avg_sim = (
+                    float(pairwise[mask].mean()) if mask.any() else SIMILARITY_THRESHOLD
+                )
                 if n >= 5:
                     recommended_action = "certify as org standard"
                 elif n >= 3:
                     recommended_action = "review and consolidate"
                 else:
                     recommended_action = "assess and decide"
-                candidate_groups.append({
-                    "cluster_id": _make_cluster_id(c_ids),
-                    "c_ids": c_ids,
-                    "c_names": c_names,
-                    "c_indices": c_indices,
-                    "n": n,
-                    "candidate_id": candidate_id,
-                    "business_process": business_process,
-                    "theme": theme,
-                    "domains": domains,
-                    "avg_sim": avg_sim,
-                    "recommended_action": recommended_action,
-                })
+                candidate_groups.append(
+                    {
+                        "cluster_id": _make_cluster_id(c_ids),
+                        "c_ids": c_ids,
+                        "c_names": c_names,
+                        "c_indices": c_indices,
+                        "n": n,
+                        "candidate_id": candidate_id,
+                        "business_process": business_process,
+                        "theme": theme,
+                        "domains": domains,
+                        "avg_sim": avg_sim,
+                        "recommended_action": recommended_action,
+                    }
+                )
 
             # OpenAI validation — parallel calls per cluster
             key = openai_api_key or os.environ.get("OPENAI_API_KEY")
@@ -294,6 +326,7 @@ async def _run_clustering_task(openai_api_key: str | None = None):
             if openai_available:
                 try:
                     from openai import AsyncOpenAI
+
                     openai_client = AsyncOpenAI(api_key=key)
                 except ImportError:
                     openai_available = False
@@ -302,7 +335,9 @@ async def _run_clustering_task(openai_api_key: str | None = None):
                 fps = [gpt_fingerprint.get(cid) for cid in cg["c_ids"]]
                 if not openai_client:
                     # Fingerprint-based fallback: reject if assets have diverse fingerprints
-                    non_null = [fp for fp in fps if fp and "Experimental placeholder" not in fp]
+                    non_null = [
+                        fp for fp in fps if fp and "Experimental placeholder" not in fp
+                    ]
                     if non_null:
                         unique_fps = len(set(non_null))
                         if unique_fps == 1:
@@ -314,20 +349,37 @@ async def _run_clustering_task(openai_api_key: str | None = None):
                         if majority_count / len(non_null) >= 0.6:
                             fp_text = majority_fp.lower()
                             explanation = f"Multiple employees independently built tools that {fp_text}"
-                            return True, explanation, round(majority_count / len(non_null) * 0.98, 2)
+                            return (
+                                True,
+                                explanation,
+                                round(majority_count / len(non_null) * 0.98, 2),
+                            )
                         return False, "", round(min(0.99, cg["avg_sim"]), 2)
                     return True, "", round(min(0.99, cg["avg_sim"]), 2)
-                return await _validate_cluster_with_openai(cg["c_names"], fps, openai_client)
+                return await _validate_cluster_with_openai(
+                    cg["c_names"], fps, openai_client
+                )
 
-            validation_results = await asyncio.gather(*[_validate(cg) for cg in candidate_groups])
+            validation_results = await asyncio.gather(
+                *[_validate(cg) for cg in candidate_groups]
+            )
 
             groups = []
-            for cg, (is_genuine, explanation, openai_confidence) in zip(candidate_groups, validation_results):
+            for cg, (is_genuine, explanation, openai_confidence) in zip(
+                candidate_groups, validation_results
+            ):
                 if not is_genuine:
-                    validator = "OpenAI" if openai_available else "fingerprint validator"
-                    logger.info(f"{validator} rejected cluster '{cg['theme']}' ({cg['n']} assets) as non-duplicate")
+                    validator = (
+                        "OpenAI" if openai_available else "fingerprint validator"
+                    )
+                    logger.info(
+                        f"{validator} rejected cluster '{cg['theme']}' ({cg['n']} assets) as non-duplicate"
+                    )
                     continue
-                confidence = round(openai_confidence if openai_available else min(0.99, cg["avg_sim"]), 2)
+                confidence = round(
+                    openai_confidence if openai_available else min(0.99, cg["avg_sim"]),
+                    2,
+                )
                 groups.append(
                     ClusterGroup(
                         cluster_id=cg["cluster_id"],
@@ -348,7 +400,9 @@ async def _run_clustering_task(openai_api_key: str | None = None):
             _clustering_results = groups
             _clustering_status["status"] = "completed"
             validator = "OpenAI" if openai_available else "fingerprint validator"
-            logger.info(f"Clustering complete: {len(groups)} opportunities ({len(candidate_groups) - len(groups)} rejected by {validator})")
+            logger.info(
+                f"Clustering complete: {len(groups)} opportunities ({len(candidate_groups) - len(groups)} rejected by {validator})"
+            )
 
             # Persist to DB so results survive container restarts
             await _persist_cluster_results(groups)
@@ -389,7 +443,9 @@ async def _load_cluster_results_from_db() -> None:
                     for d in row.decisions:
                         if isinstance(d, dict) and "cluster_id" in d:
                             _cluster_decisions[d["cluster_id"]] = d
-                logger.info(f"Loaded {len(_clustering_results)} cluster results from DB")
+                logger.info(
+                    f"Loaded {len(_clustering_results)} cluster results from DB"
+                )
     except Exception as e:
         logger.warning(f"Failed to load cluster results from DB: {e}")
 

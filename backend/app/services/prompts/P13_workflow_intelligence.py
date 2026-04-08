@@ -53,7 +53,8 @@ def build_workflow_block(workflows: list[dict]) -> str:
         for w in covered:
             asset_names = ", ".join(a["name"] for a in w.get("assets", [])[:3])
             signals = ", ".join(
-                f"{s['topic']} ({s['pct']:.0f}%)" for s in w.get("intent_signals", [])[:3]
+                f"{s['topic']} ({s['pct']:.0f}%)"
+                for s in w.get("intent_signals", [])[:3]
             )
             lines.append(
                 f"  - {w['name']}: {w['asset_count']} asset(s), {w['conversation_count']} conversations"
@@ -67,7 +68,9 @@ def build_workflow_block(workflows: list[dict]) -> str:
         lines.append("\nGHOST COVERAGE (assets exist, zero conversation uptake):")
         for w in ghost:
             asset_names = ", ".join(a["name"] for a in w.get("assets", [])[:3])
-            lines.append(f"  - {w['name']}: {w['asset_count']} asset(s), 0 conversations")
+            lines.append(
+                f"  - {w['name']}: {w['asset_count']} asset(s), 0 conversations"
+            )
             if asset_names:
                 lines.append(f"    Assets: {asset_names}")
 
@@ -76,8 +79,12 @@ def build_workflow_block(workflows: list[dict]) -> str:
         for w in gaps:
             phrases = w.get("example_phrases", [])[:3]
             pct = w["intent_signals"][0]["pct"] if w.get("intent_signals") else 0
-            lines.append(f"  - {w['name']}: {pct:.0f}% of relevant conversations touch this topic")
+            lines.append(
+                f"  - {w['name']}: {pct:.0f}% of relevant conversations touch this topic"
+            )
             if phrases:
-                lines.append(f"    Example phrases: {', '.join(f'\"{p}\"' for p in phrases)}")
+                lines.append(
+                    f"    Example phrases: {', '.join(f'"{p}"' for p in phrases)}"
+                )
 
     return "\n".join(lines)

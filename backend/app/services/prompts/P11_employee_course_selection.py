@@ -7,7 +7,9 @@ Model: gpt-4o-mini (Step 2 of 2, after P10)
 Reasoning must reference specific GPT names and scores from the builder's portfolio.
 """
 
-SYSTEM = "You are an L&D coach selecting personalised training courses for an AI builder."
+SYSTEM = (
+    "You are an L&D coach selecting personalised training courses for an AI builder."
+)
 
 USER = """You are an L&D coach. Select the most relevant courses for this builder.
 Domain: {domain_ctx}. Reasoning must reference specific GPT names and scores.
