@@ -6,6 +6,7 @@ import GPTDrawer, { type DrawerFilter } from "../leader/GPTDrawer";
 import AssetTypeBadge from "../ui/AssetTypeBadge";
 import { useAuth } from "../../contexts/AuthContext";
 import { useUserInsights } from "../../hooks/useConversations";
+import { api, SESSION_KEY } from "../../api/client";
 
 type SortOption = "shared" | "newest" | "alpha";
 type ViewMode = "grid" | "orgchart" | "tree";
@@ -507,7 +508,10 @@ export default function Portal() {
     debounceRef.current = setTimeout(async () => {
       setSearchLoading(true);
       try {
-        const res = await fetch(`/api/v1/pipeline/search?q=${encodeURIComponent(trimmed)}`);
+        const token = localStorage.getItem(SESSION_KEY);
+        const res = await fetch(`/api/v1/pipeline/search?q=${encodeURIComponent(trimmed)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
         if (res.ok) setSearchResults(await res.json());
       } catch { setSearchResults(null); }
       finally { setSearchLoading(false); }

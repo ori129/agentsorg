@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ClusterGroup, GPTItem } from "../../types";
+import { api } from "../../api/client";
 import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
 import type { LeaderPage } from "./Sidebar";
 import { useDemoState } from "../../hooks/useDemo";
@@ -290,7 +291,7 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
 
   const { data: clusters = [] } = useQuery<ClusterGroup[]>({
     queryKey: ["clustering-results"],
-    queryFn: () => fetch("/api/v1/clustering/results").then((r) => r.json()),
+    queryFn: () => api.getClusteringResults(),
     staleTime: 60_000,
   });
 

@@ -1,8 +1,14 @@
 const BASE = "/api/v1/learning";
+const SESSION_KEY = "session_token";
+
+function authHeader(): Record<string, string> {
+  const token = localStorage.getItem(SESSION_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: { "Content-Type": "application/json", ...authHeader(), ...options?.headers },
     ...options,
   });
   if (!res.ok) {
@@ -111,9 +117,11 @@ export const customCoursesApi = {
   upload: (file: File): Promise<CustomCourseUploadResult> => {
     const fd = new FormData();
     fd.append("file", file);
-    return fetch(`${BASE}/custom-courses/upload`, { method: "POST", body: fd }).then((r) =>
-      r.json()
-    );
+    return fetch(`${BASE}/custom-courses/upload`, {
+      method: "POST",
+      headers: authHeader(),
+      body: fd,
+    }).then((r) => r.json());
   },
   delete: (id: number) => req<void>(`/custom-courses/${id}`, { method: "DELETE" }),
 };
