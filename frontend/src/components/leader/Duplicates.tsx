@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import type { ClusterGroup, GPTItem } from "../../types";
 import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
 import AssetTypeBadge from "../ui/AssetTypeBadge";
-
-const API = "/api/v1/clustering";
+import { api } from "../../api/client";
 
 interface BuildSignalsProps { gpts: GPTItem[] }
 
@@ -17,21 +16,15 @@ export default function Duplicates({ gpts }: BuildSignalsProps) {
     setStatus("running");
     setError(null);
     try {
-      const runRes = await fetch(`${API}/run`, { method: "POST" });
-      if (!runRes.ok) {
-        const body = await runRes.json().catch(() => ({}));
-        throw new Error(body.detail || "Failed to start signal analysis. Make sure the pipeline has run and assets are loaded.");
-      }
+      await api.runClustering();
 
       // Poll for results
       let attempts = 0;
       const poll = async () => {
         attempts++;
-        const statusRes = await fetch(`${API}/status`);
-        const statusData = await statusRes.json();
+        const statusData = await api.getClusteringStatus();
         if (statusData.status === "completed") {
-          const resultsRes = await fetch(`${API}/results`);
-          const results = await resultsRes.json();
+          const results = await api.getClusteringResults();
           setClusters(results);
           setStatus("completed");
         } else if (statusData.status === "running" && attempts < 60) {

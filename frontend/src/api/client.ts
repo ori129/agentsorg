@@ -2,6 +2,7 @@ import type {
   AuthStatus,
   Category,
   CheckEmailResponse,
+  ClusterGroup,
   Configuration,
   DemoState,
   GPTItem,
@@ -172,6 +173,13 @@ export const api = {
   getPortfolioTrend: () => request<PortfolioTrendPoint[]>("/pipeline/trend"),
   getGptScoreHistory: (gptId: string) =>
     request<GptScoreHistoryPoint[]>(`/pipeline/gpt/${encodeURIComponent(gptId)}/history`),
+
+  // ------------------------------------------------------------------
+  // Clustering
+  // ------------------------------------------------------------------
+  getClusteringStatus: () => request<{ status: string }>("/clustering/status"),
+  getClusteringResults: () => request<ClusterGroup[]>("/clustering/results"),
+  runClustering: () => request<{ message: string }>("/clustering/run", { method: "POST" }),
 
   // ------------------------------------------------------------------
   // Admin

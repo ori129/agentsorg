@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ClusterGroup, GPTItem } from "../../types";
 import GPTDrawer, { type DrawerFilter } from "./GPTDrawer";
 import AssetTypeBadge from "../ui/AssetTypeBadge";
-
-const API = "/api/v1/clustering";
+import { api } from "../../api/client";
 
 function tier(n: number): { label: string; color: string; bg: string; border: string } {
   if (n >= 5) return { label: "High Signal", color: "#10b981", bg: "#0a1a0f", border: "#14532d" };
@@ -25,15 +24,13 @@ export default function StandardizationOpportunities({ gpts }: StandardizationOp
     let cancelled = false;
     const load = async () => {
       try {
-        const statusRes = await fetch(`${API}/status`);
-        const statusData = await statusRes.json();
+        const statusData = await api.getClusteringStatus();
         if (statusData.status === "running") {
           setStatus("running");
           setTimeout(load, 2000);
           return;
         }
-        const resultsRes = await fetch(`${API}/results`);
-        const results: ClusterGroup[] = await resultsRes.json();
+        const results = await api.getClusteringResults();
         if (cancelled) return;
         setClusters(results);
         if (results.length > 0) setSelected(results[0].cluster_id);
