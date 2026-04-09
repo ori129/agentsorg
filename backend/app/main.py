@@ -3,8 +3,12 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 
 from app.config import settings
@@ -29,6 +33,8 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+limiter = Limiter(key_func=get_remote_address)
 
 _AUTO_SYNC_INTERVAL_CHECK = 3600  # check once per hour
 
@@ -137,6 +143,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="AgentsOrg", version="1.0.0", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

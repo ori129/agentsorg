@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth_deps import require_system_admin
+from app.auth_deps import require_auth, require_system_admin
 from app.database import get_db
 from app.encryption import decrypt, encrypt, mask
 from app.models.models import Configuration
@@ -27,7 +27,11 @@ async def get_or_create_config(db: AsyncSession) -> Configuration:
 
 
 @router.get("/config", response_model=ConfigurationRead)
-async def get_config(db: AsyncSession = Depends(get_db)):
+async def get_config(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     config = await get_or_create_config(db)
     return ConfigurationRead(
         id=config.id,

@@ -160,8 +160,12 @@ async def start_conversation_pipeline(
 
 
 @router.get("/status")
-async def get_status():
+async def get_status(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
     """Return current pipeline run status."""
+    await require_auth(authorization, db)
     return get_pipeline_state()
 
 
@@ -171,8 +175,10 @@ async def get_status():
 @router.get("/history", response_model=list[ConversationSyncLogRead])
 async def get_history(
     limit: int = Query(20, ge=1, le=100),
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
+    await require_auth(authorization, db)
     result = await db.execute(
         select(ConversationSyncLog)
         .order_by(ConversationSyncLog.started_at.desc())
@@ -189,9 +195,11 @@ async def get_estimate(
     date_range_days: int = Query(30, ge=1, le=90),
     privacy_level: int = Query(3, ge=0, le=3),
     asset_ids: list[str] | None = Query(default=None),
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
     """Return cost estimate before running the pipeline."""
+    await require_auth(authorization, db)
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=date_range_days)
 
@@ -273,9 +281,11 @@ async def get_estimate(
 @router.get("/asset/{asset_id}", response_model=AssetUsageInsightRead | None)
 async def get_asset_insight(
     asset_id: str,
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
     """Return the most recent AssetUsageInsight for an asset."""
+    await require_auth(authorization, db)
     result = await db.execute(
         select(AssetUsageInsight)
         .where(AssetUsageInsight.asset_id == asset_id)

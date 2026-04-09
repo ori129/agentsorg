@@ -2,14 +2,14 @@ import logging
 import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth_deps import require_auth, require_system_admin
 from app.auth_utils import hash_password
 from app.database import get_db
 from app.encryption import decrypt, mask_email
-from app.models.models import Configuration, WorkspaceUser
+from app.models.models import Configuration, LoginSession, WorkspaceUser
 from app.schemas.schemas import (
     InviteUserRequest,
     InviteUserResponse,
@@ -80,7 +80,11 @@ async def invite_user(
 
 
 @router.post("/users/import", response_model=UserImportResult)
-async def import_users(db: AsyncSession = Depends(get_db)):
+async def import_users(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     config = await db.get(Configuration, 1)
     if not config or not config.workspace_id:
         raise HTTPException(
@@ -235,6 +239,8 @@ async def reset_user_password(
     temp_password = secrets.token_urlsafe(12)
     user.password_hash = hash_password(temp_password)
     user.password_temp = True
+    # Revoke all existing sessions so they must log in with the new password
+    await db.execute(delete(LoginSession).where(LoginSession.user_id == user_id))
     await db.commit()
     logger.info(f"Password reset for {mask_email(user.email)} by {mask_email(caller.email)}")
     return ResetPasswordResponse(temp_password=temp_password)

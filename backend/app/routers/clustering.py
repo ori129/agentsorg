@@ -511,6 +511,10 @@ async def save_cluster_action(
 
 
 @router.get("/decisions")
-async def get_decisions() -> list[ClusterActionResponse]:
+async def get_decisions(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> list[ClusterActionResponse]:
     """Return all saved cluster decisions."""
+    await require_auth(authorization, db)
     return [ClusterActionResponse(**d) for d in _cluster_decisions.values()]

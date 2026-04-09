@@ -27,11 +27,12 @@ from urllib.parse import urlparse
 import csv
 import io
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth_deps import require_auth, require_system_admin
 from app.database import get_db
 from app.encryption import decrypt
 from app.models.models import (
@@ -300,7 +301,11 @@ def _builder_scores(gpts: list[GPT]) -> BuilderRecognition:
 
 
 @router.get("/recognition", response_model=list[BuilderRecognition])
-async def get_recognition(db: AsyncSession = Depends(get_db)):
+async def get_recognition(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     result = await db.execute(select(GPT).where(GPT.owner_email.isnot(None)))
     gpts = result.scalars().all()
 
@@ -359,7 +364,11 @@ _DEMO_ORG_REPORT = OrgLearningReport(
 
 
 @router.post("/recommend-org", response_model=OrgLearningReport)
-async def recommend_org(db: AsyncSession = Depends(get_db)):
+async def recommend_org(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     from app.services.demo_state import get_demo_state
 
     if get_demo_state()["enabled"]:
@@ -576,7 +585,12 @@ Top business processes: {", ".join(f"{bp} ({cnt})" for bp, cnt in top_processes)
 
 
 @router.post("/recommend-employee", response_model=EmployeeLearningReport)
-async def recommend_employee(body: dict, db: AsyncSession = Depends(get_db)):
+async def recommend_employee(
+    body: dict,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     email = body.get("email", "").strip()
     if not email:
         raise HTTPException(status_code=400, detail="email is required")
@@ -764,7 +778,11 @@ GPTs with high adoption friction (≥7): {len(high_friction)} of {len(enriched)}
 
 
 @router.get("/custom-courses", response_model=list[CustomCourseRead])
-async def list_custom_courses(db: AsyncSession = Depends(get_db)):
+async def list_custom_courses(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     result = await db.execute(
         select(CustomCourse).order_by(CustomCourse.uploaded_at.desc())
     )
@@ -773,8 +791,11 @@ async def list_custom_courses(db: AsyncSession = Depends(get_db)):
 
 @router.post("/custom-courses/upload", response_model=CustomCourseUploadResult)
 async def upload_custom_courses(
-    file: UploadFile = File(...), db: AsyncSession = Depends(get_db)
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
 ):
+    await require_system_admin(authorization, db)
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     content = (await file.read()).decode("utf-8", errors="replace")
@@ -815,7 +836,12 @@ async def upload_custom_courses(
 
 
 @router.delete("/custom-courses/{course_id}", status_code=204)
-async def delete_custom_course(course_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_custom_course(
+    course_id: int,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_system_admin(authorization, db)
     result = await db.execute(select(CustomCourse).where(CustomCourse.id == course_id))
     course = result.scalar_one_or_none()
     if not course:
@@ -851,14 +877,23 @@ def _with_rels():
 
 
 @router.get("/workshops", response_model=list[WorkshopRead])
-async def list_workshops(db: AsyncSession = Depends(get_db)):
+async def list_workshops(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     result = await db.execute(_with_rels().order_by(Workshop.event_date.desc()))
     workshops = result.scalars().all()
     return [_workshop_to_read(w) for w in workshops]
 
 
 @router.post("/workshops", response_model=WorkshopRead, status_code=201)
-async def create_workshop(body: WorkshopCreate, db: AsyncSession = Depends(get_db)):
+async def create_workshop(
+    body: WorkshopCreate,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     w = Workshop(**body.model_dump())
     db.add(w)
     await db.commit()
@@ -869,8 +904,12 @@ async def create_workshop(body: WorkshopCreate, db: AsyncSession = Depends(get_d
 
 @router.put("/workshops/{workshop_id}", response_model=WorkshopRead)
 async def update_workshop(
-    workshop_id: int, body: WorkshopCreate, db: AsyncSession = Depends(get_db)
+    workshop_id: int,
+    body: WorkshopCreate,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
 ):
+    await require_auth(authorization, db)
     result = await db.execute(_with_rels().where(Workshop.id == workshop_id))
     w = result.scalar_one_or_none()
     if not w:
@@ -884,7 +923,12 @@ async def update_workshop(
 
 
 @router.delete("/workshops/{workshop_id}", status_code=204)
-async def delete_workshop(workshop_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_workshop(
+    workshop_id: int,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     result = await db.execute(select(Workshop).where(Workshop.id == workshop_id))
     w = result.scalar_one_or_none()
     if not w:
@@ -900,8 +944,12 @@ async def delete_workshop(workshop_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/workshops/{workshop_id}/participants", status_code=201)
 async def add_participant(
-    workshop_id: int, body: dict, db: AsyncSession = Depends(get_db)
+    workshop_id: int,
+    body: dict,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
 ):
+    await require_auth(authorization, db)
     email = body.get("email", "").strip()
     if not email:
         raise HTTPException(status_code=400, detail="email is required")
@@ -919,8 +967,12 @@ async def add_participant(
 
 @router.delete("/workshops/{workshop_id}/participants/{email}", status_code=204)
 async def remove_participant(
-    workshop_id: int, email: str, db: AsyncSession = Depends(get_db)
+    workshop_id: int,
+    email: str,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
 ):
+    await require_auth(authorization, db)
     result = await db.execute(
         select(WorkshopParticipant).where(
             WorkshopParticipant.workshop_id == workshop_id,
@@ -939,7 +991,13 @@ async def remove_participant(
 
 
 @router.post("/workshops/{workshop_id}/tag-gpt", status_code=201)
-async def tag_gpt(workshop_id: int, body: dict, db: AsyncSession = Depends(get_db)):
+async def tag_gpt(
+    workshop_id: int,
+    body: dict,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     gpt_id = body.get("gpt_id", "").strip()
     if not gpt_id:
         raise HTTPException(status_code=400, detail="gpt_id is required")
@@ -956,7 +1014,13 @@ async def tag_gpt(workshop_id: int, body: dict, db: AsyncSession = Depends(get_d
 
 
 @router.delete("/workshops/{workshop_id}/tag-gpt/{gpt_id}", status_code=204)
-async def untag_gpt(workshop_id: int, gpt_id: str, db: AsyncSession = Depends(get_db)):
+async def untag_gpt(
+    workshop_id: int,
+    gpt_id: str,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     result = await db.execute(
         select(WorkshopGPTTag).where(
             WorkshopGPTTag.workshop_id == workshop_id,
@@ -1020,7 +1084,12 @@ def _demo_workshop_impact(
 
 
 @router.get("/workshops/{workshop_id}/impact", response_model=WorkshopImpact)
-async def get_workshop_impact(workshop_id: int, db: AsyncSession = Depends(get_db)):
+async def get_workshop_impact(
+    workshop_id: int,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    await require_auth(authorization, db)
     result = await db.execute(_with_rels().where(Workshop.id == workshop_id))
     w = result.scalar_one_or_none()
     if not w:

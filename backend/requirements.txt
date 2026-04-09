@@ -12,3 +12,4 @@ python-multipart==0.0.22
 bcrypt==5.0.0
 numpy>=1.26
 anthropic>=0.40.0
+slowapi==0.1.9

@@ -3,8 +3,10 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,6 +26,7 @@ from app.schemas.schemas import (
 
 router = APIRouter(tags=["auth"])
 logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_remote_address)
 
 SESSION_TTL_DAYS = 30
 
@@ -112,7 +115,8 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/check-email", response_model=CheckEmailResponse)
-async def check_email(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def check_email(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(WorkspaceUser).where(WorkspaceUser.email == body.email.strip().lower())
     )
@@ -123,7 +127,8 @@ async def check_email(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/auth/login", response_model=LoginResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(WorkspaceUser).where(WorkspaceUser.email == body.email.strip().lower())
     )
@@ -204,6 +209,13 @@ async def change_password(
             status_code=500, detail="Password change failed — contact admin"
         )
     user.password_temp = False
+    # Revoke all other sessions so the new password takes effect everywhere
+    await db.execute(
+        delete(LoginSession).where(
+            LoginSession.user_id == user.id,
+            LoginSession.token != session.token,
+        )
+    )
     await db.commit()
     await db.refresh(user)
     return user
