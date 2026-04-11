@@ -216,7 +216,8 @@ async def test_TP9_projects_fetch_failure_does_not_abort_gpts(client: AsyncClien
 
 
 @pytest.mark.asyncio
-async def test_TP10_pipeline_api_returns_asset_type(client: AsyncClient):
+async def test_TP10_pipeline_api_returns_asset_type(registered_client: AsyncClient):
+    client = registered_client
     """
     After running the demo pipeline, GET /pipeline/gpts returns items
     with asset_type field present and containing 'gpt' or 'project'.

@@ -14,12 +14,13 @@ import json
 import logging
 import os
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth_deps import require_auth, require_system_admin
+from app.auth_deps import require_auth, require_leader, require_system_admin
 from app.database import async_session, get_db
+from app.models.models import WorkspaceUser
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/fingerprint", tags=["fingerprint"])
@@ -159,11 +160,10 @@ async def _run_generation(force: bool):
 @router.post("/generate")
 async def generate_fingerprints(
     force: bool = Query(default=False),
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Generate purpose fingerprints for all assets using Claude haiku."""
-    await require_system_admin(authorization, db)
     if _generation_status["running"]:
         return {"message": "Already running", **_generation_status}
     asyncio.create_task(_run_generation(force))
@@ -172,19 +172,15 @@ async def generate_fingerprints(
 
 @router.get("/status")
 async def fingerprint_status(
-    authorization: str | None = Header(default=None),
-    db: AsyncSession = Depends(get_db),
+    _: WorkspaceUser = Depends(require_leader),
 ):
-    await require_auth(authorization, db)
     return _generation_status
 
 
 @router.get("/coverage")
 async def fingerprint_coverage(
-    authorization: str | None = Header(default=None),
-    db: AsyncSession = Depends(get_db),
+    _: WorkspaceUser = Depends(require_leader),
 ):
-    await require_auth(authorization, db)
     async with async_session() as db:
         result = await db.execute(
             text("SELECT COUNT(*) total, COUNT(purpose_fingerprint) has_fp FROM gpts")

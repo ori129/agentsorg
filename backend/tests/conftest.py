@@ -1,5 +1,9 @@
 import os
 
+# Tests run over http://test (not HTTPS), so secure cookies would be dropped
+# by HTTPX. Force this before the app module is imported so Settings picks it up.
+os.environ.setdefault("COOKIE_SECURE", "false")
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
@@ -41,8 +45,33 @@ async def db_session():
     await engine.dispose()
 
 
+def _set_limiters_enabled(enabled: bool):
+    """Enable/disable all known Limiter instances in the app."""
+    import importlib
+    for mod_name in ("app.main", "app.routers.auth"):
+        try:
+            mod = importlib.import_module(mod_name)
+            if hasattr(mod, "limiter"):
+                mod.limiter.enabled = enabled
+        except Exception:
+            pass
+
+
+async def _register_user(ac):
+    """Register a fresh admin user and return the bearer token."""
+    resp = await ac.post(
+        "/api/v1/auth/register",
+        json={"email": "testadmin@example.com", "password": "testpassword123"},
+    )
+    assert resp.status_code == 200, f"register failed: {resp.text}"
+    return resp.json()["token"]
+
+
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession):
+    # Disable rate limiting so tests don't trip over each other's counters.
+    _set_limiters_enabled(False)
+
     async def _override_get_db():
         yield db_session
 
@@ -52,3 +81,11 @@ async def client(db_session: AsyncSession):
     ) as ac:
         yield ac
     app.dependency_overrides.clear()
+    _set_limiters_enabled(True)
+
+
+@pytest_asyncio.fixture(scope="function")
+async def registered_client(client: AsyncClient):
+    """Like `client`, but with a registered admin user already logged in."""
+    await _register_user(client)
+    yield client

@@ -448,6 +448,7 @@ class CheckEmailResponse(BaseModel):
 class LoginResponse(BaseModel):
     user: WorkspaceUserRead
     token: str
+    requires_totp: bool = False
 
 
 class ChangePasswordRequest(BaseModel):
@@ -472,6 +473,115 @@ class InviteUserRequest(BaseModel):
 class InviteUserResponse(BaseModel):
     user: WorkspaceUserRead
     temp_password: str | None = None
+
+
+# ── OIDC / Enterprise SSO ─────────────────────────────────────────────────────
+
+
+class OidcProviderCreate(BaseModel):
+    name: str
+    issuer_url: str
+    client_id: str
+    client_secret: str | None = None  # plaintext — encrypted server-side
+    scopes: str = "openid email profile"
+    # Claim names for email / display name / groups
+    email_claim: str = "email"
+    name_claim: str = "name"
+    groups_claim: str | None = None
+    # Role mapping rules: list[{match: str, role: str} | {default: str}]
+    role_mapping_json: list | None = None
+    enabled: bool = True
+    enforce_sso: bool = False
+    allow_password_login: bool = True
+
+
+class OidcProviderUpdate(BaseModel):
+    name: str | None = None
+    client_id: str | None = None
+    client_secret: str | None = None
+    scopes: str | None = None
+    email_claim: str | None = None
+    name_claim: str | None = None
+    groups_claim: str | None = None
+    role_mapping_json: list | None = None
+    enabled: bool | None = None
+    enforce_sso: bool | None = None
+    allow_password_login: bool | None = None
+
+
+class OidcProviderRead(BaseModel):
+    id: int
+    name: str
+    issuer_url: str
+    client_id: str
+    # Never return the secret — just signal whether one is set
+    has_client_secret: bool
+    scopes: str
+    email_claim: str
+    name_claim: str
+    groups_claim: str | None
+    role_mapping_json: list | None
+    enabled: bool
+    enforce_sso: bool
+    allow_password_login: bool
+    # Populated from discovery
+    authorization_endpoint: str | None
+    token_endpoint: str | None
+    userinfo_endpoint: str | None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_orm_obj(cls, obj: "Any") -> "OidcProviderRead":
+        return cls(
+            id=obj.id,
+            name=obj.name,
+            issuer_url=obj.issuer_url,
+            client_id=obj.client_id,
+            has_client_secret=bool(obj.client_secret_encrypted),
+            scopes=obj.scopes or "openid email profile",
+            email_claim=obj.email_claim or "email",
+            name_claim=obj.name_claim or "name",
+            groups_claim=obj.groups_claim,
+            role_mapping_json=obj.role_mapping_json,
+            enabled=obj.enabled,
+            enforce_sso=obj.enforce_sso,
+            allow_password_login=obj.allow_password_login,
+            authorization_endpoint=obj.authorization_endpoint,
+            token_endpoint=obj.token_endpoint,
+            userinfo_endpoint=obj.userinfo_endpoint,
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+
+class OidcTestResult(BaseModel):
+    success: bool
+    message: str
+    discovery: dict | None = None
+
+
+class OidcEnforcementUpdate(BaseModel):
+    enforce_sso: bool
+    allow_password_login: bool = True
+
+
+class AuditLogEntryRead(BaseModel):
+    id: int
+    action: str
+    actor_user_id: str | None
+    actor_email: str | None
+    target_type: str | None
+    target_id: str | None
+    status: str
+    metadata_json: dict | None
+    ip_address: str | None
+    session_id: str | None
+    timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ── Conversation Intelligence ─────────────────────────────────────────────────

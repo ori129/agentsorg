@@ -13,3 +13,5 @@ bcrypt==5.0.0
 numpy>=1.26
 anthropic>=0.40.0
 slowapi==0.1.9
+pyotp==2.9.0
+pytest-env==1.1.5

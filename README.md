@@ -77,6 +77,14 @@ These feed into 3 composite scores and a quadrant label:
 ### 👤 Employee Portal
 Read-only GPT and Project discovery for non-admin users — search and browse what's available without accessing governance data.
 
+### 🔐 Auth & Security
+- **SSO via OIDC** — connect any OIDC-compatible provider (Okta, Entra ID, Google). Enforcement mode blocks password login for non-admin users; admins retain password access as an emergency fallback.
+- **TOTP MFA** — two-step login: password → 5-minute challenge token → 6-digit authenticator code. Secrets are Fernet-encrypted before storage.
+- **Role-gated analytics** — employees can search and discover GPTs via the Portal; all intelligence views (pipeline analytics, conversation data, clustering, workflow coverage) require `ai-leader` or `system-admin`.
+- **Bearer token restriction** — `Authorization: Bearer` only works for `token_type="api"` tokens. Browser session cookies cannot be extracted and replayed as API tokens.
+- **Encryption key rotation** — `POST /admin/rotate-encryption-key` re-encrypts all stored secrets (API keys, OIDC client secrets) atomically with a new Fernet key.
+- **Security white paper** — `docs/security_controls.md` documents all controls, IDOR mitigations, and the threat model.
+
 ### 🎯 Demo Mode
 Run the full pipeline with realistic mock data — no API keys needed. 500 GPTs across 10 departments, fully enriched with scores, rationale, priority actions, and usage signals. One click from the onboarding screen.
 
@@ -245,7 +253,7 @@ Load embeddings → Bucket by category → Centroid clustering → LLM validatio
 | Frontend | React 18, TypeScript, Tailwind CSS, TanStack Query, Vite |
 | Backend | FastAPI, SQLAlchemy 2.0 (async), Alembic, Pydantic v2 |
 | Database | PostgreSQL 16 + pgvector |
-| Auth | Session-based, role-aware (`system-admin`, `ai-leader`, `employee`) |
+| Auth | Session-based cookies (HttpOnly + SameSite), TOTP MFA, SSO via OIDC (enforced or optional), role-aware (`system-admin`, `ai-leader`, `employee`) |
 | Deployment | Docker Compose (3 services, zero external dependencies) |
 
 ---
@@ -260,10 +268,28 @@ Load embeddings → Bucket by category → Centroid clustering → LLM validatio
 | `POSTGRES_DB` | Database name | `agentsorg` |
 | `DATABASE_URL` | Full async connection string | composed from above |
 | `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
+| `COOKIE_SECURE` | Set to `false` for local HTTP dev; leave `true` (default) for HTTPS prod | `true` |
 
 ---
 
 ## API Reference
+
+<details>
+<summary><strong>Auth</strong></summary>
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/register` | Register the first admin user |
+| POST | `/api/v1/auth/login` | Password login (blocked for non-admins when SSO is enforced) |
+| POST | `/api/v1/auth/logout` | Revoke session |
+| GET | `/api/v1/auth/me` | Current user |
+| POST | `/api/v1/auth/totp/setup` | Generate TOTP secret + provisioning URI (returns `otpauth://` for authenticator apps) |
+| POST | `/api/v1/auth/totp/enable` | Verify first code and activate MFA |
+| DELETE | `/api/v1/auth/totp` | Disable MFA |
+| POST | `/api/v1/auth/totp/verify-login` | Complete two-step login with TOTP code |
+| GET | `/api/v1/auth/sso` | Get SSO / OIDC provider config |
+| PUT | `/api/v1/auth/sso` | Configure OIDC provider + enforcement setting |
+</details>
 
 <details>
 <summary><strong>Configuration</strong></summary>
@@ -364,6 +390,7 @@ Load embeddings → Bucket by category → Centroid clustering → LLM validatio
 | GET | `/api/v1/demo` | Get demo state |
 | PUT | `/api/v1/demo` | Toggle demo mode / set size |
 | POST | `/api/v1/admin/reset` | Full reset — clears GPTs, logs, categories, workshops |
+| POST | `/api/v1/admin/rotate-encryption-key` | Re-encrypt all stored secrets with a new Fernet key |
 </details>
 
 ---
@@ -399,6 +426,7 @@ Load embeddings → Bucket by category → Centroid clustering → LLM validatio
 │       └── types/index.ts         # TypeScript interfaces
 ├── docs/
 │   ├── erd.mmd                    # Entity-relationship diagram (Mermaid)
+│   ├── security_controls.md       # Security white paper (API key storage, IDOR controls, auth model)
 │   └── screenshots/               # README screenshots (demo data)
 ├── docker-compose.yml
 ├── Makefile

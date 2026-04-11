@@ -3,12 +3,12 @@ import difflib
 import json
 import re
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from openai import AsyncOpenAI
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth_deps import require_auth, require_system_admin
+from app.auth_deps import require_auth, require_leader, require_system_admin
 from app.database import get_db
 from app.encryption import decrypt
 from app.models.models import (
@@ -21,6 +21,7 @@ from app.models.models import (
     SyncLog,
     WorkflowAnalysisCache,
     WorkspaceRecommendation,
+    WorkspaceUser,
 )
 from app.schemas.schemas import (
     CategoryCount,
@@ -124,10 +125,9 @@ router = APIRouter(tags=["pipeline"])
 
 @router.post("/pipeline/run")
 async def start_pipeline(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     from app.services.demo_state import is_demo_mode
 
     status = get_pipeline_status()
@@ -158,20 +158,18 @@ async def start_pipeline(
 
 @router.get("/pipeline/status", response_model=PipelineStatus)
 async def get_status(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     return get_pipeline_status()
 
 
 @router.get("/pipeline/logs/{sync_log_id}", response_model=list[PipelineLogEntryRead])
 async def get_logs(
     sync_log_id: int,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     result = await db.execute(
         select(PipelineLogEntry)
         .where(PipelineLogEntry.sync_log_id == sync_log_id)
@@ -182,10 +180,9 @@ async def get_logs(
 
 @router.get("/pipeline/summary", response_model=PipelineSummary)
 async def get_summary(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     # Get last completed sync
     result = await db.execute(
         select(SyncLog)
@@ -313,10 +310,9 @@ async def get_summary(
 
 @router.get("/pipeline/recommendations", response_model=WorkspaceRecommendationRead)
 async def get_recommendations(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     result = await db.execute(
         select(WorkspaceRecommendation)
         .order_by(WorkspaceRecommendation.generated_at.desc())
@@ -333,10 +329,9 @@ async def get_recommendations(
 
 @router.get("/pipeline/gpts", response_model=list[GPTRead])
 async def list_gpts(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     result = await db.execute(select(GPT).order_by(GPT.created_at.desc()))
     gpts = result.scalars().all()
 
@@ -458,10 +453,9 @@ async def _keyword_candidates(q: str, db: AsyncSession) -> list[GPT]:
 @router.get("/pipeline/search", response_model=list[GPTSearchResult])
 async def search_gpts(
     q: str = Query(..., min_length=1),
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     # Load config for OpenAI key
     cfg_result = await db.execute(select(Configuration))
     config = cfg_result.scalar_one_or_none()
@@ -620,10 +614,9 @@ async def search_gpts(
 
 @router.get("/pipeline/history", response_model=list[SyncLogRead])
 async def get_history(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     result = await db.execute(
         select(SyncLog).order_by(SyncLog.started_at.desc()).limit(20)
     )
@@ -632,10 +625,9 @@ async def get_history(
 
 @router.get("/pipeline/sync-config", response_model=SyncConfigRead)
 async def get_sync_config(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     result = await db.execute(select(Configuration).where(Configuration.id == 1))
     config = result.scalar_one_or_none()
     if not config:
@@ -646,10 +638,9 @@ async def get_sync_config(
 @router.patch("/pipeline/sync-config", response_model=SyncConfigRead)
 async def patch_sync_config(
     body: SyncConfigPatch,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     result = await db.execute(select(Configuration).where(Configuration.id == 1))
     config = result.scalar_one_or_none()
     if not config:
@@ -665,10 +656,9 @@ async def patch_sync_config(
 
 @router.get("/pipeline/trend", response_model=list[PortfolioTrendPoint])
 async def get_portfolio_trend(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     """Returns one data point per completed pipeline run with KPI snapshots.
     Powers the Portfolio Health timeline chart.
     """
@@ -722,10 +712,9 @@ def _fuzzy_match_workflow(
 
 @router.get("/pipeline/workflows", response_model=list[WorkflowCoverageItem])
 async def get_workflow_coverage(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     """Returns workflow coverage analysis: covered, ghost, and intent-gap workflows.
 
     Three states per workflow:
@@ -885,10 +874,9 @@ async def get_workflow_coverage(
 @router.get("/pipeline/gpt/{gpt_id}/history", response_model=list[GptScoreHistoryPoint])
 async def get_gpt_score_history(
     gpt_id: str,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     """Returns per-asset score history for the longitudinal asset journey view."""
     result = await db.execute(
         select(GptScoreHistory)

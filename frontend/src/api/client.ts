@@ -1,4 +1,5 @@
 import type {
+  AuditLogEntry,
   AuthStatus,
   Category,
   CheckEmailResponse,
@@ -9,10 +10,14 @@ import type {
   GptScoreHistoryPoint,
   InviteUserResponse,
   LoginResponse,
+  OidcProvider,
+  OidcProviderCreate,
+  OidcTestResult,
   PipelineLogEntry,
   PipelineStatus,
   PipelineSummary,
   PortfolioTrendPoint,
+  SsoStatus,
   SyncConfig,
   SyncLog,
   TestConnectionResult,
@@ -24,21 +29,15 @@ import type {
 
 const BASE = "/api/v1";
 
+// SESSION_KEY kept for backward compat — no longer used for auth, but
+// some components still reference it for the transition period.
 const SESSION_KEY = "session_token";
 
-function getStoredToken(): string | null {
-  return localStorage.getItem(SESSION_KEY);
-}
-
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = getStoredToken();
-  const authHeader: Record<string, string> =
-    token ? { Authorization: `Bearer ${token}` } : {};
-
   const res = await fetch(`${BASE}${path}`, {
+    credentials: "include", // sends HttpOnly session cookie automatically
     headers: {
       "Content-Type": "application/json",
-      ...authHeader,
       ...(options?.headers as Record<string, string> | undefined),
     },
     ...options,
@@ -77,6 +76,12 @@ export const api = {
     request<LoginResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password: password ?? null }),
+    }),
+
+  verifyTotpLogin: (challengeToken: string, code: string) =>
+    request<LoginResponse>("/auth/totp/verify-login", {
+      method: "POST",
+      body: JSON.stringify({ challenge_token: challengeToken, code }),
     }),
 
   getMe: () => request<WorkspaceUser>("/auth/me"),
@@ -180,6 +185,35 @@ export const api = {
   getClusteringStatus: () => request<{ status: string }>("/clustering/status"),
   getClusteringResults: () => request<ClusterGroup[]>("/clustering/results"),
   runClustering: () => request<{ message: string }>("/clustering/run", { method: "POST" }),
+
+  // ------------------------------------------------------------------
+  // OIDC / Enterprise SSO
+  // ------------------------------------------------------------------
+  getSsoStatus: () => request<SsoStatus>("/auth/oidc/status"),
+  getOidcProviders: () => request<OidcProvider[]>("/auth/oidc/providers"),
+  createOidcProvider: (data: OidcProviderCreate) =>
+    request<OidcProvider>("/auth/oidc/providers", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateOidcProvider: (id: number, data: Partial<OidcProviderCreate>) =>
+    request<OidcProvider>(`/auth/oidc/providers/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteOidcProvider: (id: number) =>
+    request<void>(`/auth/oidc/providers/${id}`, { method: "DELETE" }),
+  testOidcProvider: (id: number) =>
+    request<OidcTestResult>(`/auth/oidc/providers/${id}/test`, { method: "POST" }),
+  setOidcEnforcement: (id: number, enforce_sso: boolean, allow_password_login: boolean) =>
+    request<OidcProvider>(`/auth/oidc/providers/${id}/enforce`, {
+      method: "PATCH",
+      body: JSON.stringify({ enforce_sso, allow_password_login }),
+    }),
+  getAuditLog: (limit = 100, offset = 0) =>
+    request<AuditLogEntry[]>(`/auth/audit?limit=${limit}&offset=${offset}`),
+  /** Redirect URL for SSO login — browser navigates directly to this */
+  getOidcLoginUrl: (providerId: number) => `${BASE}/auth/oidc/login/${providerId}`,
 
   // ------------------------------------------------------------------
   // Admin

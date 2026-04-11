@@ -21,8 +21,10 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://agentsorg:${POSTGRES_PASSWORD}@postgres:5432/agentsorg}
+      TEST_DATABASE_URL: postgresql+asyncpg://agentsorg:${POSTGRES_PASSWORD}@postgres:5432/agentsorg_test
       FERNET_KEY: ${FERNET_KEY}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:3000}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy

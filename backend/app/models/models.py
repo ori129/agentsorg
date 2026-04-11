@@ -303,6 +303,17 @@ class WorkspaceUser(Base):
     )
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
     password_temp: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Phase 2: identity provider linkage
+    auth_source: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="local"
+    )
+    external_subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # TOTP MFA — secret stored encrypted with FERNET_KEY
+    totp_secret_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class ConversationEvent(Base):
@@ -501,4 +512,91 @@ class LoginSession(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # Phase 2: track auth method and revocation
+    auth_method: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="password"
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # "session" = browser login (cookie only); "api" = explicit API token (Bearer only)
+    token_type: Mapped[str] = mapped_column(String(10), nullable=False, default="session")
     user: Mapped["WorkspaceUser"] = relationship()
+
+
+class OidcProvider(Base):
+    """OIDC identity provider configuration. One row per configured provider."""
+
+    __tablename__ = "oidc_providers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    issuer_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    client_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    client_secret_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Auto-discovered from .well-known/openid-configuration (cached)
+    authorization_endpoint: Mapped[str | None] = mapped_column(String(512))
+    token_endpoint: Mapped[str | None] = mapped_column(String(512))
+    userinfo_endpoint: Mapped[str | None] = mapped_column(String(512))
+    jwks_uri: Mapped[str | None] = mapped_column(String(512))
+    # Claim mapping
+    scopes: Mapped[str] = mapped_column(String(255), default="openid email profile")
+    email_claim: Mapped[str] = mapped_column(String(100), default="email")
+    name_claim: Mapped[str] = mapped_column(String(100), default="name")
+    groups_claim: Mapped[str | None] = mapped_column(String(100))
+    # Role mapping rules: list[{match: str, role: str}]
+    role_mapping_json: Mapped[list | None] = mapped_column(JSONB)
+    # Rollout controls
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    enforce_sso: Mapped[bool] = mapped_column(Boolean, default=False)
+    allow_password_login: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class OidcState(Base):
+    """Short-lived PKCE state for in-flight OIDC auth flows.
+    Row is created at login initiation, deleted after callback or expiry.
+    """
+
+    __tablename__ = "oidc_states"
+
+    state_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    provider_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("oidc_providers.id", ondelete="CASCADE"), nullable=False
+    )
+    code_verifier: Mapped[str] = mapped_column(String(256), nullable=False)
+    redirect_uri: Mapped[str] = mapped_column(String(512), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class AuditLogEntry(Base):
+    """Immutable structured audit trail for auth and privileged actions.
+    Never updated — only inserted and read.
+    """
+
+    __tablename__ = "audit_log_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    actor_user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    actor_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_type: Mapped[str | None] = mapped_column(String(50))
+    target_id: Mapped[str | None] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="success")
+    metadata_json: Mapped[dict | None] = mapped_column(JSONB)
+    ip_address: Mapped[str | None] = mapped_column(String(45))
+    user_agent: Mapped[str | None] = mapped_column(String(512))
+    session_id: Mapped[str | None] = mapped_column(String(64))

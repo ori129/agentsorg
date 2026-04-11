@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { api, SESSION_KEY } from "../api/client";
+import { api } from "../api/client";
 import type { WorkspaceUser, SystemRole } from "../types";
 
 interface AuthContextValue {
@@ -46,16 +46,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const token = localStorage.getItem(SESSION_KEY);
-      if (token) {
-        try {
-          const user = await api.getMe();
-          setState(user);
-          return;
-        } catch {
-          // Token invalid / expired — clear it
-          localStorage.removeItem(SESSION_KEY);
-        }
+      // Session is cookie-backed — just call /auth/me.
+      // The browser sends the HttpOnly cookie automatically.
+      try {
+        const user = await api.getMe();
+        setState(user);
+        return;
+      } catch {
+        // No valid session cookie
       }
 
       setState("login");
@@ -69,14 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [boot]);
 
   const login = async (email: string, password?: string) => {
-    const { user, token } = await api.login(email, password);
-    localStorage.setItem(SESSION_KEY, token);
+    // Backend sets HttpOnly cookie; response token kept for API clients but not stored in browser
+    const { user } = await api.login(email, password);
     setState(user);
   };
 
   const register = async (email: string, password: string) => {
-    const { user, token } = await api.register(email, password);
-    localStorage.setItem(SESSION_KEY, token);
+    const { user } = await api.register(email, password);
     setJustRegistered(true);
     setState(user);
   };
@@ -85,9 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await api.logoutSession();
     } catch {
-      // Ignore errors on logout — token may already be invalid
+      // Ignore errors on logout — cookie may already be expired
     }
-    localStorage.removeItem(SESSION_KEY);
     setState("login");
   };
 
@@ -97,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setState(user);
     } catch {
       // Session gone — force re-login
-      localStorage.removeItem(SESSION_KEY);
       setState("login");
     }
   };

@@ -1,13 +1,13 @@
 import asyncio
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth_deps import require_auth, require_system_admin
 from app.database import get_db
-from app.models.models import Category, SyncLog
+from app.models.models import Category, SyncLog, WorkspaceUser
 from app.services.demo_state import SIZE_MAP, get_demo_state, set_demo_state
 from app.services.pipeline import get_pipeline_status, run_pipeline
 
@@ -41,10 +41,9 @@ async def _last_sync_was_demo(db: AsyncSession) -> bool:
 
 @router.get("/demo", response_model=DemoStateRead)
 async def get_demo(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     state = get_demo_state()
     was_demo = await _last_sync_was_demo(db)
     # Auto-restore in-memory state if server restarted mid-demo
@@ -62,10 +61,9 @@ async def get_demo(
 @router.put("/demo", response_model=DemoStateRead)
 async def update_demo(
     body: DemoStateUpdate,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     state = set_demo_state(body.enabled, body.size)
     was_demo = await _last_sync_was_demo(db)
 

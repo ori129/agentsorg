@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth_deps import require_auth, require_system_admin
 from app.database import get_db
 from app.encryption import decrypt, encrypt, mask
-from app.models.models import Configuration
+from app.models.models import Configuration, WorkspaceUser
 from app.schemas.schemas import (
     ConfigurationRead,
     ConfigurationUpdate,
@@ -28,10 +28,9 @@ async def get_or_create_config(db: AsyncSession) -> Configuration:
 
 @router.get("/config", response_model=ConfigurationRead)
 async def get_config(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     config = await get_or_create_config(db)
     return ConfigurationRead(
         id=config.id,
@@ -52,10 +51,9 @@ async def get_config(
 @router.put("/config", response_model=ConfigurationRead)
 async def update_config(
     data: ConfigurationUpdate,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     config = await get_or_create_config(db)
     update_data = data.model_dump(exclude_unset=True)
 
@@ -89,10 +87,9 @@ async def update_config(
 
 @router.post("/config/test-connection", response_model=TestConnectionResult)
 async def test_connection(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     config = await get_or_create_config(db)
 
     if not config.compliance_api_key:
@@ -139,10 +136,9 @@ async def test_connection(
 
 @router.post("/config/test-openai-connection", response_model=TestConnectionResult)
 async def test_openai_connection(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     config = await get_or_create_config(db)
 
     if not config.openai_api_key:

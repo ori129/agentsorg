@@ -13,6 +13,7 @@ import Recognition from "./Recognition";
 import Learning from "./Learning";
 import Workshops from "./Workshops";
 import Users from "./Users";
+import AuthSettings from "./AuthSettings";
 import AdoptionPage from "./AdoptionPage";
 import WorkflowsPage from "./WorkflowsPage";
 import BuildersPage from "./sub/BuildersPage";
@@ -148,6 +149,7 @@ export default function LeaderLayout({ initialPage, onSetupNavigated, onSwitchTo
         {page === "learning" && <Learning />}
         {page === "workshops" && <Workshops />}
         {page === "users" && <Users />}
+        {page === "auth-settings" && <AuthSettings />}
       </main>
     </div>
   );

@@ -18,12 +18,12 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth_deps import require_auth, require_system_admin
+from app.auth_deps import require_auth, require_leader, require_system_admin
 from app.database import get_db
 from app.encryption import decrypt
 from app.models.models import (
@@ -33,6 +33,7 @@ from app.models.models import (
     ConversationSyncLog,
     GPT,
     UserUsageInsight,
+    WorkspaceUser,
 )
 from app.schemas.schemas import (
     AssetUsageInsightRead,
@@ -61,10 +62,9 @@ class ConversationRunRequest(BaseModel):
 @router.post("/run", status_code=202)
 async def start_conversation_pipeline(
     body: ConversationRunRequest = Body(default_factory=ConversationRunRequest),
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     """Start the conversation intelligence pipeline.
 
     Body (optional JSON): { "asset_ids": ["gpt-xxx", ...] }
@@ -161,11 +161,10 @@ async def start_conversation_pipeline(
 
 @router.get("/status")
 async def get_status(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
     """Return current pipeline run status."""
-    await require_auth(authorization, db)
     return get_pipeline_state()
 
 
@@ -175,10 +174,9 @@ async def get_status(
 @router.get("/history", response_model=list[ConversationSyncLogRead])
 async def get_history(
     limit: int = Query(20, ge=1, le=100),
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     result = await db.execute(
         select(ConversationSyncLog)
         .order_by(ConversationSyncLog.started_at.desc())
@@ -195,11 +193,10 @@ async def get_estimate(
     date_range_days: int = Query(30, ge=1, le=90),
     privacy_level: int = Query(3, ge=0, le=3),
     asset_ids: list[str] | None = Query(default=None),
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
     """Return cost estimate before running the pipeline."""
-    await require_auth(authorization, db)
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=date_range_days)
 
@@ -281,11 +278,10 @@ async def get_estimate(
 @router.get("/asset/{asset_id}", response_model=AssetUsageInsightRead | None)
 async def get_asset_insight(
     asset_id: str,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
     """Return the most recent AssetUsageInsight for an asset."""
-    await require_auth(authorization, db)
     result = await db.execute(
         select(AssetUsageInsight)
         .where(AssetUsageInsight.asset_id == asset_id)
@@ -330,10 +326,9 @@ async def get_asset_insight(
 @router.get("/user/{user_email}", response_model=list[UserUsageInsightRead])
 async def get_user_insights(
     user_email: str,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     """Return Level-3 insights for a specific user across all assets."""
     result = await db.execute(
         select(UserUsageInsight)
@@ -349,10 +344,9 @@ async def get_user_insights(
 @router.delete("/user/{user_email}", status_code=204)
 async def delete_user_insights(
     user_email: str,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     """Hard-delete all UserUsageInsight rows for a user. Admin GDPR action."""
     await db.execute(
         delete(UserUsageInsight).where(UserUsageInsight.user_email == user_email)
@@ -375,10 +369,9 @@ async def delete_user_insights(
 @router.get("/overview", response_model=ConversationOverview)
 async def get_overview(
     date_range_days: int = Query(30, ge=1, le=90),
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     """Aggregated workspace-level conversation metrics."""
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=date_range_days)
@@ -485,10 +478,9 @@ async def get_overview(
 @router.patch("/config", response_model=ConversationConfig)
 async def patch_config(
     body: ConversationConfig,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     """Update conversation pipeline configuration."""
     result = await db.execute(select(Configuration))
     config = result.scalar_one_or_none()

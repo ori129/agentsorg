@@ -1,7 +1,7 @@
 import logging
 import secrets
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,10 +29,9 @@ VALID_SYSTEM_ROLES = {"system-admin", "ai-leader", "employee"}
 @router.post("/users/invite", response_model=InviteUserResponse)
 async def invite_user(
     body: InviteUserRequest,
-    authorization: str | None = Header(default=None),
+    caller: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    caller = await require_system_admin(authorization, db)
 
     email = body.email.strip().lower()
     if not email:
@@ -81,10 +80,9 @@ async def invite_user(
 
 @router.post("/users/import", response_model=UserImportResult)
 async def import_users(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     config = await db.get(Configuration, 1)
     if not config or not config.workspace_id:
         raise HTTPException(
@@ -178,10 +176,9 @@ async def import_users(
 
 @router.get("/users", response_model=list[WorkspaceUserRead])
 async def list_users(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_auth),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_auth(authorization, db)
     result = await db.execute(select(WorkspaceUser).order_by(WorkspaceUser.email))
     return result.scalars().all()
 
@@ -190,10 +187,9 @@ async def list_users(
 async def update_user_role(
     user_id: str,
     body: SystemRoleUpdate,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    await require_system_admin(authorization, db)
     if body.system_role not in VALID_SYSTEM_ROLES:
         raise HTTPException(
             status_code=422,
@@ -227,10 +223,9 @@ async def update_user_role(
 @router.post("/users/{user_id}/reset-password", response_model=ResetPasswordResponse)
 async def reset_user_password(
     user_id: str,
-    authorization: str | None = Header(default=None),
+    caller: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    caller = await require_system_admin(authorization, db)
 
     user = await db.get(WorkspaceUser, user_id)
     if not user:

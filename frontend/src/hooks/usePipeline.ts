@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { SyncConfig } from "../types";
@@ -48,27 +48,47 @@ export function usePipelineHistory() {
 }
 
 /**
- * Global watcher — lives in App root. Polls pipeline status at all times.
- * When the pipeline transitions running→idle, invalidates all GPT data queries
- * so every view refreshes automatically regardless of which tab is active.
+ * Global watcher — lives in App root.
+ *
+ * Polling strategy:
+ *  - running        → 1.5 s  (tight loop to catch completion)
+ *  - tab hidden     → paused (no point hitting the server while user is away)
+ *  - tab visible    → 60 s   (heartbeat — catches a sync started elsewhere)
+ *  - tab re-focused → immediate refetch via refetchOnWindowFocus
+ *
+ * On running→idle transition, invalidates all derived data queries so every
+ * view refreshes automatically regardless of which tab is active.
  */
 export function useGlobalPipelineWatcher() {
   const qc = useQueryClient();
   const wasRunning = useRef<boolean | null>(null);
+  const [tabVisible, setTabVisible] = useState(() => !document.hidden);
+
+  useEffect(() => {
+    const handler = () => setTabVisible(!document.hidden);
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, []);
 
   const { data: status } = useQuery({
     queryKey: ["pipeline-status"],
     queryFn: api.getPipelineStatus,
-    // Poll fast when running, slow otherwise
-    refetchInterval: (query) =>
-      (query.state.data as { running?: boolean } | undefined)?.running ? 1500 : 8000,
+    refetchInterval: (query) => {
+      const running = (query.state.data as { running?: boolean } | undefined)?.running;
+      if (running) return 1500;      // sync in progress — stay fast
+      if (!tabVisible) return false; // tab hidden — save the requests
+      return 60_000;                 // idle + visible — heartbeat once a minute
+    },
+    // Override the global refetchOnWindowFocus: false so we check immediately
+    // when the user switches back to the tab.
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {
     if (status === undefined) return;
     const isRunning = status.running;
 
-    // Transition: running → stopped
+    // Transition: running → stopped → bust all derived caches
     if (wasRunning.current === true && !isRunning) {
       qc.invalidateQueries({ queryKey: ["pipeline-gpts"] });
       qc.invalidateQueries({ queryKey: ["pipeline-summary"] });

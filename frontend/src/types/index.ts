@@ -283,6 +283,7 @@ export interface WorkspaceUser {
 export interface LoginResponse {
   user: WorkspaceUser;
   token: string;
+  requires_totp?: boolean;
 }
 
 export interface CheckEmailResponse {
@@ -415,4 +416,66 @@ export interface ConversationPipelineStatus {
   assets_skipped: number;
   sync_log_id: number | null;
   error: string | null;
+}
+
+export interface OidcProvider {
+  id: number;
+  name: string;
+  issuer_url: string;
+  client_id: string;
+  has_client_secret: boolean;
+  scopes: string;
+  email_claim: string;
+  name_claim: string;
+  groups_claim: string | null;
+  role_mapping_json: Array<{ match?: string; role?: string; default?: string }> | null;
+  enabled: boolean;
+  enforce_sso: boolean;
+  allow_password_login: boolean;
+  authorization_endpoint: string | null;
+  token_endpoint: string | null;
+  userinfo_endpoint: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface OidcProviderCreate {
+  name: string;
+  issuer_url: string;
+  client_id: string;
+  client_secret?: string;
+  scopes?: string;
+  email_claim?: string;
+  name_claim?: string;
+  groups_claim?: string;
+  role_mapping_json?: Array<{ match?: string; role?: string; default?: string }>;
+  enabled?: boolean;
+  enforce_sso?: boolean;
+  allow_password_login?: boolean;
+}
+
+export interface OidcTestResult {
+  success: boolean;
+  message: string;
+  discovery: Record<string, unknown> | null;
+}
+
+export interface SsoStatus {
+  providers: Array<{ id: number; name: string }>;
+  enforce_sso: boolean;
+  allow_password_login: boolean;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  action: string;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  target_type: string | null;
+  target_id: string | null;
+  status: string;
+  metadata_json: Record<string, unknown> | null;
+  ip_address: string | null;
+  session_id: string | null;
+  timestamp: string;
 }

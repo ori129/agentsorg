@@ -210,7 +210,8 @@ def test_TS4b_quadrant_label_consistent_with_scores():
 
 
 @pytest.mark.asyncio
-async def test_TS5_pipeline_gpts_returns_score_fields(client: AsyncClient, db_session):
+async def test_TS5_pipeline_gpts_returns_score_fields(registered_client: AsyncClient, db_session):
+    client = registered_client
     """GET /pipeline/gpts includes score fields for scored assets."""
     from sqlalchemy import insert
     from app.models.models import Category
@@ -254,7 +255,8 @@ async def test_TS5_pipeline_gpts_returns_score_fields(client: AsyncClient, db_se
 
 
 @pytest.mark.asyncio
-async def test_TS6_pipeline_summary_quadrant_counts(client: AsyncClient, db_session):
+async def test_TS6_pipeline_summary_quadrant_counts(registered_client: AsyncClient, db_session):
+    client = registered_client
     """GET /pipeline/summary includes scores_assessed, champions, hidden_gems, etc."""
     gpts = [
         GPT(
@@ -320,7 +322,8 @@ async def test_TS6_pipeline_summary_quadrant_counts(client: AsyncClient, db_sess
 
 
 @pytest.mark.asyncio
-async def test_TS7_recommendations_404_when_empty(client: AsyncClient, db_session):
+async def test_TS7_recommendations_404_when_empty(registered_client: AsyncClient, db_session):
+    client = registered_client
     """GET /pipeline/recommendations returns 404 when no recommendations exist."""
     resp = await client.get("/api/v1/pipeline/recommendations")
     assert resp.status_code == 404
@@ -330,7 +333,8 @@ async def test_TS7_recommendations_404_when_empty(client: AsyncClient, db_sessio
 
 
 @pytest.mark.asyncio
-async def test_TS8_recommendations_returns_data(client: AsyncClient, db_session):
+async def test_TS8_recommendations_returns_data(registered_client: AsyncClient, db_session):
+    client = registered_client
     """GET /pipeline/recommendations returns most recent WorkspaceRecommendation."""
     from app.models.models import WorkspaceRecommendation
 

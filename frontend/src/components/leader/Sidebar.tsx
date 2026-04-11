@@ -28,7 +28,8 @@ export type LeaderPage =
   | "recognition"
   | "learning"
   | "workshops"
-  | "users";
+  | "users"
+  | "auth-settings";
 
 interface SidebarProps {
   page: LeaderPage;
@@ -66,6 +67,7 @@ const SECTIONS: { label: string; items: NavItem[]; adminOnly?: boolean }[] = [
       { id: "sync", label: "Sync" },
       { id: "enrichment", label: "Pipeline Setup" },
       { id: "users", label: "Users" },
+      { id: "auth-settings", label: "Auth & SSO" },
     ],
   },
 ];

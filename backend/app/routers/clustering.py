@@ -16,15 +16,15 @@ import os
 from datetime import datetime, timezone
 
 import numpy as np
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth_deps import require_auth, require_system_admin
+from app.auth_deps import require_auth, require_leader, require_system_admin
 from app.database import get_db
 from sqlalchemy import select, text
 
 from app.database import async_session
-from app.models.models import ClusterCache
+from app.models.models import ClusterCache, WorkspaceUser
 from app.schemas.schemas import (
     ClusterActionRequest,
     ClusterActionResponse,
@@ -456,11 +456,10 @@ async def _load_cluster_results_from_db() -> None:
 
 @router.post("/run")
 async def run_clustering(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_system_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Trigger async clustering. Returns immediately; poll /status for completion."""
-    await require_system_admin(authorization, db)
     if _clustering_lock.locked():
         return {"message": "Clustering already running"}
     _clustering_status["status"] = "running"
@@ -475,10 +474,9 @@ async def get_clustering_status() -> ClusteringStatus:
 
 @router.get("/results")
 async def get_clustering_results(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ) -> list[ClusterGroup]:
-    await require_auth(authorization, db)
     if _clustering_status["status"] == "running":
         raise HTTPException(status_code=202, detail="Clustering still running")
     # On first request after restart, restore from DB if memory is empty
@@ -491,10 +489,9 @@ async def get_clustering_results(
 async def save_cluster_action(
     cluster_id: str,
     body: ClusterActionRequest,
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ) -> ClusterActionResponse:
-    await require_auth(authorization, db)
     """Save a leader decision for a cluster."""
     decision = {
         "cluster_id": cluster_id,
@@ -512,9 +509,8 @@ async def save_cluster_action(
 
 @router.get("/decisions")
 async def get_decisions(
-    authorization: str | None = Header(default=None),
+    _: WorkspaceUser = Depends(require_leader),
     db: AsyncSession = Depends(get_db),
 ) -> list[ClusterActionResponse]:
     """Return all saved cluster decisions."""
-    await require_auth(authorization, db)
     return [ClusterActionResponse(**d) for d in _cluster_decisions.values()]

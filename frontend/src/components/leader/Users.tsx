@@ -317,10 +317,16 @@ function InviteUserModal({ onClose }: InviteUserModalProps) {
 
         {!inviteMutation.isSuccess ? (
           <>
-            <p className="text-sm mb-5" style={{ color: "var(--c-text-3)" }}>
+            <p className="text-sm mb-3" style={{ color: "var(--c-text-3)" }}>
               Add a user directly without importing from the OpenAI Compliance API.
               {needsPassword && " A temporary password will be generated for privileged roles."}
             </p>
+            <div
+              className="text-xs mb-5 px-3 py-2 rounded-lg"
+              style={{ background: "var(--c-surface-2)", color: "var(--c-text-4)", border: "1px solid var(--c-border)" }}
+            >
+              <strong style={{ color: "var(--c-text-3)" }}>Tip:</strong> For regular employees, set up SSO in Auth &amp; SSO settings — they'll appear here automatically on first login without needing an invitation.
+            </div>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div>
                 <label className="block text-xs mb-1" style={{ color: "var(--c-text-4)" }}>
@@ -567,7 +573,7 @@ export default function Users() {
         </div>
       </div>
       <p className="text-sm mb-6" style={{ color: "var(--c-text-4)" }}>
-        Workspace members imported from the OpenAI Compliance API, or invited directly.
+        Workspace members imported from the OpenAI Compliance API, invited directly, or auto-provisioned on first SSO login.
       </p>
 
       {/* Import result toast */}

@@ -375,12 +375,34 @@ async def test_cv8_week_over_week_trend(db_session, seed_gpts):
         yield db_session
 
     app.dependency_overrides[get_db] = _override_get_db
+    # Disable rate limiting for this inline client
+    import importlib
+    for _mod in ("app.main", "app.routers.auth"):
+        try:
+            _m = importlib.import_module(_mod)
+            if hasattr(_m, "limiter"):
+                _m.limiter.enabled = False
+        except Exception:
+            pass
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
+        # Register and login to get a session cookie
+        reg = await ac.post(
+            "/api/v1/auth/register",
+            json={"email": "cv8admin@example.com", "password": "testpassword123"},
+        )
+        assert reg.status_code == 200
         resp = await ac.get("/api/v1/conversations/asset/gpt-sales-001")
 
     app.dependency_overrides.clear()
+    for _mod in ("app.main", "app.routers.auth"):
+        try:
+            _m = importlib.import_module(_mod)
+            if hasattr(_m, "limiter"):
+                _m.limiter.enabled = True
+        except Exception:
+            pass
 
     assert resp.status_code == 200
     data = resp.json()

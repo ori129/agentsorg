@@ -24,6 +24,7 @@ from app.routers import (
     demo,
     fingerprint,
     learning,
+    oidc,
     pipeline,
     users,
 )
@@ -156,6 +157,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(oidc.router, prefix="/api/v1")
 app.include_router(configuration.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
 app.include_router(pipeline.router, prefix="/api/v1")
