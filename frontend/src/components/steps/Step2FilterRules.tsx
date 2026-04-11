@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Card from "../layout/Card";
 import { useConfiguration, useUpdateConfig } from "../../hooks/useConfiguration";
 
@@ -23,13 +23,15 @@ export default function Step2FilterRules({ onSaved }: Step2FilterRulesProps) {
   const [excludedEmails, setExcludedEmails] = useState("");
   const [initialized, setInitialized] = useState(false);
 
-  if (config && !initialized) {
-    setIncludeAll(config.include_all);
-    setVisibilityFilters(config.visibility_filters || {});
-    setMinSharedUsers(config.min_shared_users);
-    setExcludedEmails((config.excluded_emails || []).join(", "));
-    setInitialized(true);
-  }
+  useEffect(() => {
+    if (config && !initialized) {
+      setIncludeAll(config.include_all);
+      setVisibilityFilters(config.visibility_filters || {});
+      setMinSharedUsers(config.min_shared_users);
+      setExcludedEmails((config.excluded_emails || []).join(", "));
+      setInitialized(true);
+    }
+  }, [config, initialized]);
 
   if (isLoading) return <div className="form-hint">Loading...</div>;
 

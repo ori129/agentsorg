@@ -525,7 +525,6 @@ export default function Portal() {
   const hasProjects = useMemo(() => publicGpts.some((g) => g.asset_type === "project"), [publicGpts]);
 
   const filtered = useMemo(() => {
-    setShowAll(false);
     const base = searchResults ?? publicGpts;
     return base
       .filter((g) => assetFilter === "all" || (assetFilter === "project" ? g.asset_type === "project" : g.asset_type === "gpt" || !g.asset_type))
@@ -537,6 +536,9 @@ export default function Portal() {
         return a.name.localeCompare(b.name);
       });
   }, [searchResults, publicGpts, deptFilter, sortBy, isSearchMode, assetFilter]);
+
+  // Reset "show all" whenever filters change — must be in useEffect, not useMemo
+  useEffect(() => { setShowAll(false); }, [searchResults, publicGpts, deptFilter, sortBy, isSearchMode, assetFilter]);
 
   const openDrawer = (g: GPTItem) => setDrawer({ label: g.name, gpts: [g] });
 

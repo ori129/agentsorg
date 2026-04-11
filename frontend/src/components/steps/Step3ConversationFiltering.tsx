@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Card from "../layout/Card";
 import { useConfiguration } from "../../hooks/useConfiguration";
 import { usePatchConversationConfig } from "../../hooks/useConversations";
@@ -43,13 +43,15 @@ export default function Step3ConversationFiltering({ onSaved }: Step3Conversatio
   const [tokenBudget, setTokenBudget] = useState(10);
   const [initialized, setInitialized] = useState(false);
 
-  if (config && !initialized) {
-    const raw = config as unknown as Record<string, unknown>;
-    setPrivacyLevel(typeof raw.conversation_privacy_level === "number" ? raw.conversation_privacy_level : 3);
-    setDateRangeDays(typeof raw.conversation_date_range_days === "number" ? raw.conversation_date_range_days : 30);
-    setTokenBudget(typeof raw.conversation_token_budget_usd === "number" ? raw.conversation_token_budget_usd : 10);
-    setInitialized(true);
-  }
+  useEffect(() => {
+    if (config && !initialized) {
+      const raw = config as unknown as Record<string, unknown>;
+      setPrivacyLevel(typeof raw.conversation_privacy_level === "number" ? raw.conversation_privacy_level : 3);
+      setDateRangeDays(typeof raw.conversation_date_range_days === "number" ? raw.conversation_date_range_days : 30);
+      setTokenBudget(typeof raw.conversation_token_budget_usd === "number" ? raw.conversation_token_budget_usd : 10);
+      setInitialized(true);
+    }
+  }, [config, initialized]);
 
   const handleSave = () => {
     patchConfig.mutate(

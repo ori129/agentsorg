@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Card from "../layout/Card";
 import { useConfiguration, useUpdateConfig, useTestOpenaiConnection } from "../../hooks/useConfiguration";
 import { HELP_LINKS } from "../../config/helpLinks";
@@ -46,13 +46,15 @@ export default function Step3Categories({ onSaved }: Step3CategoriesProps) {
   const [newCategoryDesc, setNewCategoryDesc] = useState("");
   const [initialized, setInitialized] = useState(false);
 
-  if (config && !initialized) {
-    const hasOpenAiKey = !!config.openai_api_key;
-    setClassificationEnabled(hasOpenAiKey ? config.classification_enabled : true);
-    setModel(config.classification_model);
-    setMaxCategories(config.max_categories_per_gpt);
-    setInitialized(true);
-  }
+  useEffect(() => {
+    if (config && !initialized) {
+      const hasOpenAiKey = !!config.openai_api_key;
+      setClassificationEnabled(hasOpenAiKey ? config.classification_enabled : true);
+      setModel(config.classification_model);
+      setMaxCategories(config.max_categories_per_gpt);
+      setInitialized(true);
+    }
+  }, [config, initialized]);
 
   if (configLoading || catLoading) return <div className="form-hint">Loading…</div>;
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Card from "../layout/Card";
 import { useConfiguration, useUpdateConfig, useTestConnection } from "../../hooks/useConfiguration";
 import { HELP_LINKS } from "../../config/helpLinks";
@@ -13,11 +13,13 @@ export default function Step1ApiConfig() {
   const [baseUrl, setBaseUrl] = useState("https://api.chatgpt.com/v1");
   const [initialized, setInitialized] = useState(false);
 
-  if (config && !initialized) {
-    setWorkspaceId(config.workspace_id || "");
-    setBaseUrl(config.base_url || "https://api.chatgpt.com/v1");
-    setInitialized(true);
-  }
+  useEffect(() => {
+    if (config && !initialized) {
+      setWorkspaceId(config.workspace_id || "");
+      setBaseUrl(config.base_url || "https://api.chatgpt.com/v1");
+      setInitialized(true);
+    }
+  }, [config, initialized]);
 
   if (isLoading) return <div className="form-hint">Loading...</div>;
 
