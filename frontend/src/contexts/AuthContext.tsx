@@ -17,6 +17,8 @@ interface AuthContextValue {
   clearJustRegistered: () => void;
   /** Refresh current user from /auth/me (e.g. after change-password) */
   refreshUser: () => Promise<void>;
+  /** True when running on the hosted demo instance (fly.dev) */
+  isHostedDemo: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -30,6 +32,7 @@ const AuthContext = createContext<AuthContextValue>({
   justRegistered: false,
   clearJustRegistered: () => {},
   refreshUser: async () => {},
+  isHostedDemo: false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -37,8 +40,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     "loading"
   );
   const [justRegistered, setJustRegistered] = useState(false);
+  const [isHostedDemo, setIsHostedDemo] = useState(false);
 
   const boot = useCallback(async () => {
+    try {
+      // Check if this is a hosted demo instance before anything else
+      const appConfig = await api.getAppConfig();
+      if (appConfig.hosted_demo) {
+        setIsHostedDemo(true);
+        // Auto-login as the shared demo guest user (creates a session cookie)
+        const user = await api.guestSession();
+        setState(user);
+        return;
+      }
+    } catch {
+      // If app-config fails (e.g. local dev without this endpoint), fall through to normal auth
+    }
+
     try {
       const { initialized } = await api.getAuthStatus();
       if (!initialized) {
@@ -116,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         justRegistered,
         clearJustRegistered,
         refreshUser,
+        isHostedDemo,
       }}
     >
       {children}

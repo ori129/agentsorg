@@ -9,11 +9,11 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.config import settings
 from app.database import async_session
-from app.models.models import Configuration, SyncLog
+from app.models.models import Configuration, GPT, SyncLog, WorkspaceUser
 from app.routers import (
     admin,
     auth,
@@ -140,7 +140,67 @@ async def lifespan(app: FastAPI):
             await db.commit()
     except Exception as e:
         logger.warning(f"Startup init failed: {e}")
+
+    # Hosted demo: seed demo user + data on first boot
+    if settings.hosted_demo:
+        try:
+            await _seed_hosted_demo()
+        except Exception as e:
+            logger.warning(f"Hosted demo seed failed: {e}")
+
     yield
+
+
+async def _seed_hosted_demo():
+    """Ensure demo user exists and demo data is populated."""
+    from app.models.models import GPT, Category
+    from app.routers.categories import DEFAULT_CATEGORIES
+    from app.routers.demo import DEMO_USER_EMAIL
+    from app.services.demo_state import set_demo_state
+
+    async with async_session() as db:
+        # Ensure demo user exists
+        result = await db.execute(
+            select(WorkspaceUser).where(WorkspaceUser.email == DEMO_USER_EMAIL)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            user = WorkspaceUser(
+                email=DEMO_USER_EMAIL,
+                system_role="system-admin",
+                password_hash=None,
+            )
+            db.add(user)
+            await db.commit()
+            logger.info("Hosted demo: created demo user")
+
+        # Check if GPT data already exists
+        gpt_count_result = await db.execute(
+            select(func.count()).select_from(GPT)
+        )
+        gpt_count = gpt_count_result.scalar_one()
+
+        if gpt_count > 0:
+            logger.info(f"Hosted demo: {gpt_count} GPTs already in DB, skipping seed")
+            set_demo_state(True, "medium")
+            return
+
+        # Seed categories
+        cat_count_result = await db.execute(
+            select(func.count()).select_from(Category)
+        )
+        if cat_count_result.scalar_one() == 0:
+            for i, cat_data in enumerate(DEFAULT_CATEGORIES):
+                db.add(Category(**cat_data, sort_order=i))
+            await db.commit()
+            logger.info("Hosted demo: seeded default categories")
+
+    # Enable demo mode and kick off the pipeline
+    set_demo_state(True, "medium")
+    status = get_pipeline_status()
+    if not status["running"]:
+        logger.info("Hosted demo: launching mock pipeline to seed data")
+        asyncio.create_task(run_pipeline())
 
 
 app = FastAPI(title="AgentsOrg", version="1.0.0", lifespan=lifespan)

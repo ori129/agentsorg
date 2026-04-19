@@ -6,6 +6,7 @@ primary_region = "iad"
 
 [env]
   COOKIE_SECURE = "true"
+  HOSTED_DEMO = "true"
   BACKEND_CORS_ORIGINS = "https://agentsorg-demo.fly.dev"
   PUBLIC_URL = "https://agentsorg-demo.fly.dev"
 

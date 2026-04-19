@@ -56,6 +56,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // ------------------------------------------------------------------
+  // App config (public — no auth required)
+  // ------------------------------------------------------------------
+  getAppConfig: () => request<{ hosted_demo: boolean }>("/app-config"),
+  guestSession: () => request<WorkspaceUser>("/demo/guest-session", { method: "POST" }),
+
   // Auth
   // ------------------------------------------------------------------
   getAuthStatus: () => request<AuthStatus>("/auth/status"),

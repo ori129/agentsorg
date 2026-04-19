@@ -1,17 +1,81 @@
 import asyncio
+import secrets
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth_deps import require_auth, require_system_admin
+from app.config import settings
 from app.database import get_db
-from app.models.models import Category, SyncLog, WorkspaceUser
+from app.models.models import Category, LoginSession, SyncLog, WorkspaceUser
 from app.services.demo_state import SIZE_MAP, get_demo_state, set_demo_state
 from app.services.pipeline import get_pipeline_status, run_pipeline
 
 router = APIRouter(tags=["demo"])
+
+DEMO_USER_EMAIL = "guest@demo.agentsorg.ai"
+
+
+# ── Public endpoints (no auth) ─────────────────────────────────────────────────
+
+@router.get("/app-config")
+async def app_config():
+    """Public config the frontend reads before any auth to detect hosted-demo mode."""
+    return {"hosted_demo": settings.hosted_demo}
+
+
+@router.post("/demo/guest-session")
+async def guest_session(response: Response, db: AsyncSession = Depends(get_db)):
+    """Auto-login for hosted demo: returns a session for the shared demo user.
+    Only available when HOSTED_DEMO=true.
+    """
+    if not settings.hosted_demo:
+        raise HTTPException(status_code=403, detail="Not a hosted demo instance")
+
+    # Find or create the shared demo user
+    result = await db.execute(
+        select(WorkspaceUser).where(WorkspaceUser.email == DEMO_USER_EMAIL)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        user = WorkspaceUser(
+            email=DEMO_USER_EMAIL,
+            system_role="system-admin",
+            password_hash=None,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+    # Issue a 7-day session (refreshed on every visit)
+    token = secrets.token_urlsafe(32)
+    session = LoginSession(
+        user_id=user.id,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        token_type="session",
+    )
+    db.add(session)
+    await db.commit()
+
+    response.set_cookie(
+        "session_token",
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=settings.cookie_secure,
+        max_age=60 * 60 * 24 * 7,
+    )
+    return {
+        "id": user.id,
+        "email": user.email,
+        "system_role": user.system_role,
+        "password_temp": False,
+        "totp_enabled": False,
+    }
 
 
 class DemoStateRead(BaseModel):

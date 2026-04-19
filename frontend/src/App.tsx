@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { useGlobalPipelineWatcher } from "./hooks/usePipeline";
+import { useGlobalPipelineWatcher, usePipelineStatus } from "./hooks/usePipeline";
 import { useDemoState, useUpdateDemoState } from "./hooks/useDemo";
 import { api } from "./api/client";
 import Header from "./components/layout/Header";
@@ -17,7 +17,7 @@ import ForceChangePassword from "./components/auth/ForceChangePassword";
 export type TopView = "leader" | "employee";
 
 function AppInner() {
-  const { state, systemRole, logout, justRegistered, clearJustRegistered } = useAuth();
+  const { state, systemRole, logout, justRegistered, clearJustRegistered, isHostedDemo } = useAuth();
   const [topView, setTopView] = useState<TopView>("leader");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [goToSetup, setGoToSetup] = useState(false);
@@ -26,6 +26,8 @@ function AppInner() {
   const { data: demoState } = useDemoState();
   const updateDemo = useUpdateDemoState();
   const queryClient = useQueryClient();
+  // Only poll pipeline status when we're in hosted demo (to show seeding progress)
+  const { data: pipelineStatus } = usePipelineStatus(isHostedDemo);
 
   useGlobalPipelineWatcher();
 
@@ -51,16 +53,41 @@ function AppInner() {
     );
   }
 
-  if (state === "register") return <RegisterScreen />;
-  if (state === "login") return <LoginScreen />;
-
-  // Force password change when account is using a temporary password
-  if (typeof state === "object" && state.password_temp) {
-    return <ForceChangePassword />;
+  // Hosted demo: skip registration/login entirely
+  if (!isHostedDemo) {
+    if (state === "register") return <RegisterScreen />;
+    if (state === "login") return <LoginScreen />;
+    if (typeof state === "object" && state.password_temp) return <ForceChangePassword />;
   }
 
-  // Onboarding choice screen — shown right after first registration
-  if (showOnboarding) {
+  // Hosted demo: show seeding progress screen while mock pipeline runs on first boot
+  if (isHostedDemo && pipelineStatus?.running) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--c-bg)" }}>
+        <div className="text-center">
+          <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-5" />
+          <p className="text-base font-semibold mb-1" style={{ color: "var(--c-text)" }}>Preparing your demo workspace...</p>
+          <p className="text-sm" style={{ color: "var(--c-text-3)" }}>
+            Generating 500 AI assets across 10 departments. This takes about 20 seconds.
+          </p>
+          {pipelineStatus.progress > 0 && (
+            <div className="mt-5 w-64 mx-auto">
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--c-border)" }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${pipelineStatus.progress}%`, background: "#3b82f6" }}
+                />
+              </div>
+              <p className="text-xs mt-2" style={{ color: "var(--c-text-4)" }}>{Math.round(pipelineStatus.progress)}%</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Onboarding choice screen — shown right after first registration (not in hosted demo)
+  if (!isHostedDemo && showOnboarding) {
     return (
       <OnboardingScreen
         onDemo={() => {

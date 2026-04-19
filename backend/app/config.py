@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     # Gap 1: set True in production behind HTTPS. Default True; set COOKIE_SECURE=false
     # only for local HTTP development.
     cookie_secure: bool = True
+    # When True: skip registration, auto-login all visitors as a shared demo user,
+    # hide production setup options, and seed demo data on first boot.
+    hosted_demo: bool = False
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 
