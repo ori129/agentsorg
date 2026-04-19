@@ -342,16 +342,18 @@ export default function Overview({ gpts, onSetPage, onSwitchToProduction }: Over
               Connect your OpenAI Compliance API key to see your organization's real AI assets.
             </div>
           </div>
-          <button
-            onClick={onSwitchToProduction}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:opacity-90 flex-shrink-0 ml-6"
-            style={{ background: "#f59e0b", color: "#1c1200" }}
-          >
-            Connect to Production
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-            </svg>
-          </button>
+          {onSwitchToProduction && (
+            <button
+              onClick={onSwitchToProduction}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors hover:opacity-90 flex-shrink-0 ml-6"
+              style={{ background: "#f59e0b", color: "#1c1200" }}
+            >
+              Connect to Production
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
+          )}
         </div>
       )}
 

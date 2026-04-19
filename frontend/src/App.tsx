@@ -126,8 +126,8 @@ function AppInner() {
         userEmail={typeof state === "object" ? state.email : ""}
       />
 
-      {/* Demo mode banner — persistent reminder with easy exit */}
-      {isDemoActive && canSeeLeader && (
+      {/* Demo mode banner — persistent reminder with easy exit (hidden on hosted demo) */}
+      {isDemoActive && canSeeLeader && !isHostedDemo && (
         <DemoBanner onSwitchToProduction={handleSwitchToProduction} />
       )}
 
@@ -135,7 +135,7 @@ function AppInner() {
         <LeaderLayout
           initialPage={goToSetup ? "enrichment" : comingFromDemo ? "overview" : undefined}
           onSetupNavigated={() => { setGoToSetup(false); setComingFromDemo(false); }}
-          onSwitchToProduction={handleSwitchToProduction}
+          onSwitchToProduction={isHostedDemo ? undefined : handleSwitchToProduction}
         />
       )}
 
