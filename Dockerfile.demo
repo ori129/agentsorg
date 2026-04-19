@@ -1,0 +1,36 @@
+# ── Stage 1: build frontend ───────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-build
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
+
+# ── Stage 2: backend + nginx in one container ─────────────────────────────────
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev curl nginx supervisor && \
+    rm -rf /var/lib/apt/lists/*
+
+# Python deps
+WORKDIR /app/backend
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/ .
+
+# Frontend static files
+COPY --from=frontend-build /app/dist /usr/share/nginx/html
+
+# Configs
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/app.conf
+
+# Remove default nginx site
+RUN rm -f /etc/nginx/sites-enabled/default
+
+ENV PYTHONPATH=/app/backend
+
+EXPOSE 80
+
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/app.conf"]
