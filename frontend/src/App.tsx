@@ -17,7 +17,7 @@ import ForceChangePassword from "./components/auth/ForceChangePassword";
 export type TopView = "leader" | "employee";
 
 function AppInner() {
-  const { state, systemRole, logout, justRegistered, clearJustRegistered, isHostedDemo } = useAuth();
+  const { state, systemRole, logout, justRegistered, clearJustRegistered, isHostedDemo, isLoggedIn } = useAuth();
   const [topView, setTopView] = useState<TopView>("leader");
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [goToSetup, setGoToSetup] = useState(false);
