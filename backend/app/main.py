@@ -164,7 +164,7 @@ async def _seed_hosted_demo():
         result = await db.execute(
             select(WorkspaceUser).where(WorkspaceUser.email == DEMO_USER_EMAIL)
         )
-        user = result.scalar_one_or_none()
+        user = result.scalars().first()
         if not user:
             user = WorkspaceUser(
                 id=f"demo-{uuid.uuid4().hex[:12]}",
