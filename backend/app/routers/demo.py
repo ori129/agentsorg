@@ -1,5 +1,6 @@
 import asyncio
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -42,7 +43,10 @@ async def guest_session(response: Response, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user:
         user = WorkspaceUser(
+            id=f"demo-{uuid.uuid4().hex[:12]}",
             email=DEMO_USER_EMAIL,
+            role="account-owner",
+            status="active",
             system_role="system-admin",
             password_hash=None,
         )
