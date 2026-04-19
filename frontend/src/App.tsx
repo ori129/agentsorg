@@ -29,7 +29,7 @@ function AppInner() {
   // Only poll pipeline status when we're in hosted demo (to show seeding progress)
   const { data: pipelineStatus } = usePipelineStatus(isHostedDemo);
 
-  useGlobalPipelineWatcher();
+  useGlobalPipelineWatcher(isLoggedIn);
 
   // Show onboarding only immediately after registration
   useEffect(() => {

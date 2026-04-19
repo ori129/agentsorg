@@ -59,7 +59,7 @@ export function usePipelineHistory() {
  * On running→idle transition, invalidates all derived data queries so every
  * view refreshes automatically regardless of which tab is active.
  */
-export function useGlobalPipelineWatcher() {
+export function useGlobalPipelineWatcher(enabled: boolean = true) {
   const qc = useQueryClient();
   const wasRunning = useRef<boolean | null>(null);
   const [tabVisible, setTabVisible] = useState(() => !document.hidden);
@@ -73,7 +73,9 @@ export function useGlobalPipelineWatcher() {
   const { data: status } = useQuery({
     queryKey: ["pipeline-status"],
     queryFn: api.getPipelineStatus,
+    enabled,  // don't poll until session is established
     refetchInterval: (query) => {
+      if (!enabled) return false;
       const running = (query.state.data as { running?: boolean } | undefined)?.running;
       if (running) return 1500;      // sync in progress — stay fast
       if (!tabVisible) return false; // tab hidden — save the requests
