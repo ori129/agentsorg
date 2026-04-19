@@ -123,7 +123,7 @@ function AppInner() {
         onSetView={setTopView}
         canSeeLeader={canSeeLeader}
         onLogout={logout}
-        userEmail={state.email}
+        userEmail={typeof state === "object" ? state.email : ""}
       />
 
       {/* Demo mode banner — persistent reminder with easy exit */}
