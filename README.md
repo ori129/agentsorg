@@ -8,6 +8,7 @@
 </p>
 
 <p align="center">
+  <a href="https://agentsorg-demo.fly.dev"><img src="https://img.shields.io/badge/Live_Demo-agentsorg--demo.fly.dev-10b981?logo=fly.io&logoColor=white" alt="Live Demo" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License" /></a>
   <a href="docker-compose.yml"><img src="https://img.shields.io/badge/deploy-Docker_Compose-2496ED?logo=docker&logoColor=white" alt="Docker" /></a>
   <a href="https://github.com/ori129/agentsorg/commits/main"><img src="https://img.shields.io/github/last-commit/ori129/agentsorg" alt="Last Commit" /></a>
@@ -25,6 +26,8 @@ AgentsOrg.ai connects to the **OpenAI Compliance API** and gives your organizati
 OpenAI's built-in analytics tells you **how much** people use ChatGPT. AgentsOrg.ai tells you **how good** your GPTs are — and what to do about it.
 
 > **Self-hosted. Your data never leaves your infrastructure.**
+
+**[→ Try the live demo](https://agentsorg-demo.fly.dev)** — no sign-up required.
 
 ---
 
