@@ -8,7 +8,7 @@ pgvector==0.4.2
 cryptography==46.0.5
 httpx==0.28.1
 openai>=1.66.0
-python-multipart==0.0.22
+python-multipart==0.0.24
 bcrypt==5.0.0
 numpy>=1.26
 anthropic>=0.40.0
